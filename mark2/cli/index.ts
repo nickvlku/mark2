@@ -1,0 +1,43 @@
+#!/usr/bin/env node
+
+const command = process.argv[2];
+const projectDir = process.cwd();
+
+async function main() {
+  switch (command) {
+    case 'init': {
+      const { initCommand } = await import('./commands/init');
+      await initCommand(projectDir);
+      break;
+    }
+    case 'start': {
+      const { startCommand } = await import('./commands/start');
+      await startCommand(projectDir);
+      break;
+    }
+    case 'reindex': {
+      const { reindexCommand } = await import('./commands/reindex');
+      await reindexCommand(projectDir);
+      break;
+    }
+    case 'status': {
+      const { statusCommand } = await import('./commands/status');
+      await statusCommand();
+      break;
+    }
+    default:
+      console.log('Usage: mark2 <command>');
+      console.log('');
+      console.log('Commands:');
+      console.log('  init      Initialize Mark2 in the current directory');
+      console.log('  start     Start the Mark2 server');
+      console.log('  reindex   Rebuild the SQLite index from YAML files');
+      console.log('  status    Show active agent sessions');
+      process.exit(1);
+  }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
