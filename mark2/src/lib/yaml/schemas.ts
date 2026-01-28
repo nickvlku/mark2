@@ -28,12 +28,12 @@ export type ReviewSeverity = z.infer<typeof ReviewSeverity>;
 // ── Agent Definition ───────────────────────────────────────────────────
 
 export const AgentDefinitionSchema = z.object({
-  name: z.string().regex(/^[a-z0-9-]+$/, 'Agent names must be lowercase alphanumeric with hyphens'),
+  name: z.string().regex(/^[a-z][a-z0-9-]*$/, 'Agent names must be lowercase alphanumeric with hyphens, starting with a letter'),
   cli_tool: z.enum(['claude-code', 'codex-cli', 'gemini-cli', 'opencode']),
-  model: z.string(),
-  role_prompt: z.string(),
+  model: z.string().min(1, 'Model cannot be empty'),
+  role_prompt: z.string().min(1, 'Role prompt cannot be empty'),
   timeout_minutes: z.number().int().positive().default(60),
-});
+}).strict();
 export type AgentDefinition = z.infer<typeof AgentDefinitionSchema>;
 
 // ── Task Artifact ──────────────────────────────────────────────────────
@@ -64,11 +64,12 @@ export const TaskSchema = z.object({
   story_id: z.string().regex(/^STORY-\d+$/).optional(),
   parent_task: z.string().regex(/^TASK-\d+$/).optional(),
   merge_strategy: MergeStrategy.default('squash'),
+  auto_advance: z.boolean().default(true),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
   phase_entered_at: z.string().datetime(),
   loop_count: z.number().int().default(0),
-});
+});;
 export type Task = z.infer<typeof TaskSchema>;
 
 // ── Activity Log Entry ─────────────────────────────────────────────────
@@ -130,7 +131,7 @@ export type Config = z.infer<typeof ConfigSchema>;
 
 export const AgentsFileSchema = z.object({
   agents: z.array(AgentDefinitionSchema).default([]),
-});
+}).strict();
 export type AgentsFile = z.infer<typeof AgentsFileSchema>;
 
 // ── Type aliases for import convenience ────────────────────────────────

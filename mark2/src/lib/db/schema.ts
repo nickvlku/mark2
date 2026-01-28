@@ -18,6 +18,7 @@ export const tasks = sqliteTable(
     parent_task: text('parent_task'),
     created_by: text('created_by').notNull(),
     merge_strategy: text('merge_strategy').notNull().default('squash'),
+    auto_advance: integer('auto_advance', { mode: 'boolean' }).notNull().default(true),
     created_at: text('created_at').notNull(),
     updated_at: text('updated_at').notNull(),
     phase_entered_at: text('phase_entered_at').notNull(),
@@ -35,7 +36,7 @@ export const tasks = sqliteTable(
     index('idx_tasks_story_id').on(table.story_id),
     index('idx_tasks_parent_task').on(table.parent_task),
   ],
-);
+);;
 
 // ── Stories ──────────────────────────────────────────────────────────────────
 export const stories = sqliteTable('stories', {

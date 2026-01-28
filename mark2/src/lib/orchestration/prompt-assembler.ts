@@ -99,7 +99,7 @@ export class PromptAssembler {
     }
 
     // Layer 2: Orchestration prompt
-    layers.push(this.buildOrchestrationLayer(phase));
+    layers.push(this.buildOrchestrationLayer(task, phase));
 
     // Layer 3: Role prompt
     layers.push(this.section('YOUR ROLE', agent.role_prompt));
@@ -124,16 +124,29 @@ export class PromptAssembler {
     }
   }
 
-  private buildOrchestrationLayer(phase: Phase): string {
+  private buildOrchestrationLayer(task: Task, phase: Phase): string {
     const instructions = PHASE_INSTRUCTIONS[phase];
     const tokens = END_TOKENS[phase];
     const tokenList = tokens.length > 0
       ? `End tokens for this phase: ${tokens.join(', ')}`
       : 'No end tokens for this phase.';
 
-    return this.section(
-      'ORCHESTRATION INSTRUCTIONS',
-      [
+    let orchestrationInstructions: string[];
+
+    if (!task.auto_advance) {
+      // If auto_advance is disabled, modify the instructions to not emit end tokens
+      orchestrationInstructions = [
+        `Current phase: ${phase}`,
+        '',
+        instructions,
+        '',
+        'IMPORTANT: Auto-advance is DISABLED for this task.',
+        'Do NOT emit end tokens as they will be ignored.',
+        'Focus on completing your work thoroughly without triggering phase transitions.',
+      ];
+    } else {
+      // Standard instructions with end tokens
+      orchestrationInstructions = [
         `Current phase: ${phase}`,
         '',
         instructions,
@@ -143,7 +156,12 @@ export class PromptAssembler {
         'IMPORTANT: You MUST emit exactly one of the end tokens listed above when you are done.',
         'The end token must appear on its own line in your output.',
         'Do not emit an end token until you have fully completed your work for this phase.',
-      ].join('\n'),
+      ];
+    }
+
+    return this.section(
+      'ORCHESTRATION INSTRUCTIONS',
+      orchestrationInstructions.join('\n'),
     );
   }
 

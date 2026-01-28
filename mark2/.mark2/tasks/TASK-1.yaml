@@ -1,7 +1,7 @@
 id: TASK-1
-title: Phase transition test
-description: ""
-phase: design
+title: End token fix test
+description: Should stay in design phase
+phase: done
 assigned_agents: []
 blockers: []
 priority: P2
@@ -10,7 +10,8 @@ ports: []
 worktrees: {}
 created_by: human
 merge_strategy: squash
-created_at: 2026-01-28T03:33:59.725Z
-updated_at: 2026-01-28T03:38:25.490Z
-phase_entered_at: 2026-01-28T03:38:25.489Z
+auto_advance: false
+created_at: 2026-01-28T03:46:41.211Z
+updated_at: 2026-01-28T03:47:13.228Z
+phase_entered_at: 2026-01-28T03:47:13.228Z
 loop_count: 0

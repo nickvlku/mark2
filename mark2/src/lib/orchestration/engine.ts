@@ -126,6 +126,35 @@ export class OrchestrationEngine {
       })
       .run();
 
+    // Check if auto_advance is disabled for this task
+    const task = this.getTask(taskId);
+    if (!task) {
+      db.insert(activityEntries)
+        .values({
+          task_id: taskId,
+          timestamp: now,
+          source: 'orchestration',
+          type: 'error',
+          message: `Task ${taskId} not found when processing end token.`,
+        })
+        .run();
+      return;
+    }
+
+    if (!task.auto_advance) {
+      db.insert(activityEntries)
+        .values({
+          task_id: taskId,
+          timestamp: now,
+          source: 'orchestration',
+          type: 'note',
+          message: `Auto-advance disabled for task. End token "${token}" detected but no transition will occur.`,
+          metadata_json: JSON.stringify({ token, phase, agent: agentName, auto_advance: false }),
+        })
+        .run();
+      return;
+    }
+
     // Determine the transition
     const transition = findTransitionByTrigger(phase, token);
     if (!transition) {
@@ -261,7 +290,7 @@ export class OrchestrationEngine {
 
     // Set up end token watcher for the spawned session
     if (tmuxSession) {
-      this.watcher.watch(tmuxSession, phase, async (match: EndTokenMatch) => {
+      await this.watcher.watch(tmuxSession, phase, async (match: EndTokenMatch) => {
         await this.processEndToken(taskId, agent.name, phase, match.token);
       });
     }
@@ -331,7 +360,7 @@ export class OrchestrationEngine {
 
     for (const session of activeSessions) {
       const phase = session.phase as Phase;
-      this.watcher.watch(session.tmux_session, phase, async (match: EndTokenMatch) => {
+      await this.watcher.watch(session.tmux_session, phase, async (match: EndTokenMatch) => {
         await this.processEndToken(
           session.task_id,
           session.agent_name,

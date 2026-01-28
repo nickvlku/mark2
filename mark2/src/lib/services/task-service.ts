@@ -279,6 +279,7 @@ export class TaskService {
       parent_task: row.parent_task ?? undefined,
       created_by: row.created_by,
       merge_strategy: row.merge_strategy as Task['merge_strategy'],
+      auto_advance: row.auto_advance,
       created_at: row.created_at,
       updated_at: row.updated_at,
       phase_entered_at: row.phase_entered_at,
