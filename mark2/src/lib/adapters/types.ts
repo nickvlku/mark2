@@ -24,4 +24,11 @@ export interface CLIAdapter {
    * Return environment variables that should be set before running the command.
    */
   getEnvironment(params: AgentInvocationParams): Record<string, string>;
+
+  /**
+   * Return the path to a prompt file that should be pasted into the session
+   * after the CLI tool has started. Return undefined if the tool receives
+   * the prompt inline (e.g. via --print / -p flags).
+   */
+  getPromptFilePath?(params: AgentInvocationParams): string | undefined;
 }

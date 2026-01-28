@@ -148,6 +148,13 @@ export function initializeDatabase(mark2Dir?: string): void {
     );
   `);
 
+  // Migrations: add columns that may not exist yet
+  try {
+    sqliteInstance.exec(`ALTER TABLE tasks ADD COLUMN auto_approve INTEGER NOT NULL DEFAULT 0`);
+  } catch {
+    // Column already exists
+  }
+
   // Initialize counters if not present
   const stmt = sqliteInstance.prepare('INSERT OR IGNORE INTO id_counters (entity_type, next_id) VALUES (?, ?)');
   stmt.run('task', 1);

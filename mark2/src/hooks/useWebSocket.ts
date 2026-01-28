@@ -7,7 +7,7 @@ import type { WSMessage } from '@/types';
 // Constants
 // ---------------------------------------------------------------------------
 
-const WS_URL = 'ws://localhost:3101';
+const WS_URL = 'ws://localhost:3100/ws';
 const RECONNECT_BASE_MS = 1_000;
 const RECONNECT_MAX_MS = 30_000;
 

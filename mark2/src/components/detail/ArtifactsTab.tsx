@@ -68,7 +68,7 @@ export function ArtifactsTab({ task }: ArtifactsTabProps) {
   }
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-4 p-4 h-full overflow-y-auto">
       {Object.entries(groupedArtifacts).map(([phase, artifacts]) => (
         <div key={phase}>
           <div className="flex items-center gap-2 mb-2">

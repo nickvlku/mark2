@@ -11,6 +11,7 @@ import type { AgentInvocationParams } from '../../../types';
 
 export interface CodeReviewResult {
   tmuxSession: string;
+  promptFile?: string;
 }
 
 /**
@@ -77,6 +78,7 @@ export async function handleCodeReview(
 
   const command = adapter.buildCommand(params);
   const env = adapter.getEnvironment(params);
+  const promptFile = adapter.getPromptFilePath?.(params);
 
   // Spawn the agent
   const tmuxManager = new TmuxManager(mark2Dir);
@@ -105,5 +107,5 @@ export async function handleCodeReview(
     })
     .run();
 
-  return { tmuxSession };
+  return { tmuxSession, promptFile };
 }

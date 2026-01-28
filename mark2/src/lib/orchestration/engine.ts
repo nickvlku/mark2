@@ -21,7 +21,8 @@ import {
 } from './pipeline';
 import { EndTokenWatcher, type EndTokenMatch } from './end-token-watcher';
 import { TmuxManager } from './tmux-manager';
-import { sessionName as buildSessionName } from '../utils/tmux';
+import { sessionName as buildSessionName, sendPromptFile } from '../utils/tmux';
+import { TerminalStream } from '../ws/terminal-stream';
 
 import { handlePending } from './phase-handlers/pending';
 import { handleDesign } from './phase-handlers/design';
@@ -50,6 +51,7 @@ let instance: OrchestrationEngine | null = null;
 export class OrchestrationEngine {
   private watcher: EndTokenWatcher;
   private tmuxManager: TmuxManager;
+  private terminalStream: TerminalStream;
   private adapters: Map<string, CLIAdapter>;
   private config: EngineConfig;
   private reader: YamlReader;
@@ -59,6 +61,7 @@ export class OrchestrationEngine {
     this.config = config;
     this.watcher = new EndTokenWatcher();
     this.tmuxManager = new TmuxManager(config.mark2Dir);
+    this.terminalStream = TerminalStream.getInstance();
     this.reader = new YamlReader(config.mark2Dir);
     this.writer = new YamlWriter(config.mark2Dir);
 
@@ -110,9 +113,10 @@ export class OrchestrationEngine {
     const db = getDb(this.config.mark2Dir);
     const now = new Date().toISOString();
 
-    // Mark the current session as completed
+    // Mark the current session as completed and stop streaming
     const tmuxName = buildSessionName(taskId, agentName, phase);
     this.tmuxManager.markCompleted(tmuxName);
+    this.terminalStream.stop(taskId);
 
     // Log the end token detection
     db.insert(activityEntries)
@@ -150,6 +154,20 @@ export class OrchestrationEngine {
           type: 'note',
           message: `Auto-advance disabled for task. End token "${token}" detected but no transition will occur.`,
           metadata_json: JSON.stringify({ token, phase, agent: agentName, auto_advance: false }),
+        })
+        .run();
+      return;
+    }
+
+    if (!task.auto_approve) {
+      db.insert(activityEntries)
+        .values({
+          task_id: taskId,
+          timestamp: now,
+          source: 'orchestration',
+          type: 'note',
+          message: `Phase "${phase}" complete — awaiting human approval. End token "${token}" detected but auto-approve is off.`,
+          metadata_json: JSON.stringify({ token, phase, agent: agentName, auto_approve: false }),
         })
         .run();
       return;
@@ -230,6 +248,7 @@ export class OrchestrationEngine {
     const { projectRoot, mark2Dir, apiBaseUrl, agentToken } = this.config;
 
     let tmuxSession: string | undefined;
+    let promptFile: string | undefined;
 
     switch (phase) {
       case 'pending': {
@@ -243,9 +262,10 @@ export class OrchestrationEngine {
 
       case 'design': {
         const result = await handleDesign(
-          task, agent, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken,
+          task, agent, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken, loopContext,
         );
         tmuxSession = result.tmuxSession;
+        promptFile = result.promptFile;
         break;
       }
 
@@ -254,6 +274,7 @@ export class OrchestrationEngine {
           task, agent, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken, loopContext,
         );
         tmuxSession = result.tmuxSession;
+        promptFile = result.promptFile;
         break;
       }
 
@@ -262,6 +283,7 @@ export class OrchestrationEngine {
           task, agent, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken,
         );
         tmuxSession = result.tmuxSession;
+        promptFile = result.promptFile;
         break;
       }
 
@@ -270,6 +292,7 @@ export class OrchestrationEngine {
           task, agent, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken,
         );
         tmuxSession = result.tmuxSession;
+        promptFile = result.promptFile;
         break;
       }
 
@@ -279,6 +302,7 @@ export class OrchestrationEngine {
           this.config.basePort, this.config.portsPerTask,
         );
         tmuxSession = result.tmuxSession;
+        promptFile = result.promptFile;
         break;
       }
 
@@ -288,11 +312,22 @@ export class OrchestrationEngine {
       }
     }
 
-    // Set up end token watcher for the spawned session
+    // Set up end token watcher and terminal streaming for the spawned session
     if (tmuxSession) {
+      this.terminalStream.start(taskId, tmuxSession);
+
       await this.watcher.watch(tmuxSession, phase, async (match: EndTokenMatch) => {
         await this.processEndToken(taskId, agent.name, phase, match.token);
       });
+
+      // Deliver prompt file if the adapter uses interactive mode (e.g. Claude Code).
+      // This must happen after the CLI tool has fully initialized in the tmux session.
+      if (promptFile) {
+        console.log(`[engine] Scheduling prompt delivery to ${tmuxSession}: ${promptFile}`);
+        sendPromptFile(tmuxSession, promptFile, 5000)
+          .then(() => console.log(`[engine] Prompt file delivered to ${tmuxSession}`))
+          .catch((err) => console.error(`[engine] Failed to deliver prompt to ${tmuxSession}:`, err));
+      }
     }
   }
 
@@ -307,8 +342,9 @@ export class OrchestrationEngine {
     // Mark session as failed
     this.tmuxManager.markFailed(tmuxName);
 
-    // Stop the watcher if still active
+    // Stop the watcher and terminal stream
     this.watcher.stop(tmuxName);
+    this.terminalStream.stop(taskId);
 
     // Log the crash
     db.insert(activityEntries)
@@ -360,6 +396,7 @@ export class OrchestrationEngine {
 
     for (const session of activeSessions) {
       const phase = session.phase as Phase;
+      this.terminalStream.start(session.task_id, session.tmux_session);
       await this.watcher.watch(session.tmux_session, phase, async (match: EndTokenMatch) => {
         await this.processEndToken(
           session.task_id,
@@ -390,6 +427,7 @@ export class OrchestrationEngine {
    */
   shutdown(): void {
     this.watcher.stopAll();
+    this.terminalStream.stopAll();
   }
 
   /**

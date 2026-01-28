@@ -1,5 +1,5 @@
 import { capturePane } from '../utils/tmux';
-import { getWSServer } from './server';
+import { broadcastToTask } from './broadcaster';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -17,8 +17,17 @@ interface StreamEntry {
   lastLength: number;
 }
 
+let instance: TerminalStream | null = null;
+
 export class TerminalStream {
   private streams: Map<string, StreamEntry> = new Map();
+
+  static getInstance(): TerminalStream {
+    if (!instance) {
+      instance = new TerminalStream();
+    }
+    return instance;
+  }
 
   /**
    * Start streaming incremental TMUX pane output for a task.
@@ -79,8 +88,7 @@ export class TerminalStream {
         const newContent = output.slice(entry.lastLength);
         entry.lastLength = output.length;
 
-        const server = getWSServer();
-        server.sendToTask(taskId, 'terminal:output', {
+        broadcastToTask(taskId, 'terminal:output', {
           task_id: taskId,
           session: entry.sessionName,
           data: newContent,

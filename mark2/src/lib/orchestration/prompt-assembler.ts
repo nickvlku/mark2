@@ -23,6 +23,25 @@ interface ContextJson {
 
 // ── Phase-Specific Instructions ─────────────────────────────────────────────
 
+const ARTIFACT_INSTRUCTIONS = `
+## Reporting Artifacts
+
+After creating any document or file that is a deliverable of this phase, you MUST register it
+as an artifact so the human operator can review it. Use curl with the environment variables
+that are already set in your shell:
+
+  curl -s -X POST "$MARK2_API_URL/api/tasks/$MARK2_TASK_ID/artifacts" \\
+    -H "Content-Type: application/json" \\
+    -d '{"name": "<artifact-name>", "phase": "<current-phase>", "path": "<relative-path-from-worktree>"}'
+
+For example, after creating design.md:
+
+  curl -s -X POST "$MARK2_API_URL/api/tasks/$MARK2_TASK_ID/artifacts" \\
+    -H "Content-Type: application/json" \\
+    -d '{"name": "design-document", "phase": "design", "path": "design.md"}'
+
+Always register artifacts BEFORE emitting the end token.`;
+
 const PHASE_INSTRUCTIONS: Record<Phase, string> = {
   pending: '',
 
@@ -31,8 +50,9 @@ const PHASE_INSTRUCTIONS: Record<Phase, string> = {
 2. Produce a design document covering architecture, data models, API contracts, and file changes
 3. Identify risks and edge cases
 4. Save your design document as design.md in the worktree root
+5. Register design.md as an artifact (see artifact instructions below)
 
-When you have completed the design, emit the end token: [DESIGN_COMPLETED]`,
+When you have completed the design and registered artifacts, emit the end token: [DESIGN_COMPLETED]`,
 
   coding: `You are in the CODING phase. Your job is to:
 1. Implement the changes described in the design document
@@ -48,6 +68,7 @@ When you have completed the implementation, emit the end token: [CODING_COMPLETE
 2. Write new tests covering the changes made in the coding phase
 3. Ensure adequate test coverage for edge cases
 4. Run all tests and report results
+5. Save a test report as test-results.md and register it as an artifact
 
 If all tests pass, emit: [TESTING_PASSED]
 If any tests fail, emit: [TESTING_FAILED]`,
@@ -57,14 +78,14 @@ If any tests fail, emit: [TESTING_FAILED]`,
 2. Check for correctness, security issues, performance problems, and style violations
 3. Classify each issue by severity: P0 (must fix), P1 (should fix), P2 (nice to fix)
 4. Provide specific, actionable feedback with file paths and line numbers
-5. Save your review as review.md in the worktree root
+5. Save your review as review.md in the worktree root and register it as an artifact
 
 When you have completed the review, emit: [REVIEW_COMPLETED]`,
 
   manual_testing: `You are in the MANUAL TESTING phase. Your job is to:
 1. Start any development servers needed to test the changes
 2. Generate a test plan with specific steps a human tester should follow
-3. Save the test plan as test-plan.md in the worktree root
+3. Save the test plan as test-plan.md in the worktree root and register it as an artifact
 4. Report which ports are in use
 
 When the test environment is ready, emit: [MANUAL_TESTING_READY]`,
@@ -133,6 +154,10 @@ export class PromptAssembler {
 
     let orchestrationInstructions: string[];
 
+    // Only include artifact instructions for phases that produce artifacts
+    const artifactPhases: Phase[] = ['design', 'testing', 'code_review', 'manual_testing'];
+    const includeArtifacts = artifactPhases.includes(phase);
+
     if (!task.auto_advance) {
       // If auto_advance is disabled, modify the instructions to not emit end tokens
       orchestrationInstructions = [
@@ -140,6 +165,7 @@ export class PromptAssembler {
         '',
         instructions,
         '',
+        ...(includeArtifacts ? [ARTIFACT_INSTRUCTIONS, ''] : []),
         'IMPORTANT: Auto-advance is DISABLED for this task.',
         'Do NOT emit end tokens as they will be ignored.',
         'Focus on completing your work thoroughly without triggering phase transitions.',
@@ -151,6 +177,7 @@ export class PromptAssembler {
         '',
         instructions,
         '',
+        ...(includeArtifacts ? [ARTIFACT_INSTRUCTIONS, ''] : []),
         tokenList,
         '',
         'IMPORTANT: You MUST emit exactly one of the end tokens listed above when you are done.',

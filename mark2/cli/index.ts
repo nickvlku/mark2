@@ -25,14 +25,28 @@ async function main() {
       await statusCommand();
       break;
     }
+    case 'kill-sessions': {
+      const { killSessionsCommand } = await import('./commands/kill-sessions');
+      await killSessionsCommand();
+      break;
+    }
+    case 'restart': {
+      const { restartCommand } = await import('./commands/restart');
+      const taskId = process.argv[3];
+      const phase = process.argv[4];
+      await restartCommand(taskId, phase);
+      break;
+    }
     default:
       console.log('Usage: mark2 <command>');
       console.log('');
       console.log('Commands:');
-      console.log('  init      Initialize Mark2 in the current directory');
-      console.log('  start     Start the Mark2 server');
-      console.log('  reindex   Rebuild the SQLite index from YAML files');
-      console.log('  status    Show active agent sessions');
+      console.log('  init                      Initialize Mark2 in the current directory');
+      console.log('  start                     Start the Mark2 server');
+      console.log('  reindex                   Rebuild the SQLite index from YAML files');
+      console.log('  status                    Show active agent sessions');
+      console.log('  kill-sessions             Kill all mark2 tmux sessions');
+      console.log('  restart <taskId> [phase]  Restart current phase or transition to specified phase');
       process.exit(1);
   }
 }

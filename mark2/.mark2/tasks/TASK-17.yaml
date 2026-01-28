@@ -1,0 +1,16 @@
+id: TASK-17
+title: Detail Panel Test 1769571932870
+description: Testing the detail panel
+phase: pending
+assigned_agents: []
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: human
+merge_strategy: squash
+created_at: 2026-01-28T03:45:32.950Z
+updated_at: 2026-01-28T03:45:32.950Z
+phase_entered_at: 2026-01-28T03:45:32.950Z
+loop_count: 0

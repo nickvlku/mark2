@@ -4,6 +4,7 @@ import next from 'next';
 import { WebSocketServer, WebSocket } from 'ws';
 import type { IncomingMessage } from 'http';
 import type { Duplex } from 'stream';
+import { setBroadcaster } from './src/lib/ws/broadcaster';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = 'localhost';
@@ -61,6 +62,11 @@ app.prepare().then(() => {
   // WebSocket server on same HTTP server (upgrade path)
   wss = new WebSocketServer({ noServer: true });
 
+  // Get the Next.js upgrade handler so HMR WebSockets work in dev mode.
+  // Without this, /_next/webpack-hmr connections get destroyed, causing
+  // the browser to fall back to full page reloads instead of hot updates.
+  const nextUpgradeHandler = (app as any).getUpgradeHandler();
+
   server.on('upgrade', (request: IncomingMessage, socket: Duplex, head: Buffer) => {
     const { pathname } = parse(request.url!, true);
 
@@ -68,8 +74,9 @@ app.prepare().then(() => {
       wss!.handleUpgrade(request, socket, head, (ws) => {
         wss!.emit('connection', ws, request);
       });
-    } else {
-      socket.destroy();
+    } else if (nextUpgradeHandler) {
+      // Pass all other upgrades (including /_next/webpack-hmr) to Next.js
+      nextUpgradeHandler(request, socket, head);
     }
   });
 
@@ -116,6 +123,10 @@ app.prepare().then(() => {
   wss.on('close', () => {
     clearInterval(pingInterval);
   });
+
+  // Wire the broadcaster so TerminalStream (and other library code)
+  // can push messages to WebSocket clients.
+  setBroadcaster(sendToTask);
 
   server.listen(port, () => {
     console.log(`> Mark2 server ready on http://${hostname}:${port}`);

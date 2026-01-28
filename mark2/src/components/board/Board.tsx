@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { Task, Phase } from '@/types';
 import { useTasks } from '@/hooks/useTasks';
@@ -11,6 +11,7 @@ import { Card } from './Card';
 import { TaskDetail } from '../detail/TaskDetail';
 import { CreateTaskDialog } from '../create/CreateTaskDialog';
 import { CreateStoryDialog } from '../create/CreateStoryDialog';
+import { PageHeader } from '../shared/PageHeader';
 
 const PHASES: Phase[] = [
   'pending',
@@ -34,11 +35,8 @@ export function Board() {
   );
   const { stories, mutate: mutateStories } = useStories();
 
-  // Derive selected task from current data so it stays fresh across SWR refetches
-  const selectedTask = useMemo(
-    () => (selectedTaskId ? tasks.find((t: Task) => t.id === selectedTaskId) ?? null : null),
-    [selectedTaskId, tasks],
-  );
+  // Find the task for initial snapshot — TaskDetail fetches its own data after mount
+  const selectedTask = selectedTaskId ? tasks.find((t: Task) => t.id === selectedTaskId) ?? null : null;
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -98,36 +96,45 @@ export function Board() {
     setSelectedTaskId(task.id);
   }, []);
 
+  const handleCloseDetail = useCallback(() => {
+    setSelectedTaskId(null);
+  }, []);
+
+  const handleUpdateDetail = useCallback(() => {
+    mutateTasks();
+  }, [mutateTasks]);
+
   return (
     <div className="flex h-screen flex-col">
       {/* Top Bar */}
-      <header className="flex items-center justify-between border-b border-border px-6 py-3">
-        <div className="flex items-center gap-4">
-          <h1 className="text-lg font-bold text-text-primary tracking-tight">
-            <span className="text-accent">Mark2</span> Board
-          </h1>
+      <PageHeader
+        title="Board"
+        currentPage="board"
+        additionalElements={
           <StoryFilter
             stories={stories}
             tasks={tasks}
             selectedStoryId={selectedStoryId}
             onSelect={setSelectedStoryId}
           />
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowCreateStory(true)}
-            className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-text-secondary hover:bg-bg-hover transition-colors"
-          >
-            + Story
-          </button>
-          <button
-            onClick={() => setShowCreateTask(true)}
-            className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover transition-colors"
-          >
-            + Task
-          </button>
-        </div>
-      </header>
+        }
+        actions={
+          <>
+            <button
+              onClick={() => setShowCreateStory(true)}
+              className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-text-secondary hover:bg-bg-hover transition-colors"
+            >
+              + Story
+            </button>
+            <button
+              onClick={() => setShowCreateTask(true)}
+              className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover transition-colors"
+            >
+              + Task
+            </button>
+          </>
+        }
+      />
 
       {/* Board Columns */}
       <div className="flex flex-1 gap-3 overflow-x-auto px-4 py-4">
@@ -154,12 +161,13 @@ export function Board() {
         </DndContext>
       </div>
 
-      {/* Task Detail Slide-over */}
+      {/* Task Detail Slide-over — keyed by ID to prevent remount during SWR refetches */}
       {selectedTask && (
         <TaskDetail
+          key={selectedTask.id}
           task={selectedTask}
-          onClose={() => setSelectedTaskId(null)}
-          onUpdate={() => mutateTasks()}
+          onClose={handleCloseDetail}
+          onUpdate={handleUpdateDetail}
         />
       )}
 

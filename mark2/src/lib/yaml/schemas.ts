@@ -65,6 +65,7 @@ export const TaskSchema = z.object({
   parent_task: z.string().regex(/^TASK-\d+$/).optional(),
   merge_strategy: MergeStrategy.default('squash'),
   auto_advance: z.boolean().default(true),
+  auto_approve: z.boolean().default(false),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
   phase_entered_at: z.string().datetime(),

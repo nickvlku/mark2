@@ -85,6 +85,7 @@ describe('Phase Transitions Integration', () => {
       created_by: 'test',
       merge_strategy: 'squash',
       auto_advance: true,
+      auto_approve: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       phase_entered_at: new Date().toISOString(),

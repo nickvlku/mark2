@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { ActivityService } from '@/lib/services/activity-service';
+import { getDb, schema } from '@/lib/db';
+import { eq, and, desc } from 'drizzle-orm';
+import { sendCommand, isSessionAlive } from '@/lib/utils/tmux';
 
 const service = new ActivityService();
 
@@ -51,6 +54,13 @@ export async function POST(
       body.metadata,
     );
 
+    // If this is a human comment, forward it to the active tmux session
+    if (body.source === 'human' && body.type === 'comment') {
+      forwardCommentToSession(id, body.message).catch((err) => {
+        console.error(`[activity] Failed to forward comment to tmux:`, err.message);
+      });
+    }
+
     return NextResponse.json({ entry }, { status: 201 });
   } catch (error: any) {
     if (error.name === 'ZodError' || error.issues) {
@@ -64,4 +74,33 @@ export async function POST(
       { status: 500 },
     );
   }
+}
+
+/**
+ * Find the active tmux session for a task and send the comment as input.
+ */
+async function forwardCommentToSession(taskId: string, message: string): Promise<void> {
+  const db = getDb();
+  const rows = db
+    .select({ tmux_session: schema.agentSessions.tmux_session })
+    .from(schema.agentSessions)
+    .where(
+      and(
+        eq(schema.agentSessions.task_id, taskId),
+        eq(schema.agentSessions.status, 'running'),
+      ),
+    )
+    .orderBy(desc(schema.agentSessions.started_at))
+    .limit(1)
+    .all();
+
+  const session = rows[0];
+  if (!session) return;
+
+  const alive = await isSessionAlive(session.tmux_session);
+  if (!alive) return;
+
+  // Send the comment as typed input to the tmux session
+  const prefixed = `[Human Comment] ${message}`;
+  await sendCommand(session.tmux_session, prefixed);
 }

@@ -11,6 +11,7 @@ interface DialogProps {
   cancelLabel?: string;
   onConfirm?: () => void;
   variant?: 'default' | 'danger';
+  wide?: boolean;
   children?: React.ReactNode;
 }
 
@@ -23,6 +24,7 @@ export function Dialog({
   cancelLabel = 'Cancel',
   onConfirm,
   variant = 'default',
+  wide = false,
   children,
 }: DialogProps) {
   const handleKeyDown = useCallback(
@@ -56,7 +58,7 @@ export function Dialog({
         className="fade-in absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="fade-in relative w-full max-w-md rounded-xl border border-border bg-bg-secondary p-6 shadow-2xl">
+      <div className={`fade-in relative w-full ${wide ? 'max-w-2xl' : 'max-w-md'} max-h-[85vh] overflow-y-auto rounded-xl border border-border bg-bg-secondary p-6 shadow-2xl`}>
         <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
         {description && (
           <p className="mt-2 text-sm text-text-secondary">{description}</p>

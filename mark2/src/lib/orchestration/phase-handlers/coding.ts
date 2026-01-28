@@ -10,6 +10,7 @@ import type { AgentInvocationParams } from '../../../types';
 
 export interface CodingResult {
   tmuxSession: string;
+  promptFile?: string;
 }
 
 /**
@@ -78,6 +79,7 @@ export async function handleCoding(
   // Build command and environment
   const command = adapter.buildCommand(params);
   const env = adapter.getEnvironment(params);
+  const promptFile = adapter.getPromptFilePath?.(params);
 
   // Spawn the agent
   const tmuxManager = new TmuxManager(mark2Dir);
@@ -112,5 +114,5 @@ export async function handleCoding(
     })
     .run();
 
-  return { tmuxSession };
+  return { tmuxSession, promptFile };
 }

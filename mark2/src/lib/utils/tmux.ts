@@ -41,6 +41,35 @@ export async function listMark2Sessions(): Promise<string[]> {
   }
 }
 
+/**
+ * Deliver a prompt file into a tmux session using load-buffer + paste-buffer.
+ * This is used for interactive CLI tools (e.g. Claude Code) where we need to
+ * paste the prompt into stdin after the tool has started.
+ */
+export async function sendPromptFile(
+  sessionName: string,
+  filePath: string,
+  delayMs: number = 5000,
+): Promise<void> {
+  console.log(`[tmux] sendPromptFile: waiting ${delayMs}ms for ${sessionName} to initialize...`);
+  // Wait for the CLI tool to fully initialize before pasting
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
+
+  console.log(`[tmux] sendPromptFile: loading buffer from ${filePath}`);
+  await exec(`tmux load-buffer "${filePath}"`);
+
+  console.log(`[tmux] sendPromptFile: pasting buffer into ${sessionName}`);
+  await exec(`tmux paste-buffer -t "${sessionName}"`);
+
+  // Wait for the TUI to process the pasted content
+  console.log(`[tmux] sendPromptFile: waiting 1s before sending Enter`);
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  console.log(`[tmux] sendPromptFile: sending Enter to ${sessionName}`);
+  await exec(`tmux send-keys -t "${sessionName}" Enter`);
+  console.log(`[tmux] sendPromptFile: done for ${sessionName}`);
+}
+
 export async function isSessionAlive(name: string): Promise<boolean> {
   try {
     await exec(`tmux has-session -t "${name}"`);

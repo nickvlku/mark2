@@ -12,6 +12,7 @@ import type { AgentInvocationParams } from '../../../types';
 export interface ManualTestingResult {
   tmuxSession: string;
   allocatedPorts: number[];
+  promptFile?: string;
 }
 
 /**
@@ -92,6 +93,7 @@ export async function handleManualTesting(
 
   const command = adapter.buildCommand(params);
   const env = adapter.getEnvironment(params);
+  const promptFile = adapter.getPromptFilePath?.(params);
 
   // Spawn the agent
   const tmuxManager = new TmuxManager(mark2Dir);
@@ -120,5 +122,5 @@ export async function handleManualTesting(
     })
     .run();
 
-  return { tmuxSession, allocatedPorts };
+  return { tmuxSession, allocatedPorts, promptFile };
 }

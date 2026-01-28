@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import useSWR from 'swr';
 import type { Task } from '@/types';
 import { Badge } from '../shared/Badge';
 import { ActionBar } from '../shared/ActionBar';
@@ -10,8 +11,10 @@ import { ActivityTab } from './ActivityTab';
 import { CodeTab } from './CodeTab';
 import { TerminalTab } from './TerminalTab';
 
+const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
 interface TaskDetailProps {
-  task: Task;
+  task: Task;           // initial snapshot (used for first render)
   onClose: () => void;
   onUpdate: () => void;
 }
@@ -25,8 +28,17 @@ const tabs: { id: TabId; label: string }[] = [
   { id: 'terminal', label: 'Terminal' },
 ];
 
-export function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps) {
+export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailProps) {
   const [activeTab, setActiveTab] = useState<TabId>('activity');
+
+  // Fetch our own copy of the task so parent SWR revalidations don't
+  // unmount/remount us and destroy child state (e.g. comment input).
+  const { data } = useSWR<{ task: Task }>(
+    `/api/tasks/${initialTask.id}`,
+    fetcher,
+    { refreshInterval: 5000, fallbackData: { task: initialTask } },
+  );
+  const task = data?.task ?? initialTask;
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -44,13 +56,32 @@ export function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps) {
     };
   }, [handleKeyDown]);
 
-  const handlePhaseAction = async (action: string) => {
+  const handleToggleAutoApprove = async (value: boolean) => {
     try {
-      await fetch(`/api/tasks/${task.id}/phase`, {
-        method: 'PUT',
+      await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ auto_approve: value }),
       });
+      onUpdate();
+    } catch (err) {
+      console.error('Failed to toggle auto_approve:', err);
+    }
+  };
+
+  const handlePhaseAction = async (action: { phase: string } | { restart: true }) => {
+    try {
+      if ('restart' in action) {
+        await fetch(`/api/tasks/${task.id}/phase/restart`, {
+          method: 'POST',
+        });
+      } else {
+        await fetch(`/api/tasks/${task.id}/phase`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phase: action.phase }),
+        });
+      }
       onUpdate();
     } catch (err) {
       console.error('Phase action failed:', err);
@@ -141,7 +172,7 @@ export function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps) {
         </div>
 
         {/* Tab Content */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-hidden">
           {activeTab === 'artifacts' && <ArtifactsTab task={task} />}
           {activeTab === 'activity' && <ActivityTab task={task} />}
           {activeTab === 'code' && <CodeTab task={task} />}
@@ -149,7 +180,7 @@ export function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps) {
         </div>
 
         {/* Action Bar */}
-        <ActionBar task={task} onPhaseAction={handlePhaseAction} />
+        <ActionBar task={task} onPhaseAction={handlePhaseAction} onToggleAutoApprove={handleToggleAutoApprove} />
       </div>
     </div>
   );

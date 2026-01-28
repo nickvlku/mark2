@@ -19,6 +19,7 @@ export const tasks = sqliteTable(
     created_by: text('created_by').notNull(),
     merge_strategy: text('merge_strategy').notNull().default('squash'),
     auto_advance: integer('auto_advance', { mode: 'boolean' }).notNull().default(true),
+    auto_approve: integer('auto_approve', { mode: 'boolean' }).notNull().default(false),
     created_at: text('created_at').notNull(),
     updated_at: text('updated_at').notNull(),
     phase_entered_at: text('phase_entered_at').notNull(),

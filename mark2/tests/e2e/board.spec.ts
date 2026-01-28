@@ -7,26 +7,29 @@ test.describe('Board View', () => {
     // Verify the board loads
     await expect(page.locator('text=Mark2')).toBeVisible();
 
-    // Verify all 7 phase columns are present
-    const phases = ['pending', 'design', 'coding', 'testing', 'code_review', 'manual_testing', 'done'];
-    for (const phase of phases) {
-      await expect(page.getByText(phase.replace('_', ' '), { exact: false })).toBeVisible();
-    }
+    // Verify all 7 phase columns are present by their headings
+    await expect(page.getByRole('heading', { name: 'Pending', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Design', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Coding', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Testing', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Code Review', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Manual Testing', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Done', exact: true })).toBeVisible();
   });
 
   test('shows create task button', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByRole('button', { name: /add task/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: '+ Task' })).toBeVisible();
   });
 
   test('shows create story button', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByRole('button', { name: /add story/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: '+ Story' })).toBeVisible();
   });
 
   test('can open create task dialog', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: /add task/i }).click();
+    await page.getByRole('button', { name: '+ Task' }).click();
 
     // Dialog should appear with form fields
     await expect(page.getByPlaceholder(/task title/i)).toBeVisible();
@@ -34,23 +37,25 @@ test.describe('Board View', () => {
   });
 
   test('can create a task via the dialog', async ({ page }) => {
+    const uniqueTitle = `Test Task from Playwright ${Date.now()}`;
+    
     await page.goto('/');
-    await page.getByRole('button', { name: /add task/i }).click();
+    await page.getByRole('button', { name: '+ Task' }).click();
 
     // Fill in the form
-    await page.getByPlaceholder(/task title/i).fill('Test Task from Playwright');
+    await page.getByPlaceholder(/task title/i).fill(uniqueTitle);
     await page.getByPlaceholder(/describe the task/i).fill('This is an e2e test task');
 
     // Submit
     await page.getByRole('button', { name: /create task/i }).click();
 
     // Task should appear on the board in the pending column
-    await expect(page.getByText('Test Task from Playwright')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(uniqueTitle)).toBeVisible({ timeout: 10000 });
   });
 
   test('can open create story dialog', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: /add story/i }).click();
+    await page.getByRole('button', { name: '+ Story' }).click();
 
     // Dialog should appear with form fields
     await expect(page.getByPlaceholder(/story title/i)).toBeVisible();
@@ -58,11 +63,13 @@ test.describe('Board View', () => {
   });
 
   test('can create a story via the dialog', async ({ page }) => {
+    const uniqueTitle = `Test Story from Playwright ${Date.now()}`;
+    
     await page.goto('/');
-    await page.getByRole('button', { name: /add story/i }).click();
+    await page.getByRole('button', { name: '+ Story' }).click();
 
     // Fill in the form
-    await page.getByPlaceholder(/story title/i).fill('Test Story from Playwright');
+    await page.getByPlaceholder(/story title/i).fill(uniqueTitle);
     await page.getByPlaceholder(/describe the story/i).fill('An e2e test story');
 
     // Submit
@@ -75,10 +82,13 @@ test.describe('Board View', () => {
 
 test.describe('Task Detail', () => {
   test('clicking a task card opens the detail panel', async ({ page }) => {
+    // Generate a unique task title to avoid conflicts
+    const uniqueTitle = `Detail Panel Test ${Date.now()}`;
+    
     // First create a task via API
     const response = await page.request.post('/api/tasks', {
       data: {
-        title: 'Detail Panel Test',
+        title: uniqueTitle,
         description: 'Testing the detail panel',
       },
     });
@@ -86,12 +96,20 @@ test.describe('Task Detail', () => {
 
     await page.goto('/');
 
-    // Wait for the task to appear and click it
-    await page.getByText('Detail Panel Test').click();
+    // Wait for the task to appear and click the task card specifically
+    await page.getByRole('button', { name: new RegExp(uniqueTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }).click();
 
     // The detail panel should slide in with task info
-    await expect(page.getByText('Detail Panel Test')).toBeVisible();
-    await expect(page.getByText('Testing the detail panel')).toBeVisible();
+    // Check for the detail panel specifically (it should contain both title and description)
+    const detailPanel = page.locator('[data-testid="task-detail-panel"], .task-detail, .detail-panel').first();
+    if (await detailPanel.count() > 0) {
+      await expect(detailPanel.getByText(uniqueTitle)).toBeVisible();
+      await expect(detailPanel.getByText('Testing the detail panel')).toBeVisible();
+    } else {
+      // Fallback: check for any element containing the description, which should be unique
+      await expect(page.getByText('Testing the detail panel')).toBeVisible();
+      await expect(page.locator('h2').filter({ hasText: uniqueTitle })).toBeVisible();
+    }
   });
 });
 

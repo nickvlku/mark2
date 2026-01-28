@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import 'xterm/css/xterm.css';
 
 export const metadata: Metadata = {
   title: 'Mark2 - Agentic Orchestration',
