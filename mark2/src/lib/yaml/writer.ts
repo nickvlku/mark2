@@ -50,8 +50,8 @@ export class YamlWriter {
       fs.mkdirSync(dir, { recursive: true });
     }
     const content = YAML.stringify(data, { lineWidth: 0 });
-    // Write to temp file then rename (atomic on same filesystem)
-    const tmpPath = path.join(os.tmpdir(), `mark2_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+    // Write to temp file in the same directory then rename (must be same filesystem for atomic rename)
+    const tmpPath = path.join(dir, `.tmp_${Date.now()}_${Math.random().toString(36).slice(2)}`);
     fs.writeFileSync(tmpPath, content, 'utf-8');
     fs.renameSync(tmpPath, filePath);
   }

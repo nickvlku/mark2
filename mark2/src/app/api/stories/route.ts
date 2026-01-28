@@ -22,17 +22,17 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    if (!body.title || !body.description || !body.created_by) {
+    if (!body.title) {
       return NextResponse.json(
-        { error: 'title, description, and created_by are required' },
+        { error: 'title is required' },
         { status: 400 },
       );
     }
 
     const story = service.create({
       title: body.title,
-      description: body.description,
-      created_by: body.created_by,
+      description: body.description || '',
+      created_by: body.created_by || 'human',
     });
 
     return NextResponse.json({ story }, { status: 201 });

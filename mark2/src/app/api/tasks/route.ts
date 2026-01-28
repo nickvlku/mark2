@@ -32,22 +32,22 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    if (!body.title || !body.description || !body.created_by) {
+    if (!body.title) {
       return NextResponse.json(
-        { error: 'title, description, and created_by are required' },
+        { error: 'title is required' },
         { status: 400 },
       );
     }
 
     const task = service.create({
       title: body.title,
-      description: body.description,
+      description: body.description || '',
       priority: body.priority,
       blockers: body.blockers,
       assigned_agents: body.assigned_agents,
       story_id: body.story_id,
       parent_task: body.parent_task,
-      created_by: body.created_by,
+      created_by: body.created_by || 'human',
     });
 
     return NextResponse.json({ task }, { status: 201 });

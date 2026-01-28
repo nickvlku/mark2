@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { Task, Phase } from '@/types';
 import { useTasks } from '@/hooks/useTasks';
@@ -24,7 +24,7 @@ const PHASES: Phase[] = [
 
 export function Board() {
   const [selectedStoryId, setSelectedStoryId] = useState<string | null>(null);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [showCreateTask, setShowCreateTask] = useState(false);
   const [showCreateStory, setShowCreateStory] = useState(false);
@@ -33,6 +33,12 @@ export function Board() {
     selectedStoryId ? { story_id: selectedStoryId } : undefined,
   );
   const { stories, mutate: mutateStories } = useStories();
+
+  // Derive selected task from current data so it stays fresh across SWR refetches
+  const selectedTask = useMemo(
+    () => (selectedTaskId ? tasks.find((t: Task) => t.id === selectedTaskId) ?? null : null),
+    [selectedTaskId, tasks],
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -89,7 +95,7 @@ export function Board() {
   );
 
   const handleCardClick = useCallback((task: Task) => {
-    setSelectedTask(task);
+    setSelectedTaskId(task.id);
   }, []);
 
   return (
@@ -152,7 +158,7 @@ export function Board() {
       {selectedTask && (
         <TaskDetail
           task={selectedTask}
-          onClose={() => setSelectedTask(null)}
+          onClose={() => setSelectedTaskId(null)}
           onUpdate={() => mutateTasks()}
         />
       )}

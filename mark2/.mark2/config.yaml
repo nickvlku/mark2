@@ -1,0 +1,26 @@
+project_name: "mark2"
+server_port: 3100
+base_port: 3000
+ports_per_task: 10
+merge_strategy: squash
+auto_fix:
+  P0: true
+  P1: false
+  P2: false
+max_loop_count: 5
+phase_defaults:
+  design:
+    timeout_minutes: 30
+    auto_advance: false
+  coding:
+    timeout_minutes: 120
+    auto_advance: true
+  testing:
+    timeout_minutes: 60
+    auto_advance: true
+  code_review:
+    timeout_minutes: 30
+    auto_advance: true
+  manual_testing:
+    timeout_minutes: 15
+    auto_advance: false

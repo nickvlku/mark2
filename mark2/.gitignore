@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Mark2 database (derived from YAML files)
+.mark2/mark2.db

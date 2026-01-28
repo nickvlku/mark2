@@ -6,6 +6,7 @@ import fs from 'fs';
 
 let db: ReturnType<typeof drizzle> | null = null;
 let sqliteDb: Database.Database | null = null;
+let initialized = false;
 
 export function getDb(mark2Dir?: string): ReturnType<typeof drizzle> {
   if (db) return db;
@@ -25,6 +26,12 @@ export function getDb(mark2Dir?: string): ReturnType<typeof drizzle> {
   sqliteDb.pragma('foreign_keys = ON');
 
   db = drizzle(sqliteDb, { schema });
+
+  // Auto-initialize tables on first connection
+  if (!initialized) {
+    initializeDatabase(mark2Dir);
+  }
+
   return db;
 }
 
@@ -33,11 +40,14 @@ export function closeDb(): void {
     sqliteDb.close();
     sqliteDb = null;
     db = null;
+    initialized = false;
   }
 }
 
 export function initializeDatabase(mark2Dir?: string): void {
+  if (initialized) return;
   const database = getDb(mark2Dir);
+  initialized = true;
   // Create all tables using raw SQL from the schema
   // We'll use drizzle-kit push for migrations, but also support programmatic creation
   const sqliteInstance = sqliteDb!;

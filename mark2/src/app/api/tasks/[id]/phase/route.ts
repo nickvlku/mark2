@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
+import path from 'path';
 import { TaskService } from '@/lib/services/task-service';
 import { ArtifactService } from '@/lib/services/artifact-service';
 import { ActivityService } from '@/lib/services/activity-service';
+import { OrchestrationEngine } from '@/lib/orchestration/engine';
+import type { Phase } from '@/lib/yaml/schemas';
 import type { PhaseContext } from '@/types';
 
 const taskService = new TaskService();
@@ -72,7 +75,7 @@ export async function GET(
   }
 }
 
-export async function POST(
+async function handlePhaseTransition(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -88,6 +91,29 @@ export async function POST(
     }
 
     const task = taskService.transitionPhase(id, body.phase);
+
+    // Fire-and-forget: kick off orchestration for the new phase
+    const newPhase = body.phase as Phase;
+    if (newPhase !== 'pending' && newPhase !== 'done') {
+      try {
+        const projectRoot = process.cwd();
+        const mark2Dir = path.join(projectRoot, '.mark2');
+        const engine = OrchestrationEngine.getInstance({
+          projectRoot,
+          mark2Dir,
+          apiBaseUrl: `http://localhost:${process.env.PORT || 3100}`,
+          agentToken: process.env.MARK2_AGENT_TOKEN || 'mark2-local',
+        });
+        // Don't await — let orchestration run in background
+        engine.startPhase(id, newPhase).catch((err) => {
+          console.error(`[orchestration] Failed to start phase ${newPhase} for ${id}:`, err.message);
+        });
+      } catch (err: any) {
+        // Orchestration failure shouldn't break the phase transition
+        console.error(`[orchestration] Engine init failed:`, err.message);
+      }
+    }
+
     return NextResponse.json({ task });
   } catch (error: any) {
     if (error.message?.includes('not found')) {
@@ -105,3 +131,6 @@ export async function POST(
     );
   }
 }
+
+export const POST = handlePhaseTransition;
+export const PUT = handlePhaseTransition;
