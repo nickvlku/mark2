@@ -15,6 +15,11 @@ async function main() {
       await startCommand(projectDir);
       break;
     }
+    case 'stop': {
+      const { stopCommand } = await import('./commands/stop');
+      await stopCommand();
+      break;
+    }
     case 'reindex': {
       const { reindexCommand } = await import('./commands/reindex');
       await reindexCommand(projectDir);
@@ -43,6 +48,7 @@ async function main() {
       console.log('Commands:');
       console.log('  init                      Initialize Mark2 in the current directory');
       console.log('  start                     Start the Mark2 server');
+      console.log('  stop                      Stop the Mark2 server');
       console.log('  reindex                   Rebuild the SQLite index from YAML files');
       console.log('  status                    Show active agent sessions');
       console.log('  kill-sessions             Kill all mark2 tmux sessions');
