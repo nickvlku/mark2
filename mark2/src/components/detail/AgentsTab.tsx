@@ -144,7 +144,7 @@ export function AgentsTab({ task, onUpdate }: AgentsTabProps) {
                     <select
                       value={currentAssignment}
                       onChange={(e) => handleAssignmentChange(phase, e.target.value)}
-                      className="w-full rounded-lg border border-border bg-bg-primary px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                      className="w-full rounded-lg border border-border bg-bg-primary px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent [&>option]:bg-gray-800 [&>option]:text-white"
                     >
                       <option value="">Use default</option>
                       {phaseAgents.map((agent) => (

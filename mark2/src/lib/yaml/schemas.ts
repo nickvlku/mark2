@@ -13,6 +13,11 @@ export const Phase = z.enum([
 ]);
 export type Phase = z.infer<typeof Phase>;
 
+// Phases that can have agents assigned to them
+export const AssignablePhase = z.enum(['design', 'coding', 'testing', 'code_review', 'manual_testing']);
+export type AssignablePhase = z.infer<typeof AssignablePhase>;
+export const ASSIGNABLE_PHASES: AssignablePhase[] = ['design', 'coding', 'testing', 'code_review', 'manual_testing'];
+
 export const Priority = z.enum(['P0', 'P1', 'P2', 'P3']);
 export type Priority = z.infer<typeof Priority>;
 
@@ -25,16 +30,67 @@ export type MergeStrategy = z.infer<typeof MergeStrategy>;
 export const ReviewSeverity = z.enum(['P0', 'P1', 'P2']);
 export type ReviewSeverity = z.infer<typeof ReviewSeverity>;
 
-// ── Agent Definition ───────────────────────────────────────────────────
+export const CLIToolEnum = z.enum(['claude-code', 'codex-cli', 'gemini-cli', 'opencode']);
+export type CLITool = z.infer<typeof CLIToolEnum>;
+
+// ── Agent Definition (deprecated, kept for backwards compatibility) ────
 
 export const AgentDefinitionSchema = z.object({
   name: z.string().regex(/^[a-z][a-z0-9-]*$/, 'Agent names must be lowercase alphanumeric with hyphens, starting with a letter'),
-  cli_tool: z.enum(['claude-code', 'codex-cli', 'gemini-cli', 'opencode']),
+  cli_tool: CLIToolEnum,
   model: z.string().min(1, 'Model cannot be empty'),
+  phase: AssignablePhase,
   role_prompt: z.string().min(1, 'Role prompt cannot be empty'),
   timeout_minutes: z.number().int().positive().default(60),
 }).strict();
 export type AgentDefinition = z.infer<typeof AgentDefinitionSchema>;
+
+// ── Role Definition (new decoupled model) ──────────────────────────────
+
+export const RoleSchema = z.object({
+  name: z.string().regex(/^[a-z][a-z0-9-]*$/, 'Role names must be lowercase alphanumeric with hyphens, starting with a letter'),
+  description: z.string().optional(),
+  role_prompt: z.string().min(1, 'Role prompt cannot be empty'),
+  suggested_phases: z.array(AssignablePhase).default([]),
+  timeout_minutes: z.number().int().positive().default(60),
+}).strict();
+export type Role = z.infer<typeof RoleSchema>;
+
+export const RolesFileSchema = z.object({
+  roles: z.array(RoleSchema).default([]),
+}).strict();
+export type RolesFile = z.infer<typeof RolesFileSchema>;
+
+// ── Phase Default (new decoupled model) ────────────────────────────────
+
+export const PhaseDefaultSchema = z.object({
+  role: z.string().min(1),
+  cli_tool: CLIToolEnum,
+  model: z.string().min(1),
+  timeout_minutes: z.number().int().positive().optional(),
+  auto_advance: z.boolean().default(false),
+}).strict();
+export type PhaseDefault = z.infer<typeof PhaseDefaultSchema>;
+
+// ── Task Phase Override ────────────────────────────────────────────────
+
+export const TaskPhaseOverrideSchema = z.object({
+  role: z.string().optional(),
+  cli_tool: CLIToolEnum.optional(),
+  model: z.string().optional(),
+  timeout_minutes: z.number().int().positive().optional(),
+}).strict();
+export type TaskPhaseOverride = z.infer<typeof TaskPhaseOverrideSchema>;
+
+// ── Resolved Agent (computed at runtime, not persisted) ────────────────
+
+export interface ResolvedAgent {
+  roleName: string;
+  role_prompt: string;
+  cli_tool: CLITool;
+  model: string;
+  timeout_minutes: number;
+}
 
 // ── Task Artifact ──────────────────────────────────────────────────────
 
@@ -54,7 +110,10 @@ export const TaskSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string(),
   phase: Phase.default('pending'),
-  assigned_agents: z.array(z.string()).default([]),
+  // Deprecated: use phase_overrides instead
+  phase_agents: z.record(z.string(), z.string()).optional().default({}),
+  // New: phase-specific overrides for role, cli_tool, model
+  phase_overrides: z.record(z.string(), TaskPhaseOverrideSchema).optional().default({}),
   blockers: z.array(z.string()).default([]),
   priority: Priority.default('P2'),
   artifacts: z.array(TaskArtifact).default([]),
@@ -70,7 +129,7 @@ export const TaskSchema = z.object({
   updated_at: z.string().datetime(),
   phase_entered_at: z.string().datetime(),
   loop_count: z.number().int().default(0),
-});;
+});
 export type Task = z.infer<typeof TaskSchema>;
 
 // ── Activity Log Entry ─────────────────────────────────────────────────
@@ -105,12 +164,26 @@ export type Story = z.infer<typeof StorySchema>;
 
 // ── Project Config ─────────────────────────────────────────────────────
 
-export const PhaseConfig = z.object({
+// Legacy PhaseConfig (deprecated, for backwards compatibility)
+export const LegacyPhaseConfig = z.object({
   default_agent: z.string().optional(),
   timeout_minutes: z.number().int().positive().default(60),
   auto_advance: z.boolean().default(false),
 });
-export type PhaseConfig = z.infer<typeof PhaseConfig>;
+export type LegacyPhaseConfig = z.infer<typeof LegacyPhaseConfig>;
+
+// New PhaseDefaultConfig that supports the decoupled role/cli/model
+export const PhaseDefaultConfig = z.union([
+  // New format: role + cli_tool + model
+  PhaseDefaultSchema,
+  // Legacy format: default_agent only (deprecated)
+  LegacyPhaseConfig,
+]);
+export type PhaseDefaultConfig = z.infer<typeof PhaseDefaultConfig>;
+
+// Alias for backwards compatibility
+export const PhaseConfig = LegacyPhaseConfig;
+export type PhaseConfig = LegacyPhaseConfig;
 
 export const ConfigSchema = z.object({
   project_name: z.string(),
@@ -121,14 +194,14 @@ export const ConfigSchema = z.object({
     P1: z.boolean().default(false),
     P2: z.boolean().default(false),
   }).default({ P0: true, P1: false, P2: false }),
-  phase_defaults: z.record(z.string(), PhaseConfig).default({}),
+  phase_defaults: z.record(z.string(), PhaseDefaultConfig).default({}),
   max_loop_count: z.number().int().default(5),
   server_port: z.number().int().default(3100),
   merge_strategy: MergeStrategy.default('squash'),
 });
 export type Config = z.infer<typeof ConfigSchema>;
 
-// ── Agents File ────────────────────────────────────────────────────────
+// ── Agents File (deprecated) ───────────────────────────────────────────
 
 export const AgentsFileSchema = z.object({
   agents: z.array(AgentDefinitionSchema).default([]),
@@ -142,3 +215,19 @@ export type ParseError = {
   error: string;
   preserved: boolean;
 };
+
+// ── Helper functions ───────────────────────────────────────────────────
+
+/**
+ * Check if a phase default config is in the new format (has role, cli_tool, model)
+ */
+export function isNewPhaseDefault(config: PhaseDefaultConfig): config is PhaseDefault {
+  return 'role' in config && 'cli_tool' in config && 'model' in config;
+}
+
+/**
+ * Check if a phase default config is in the legacy format (has default_agent)
+ */
+export function isLegacyPhaseDefault(config: PhaseDefaultConfig): config is LegacyPhaseConfig {
+  return 'default_agent' in config || !('role' in config);
+}

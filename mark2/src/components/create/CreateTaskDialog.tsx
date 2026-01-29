@@ -101,7 +101,7 @@ export function CreateTaskDialog({ stories, onClose, onCreate }: CreateTaskDialo
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as Priority)}
-                className="w-full rounded-lg border border-border bg-bg-primary px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none transition-colors"
+                className="w-full rounded-lg border border-border bg-bg-primary px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none transition-colors [&>option]:bg-gray-800 [&>option]:text-white"
               >
                 {priorities.map((p) => (
                   <option key={p} value={p}>
@@ -117,7 +117,7 @@ export function CreateTaskDialog({ stories, onClose, onCreate }: CreateTaskDialo
               <select
                 value={storyId}
                 onChange={(e) => setStoryId(e.target.value)}
-                className="w-full rounded-lg border border-border bg-bg-primary px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none transition-colors"
+                className="w-full rounded-lg border border-border bg-bg-primary px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none transition-colors [&>option]:bg-gray-800 [&>option]:text-white"
               >
                 <option value="">None</option>
                 {stories.map((s) => (

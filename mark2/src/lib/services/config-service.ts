@@ -3,8 +3,8 @@ import path from 'path';
 import YAML from 'yaml';
 import { YamlReader } from '../yaml/reader';
 import { YamlWriter } from '../yaml/writer';
-import { ConfigSchema, AgentsFileSchema } from '../yaml/schemas';
-import type { Config, AgentsFile, AgentDefinition } from '../yaml/schemas';
+import { ConfigSchema, AgentsFileSchema, RolesFileSchema } from '../yaml/schemas';
+import type { Config, AgentsFile, AgentDefinition, Role, RolesFile } from '../yaml/schemas';
 
 export class ConfigService {
   private reader: YamlReader;
@@ -33,6 +33,37 @@ export class ConfigService {
     return config;
   }
 
+  // ── Roles (new decoupled model) ───────────────────────────────────────
+
+  getRoles(): Role[] {
+    const { data, error } = this.reader.readRoles();
+    if (!data) {
+      // Return empty array if roles.yaml doesn't exist yet
+      if (error?.error === 'File not found') {
+        return [];
+      }
+      throw new Error(`Failed to read roles: ${error?.error ?? 'unknown error'}`);
+    }
+    return data.roles;
+  }
+
+  updateRoles(roles: Role[]): Role[] {
+    const rolesFile = RolesFileSchema.parse({ roles });
+    this.writer.writeRoles(rolesFile);
+    return rolesFile.roles;
+  }
+
+  getRoleByName(name: string): Role | undefined {
+    const roles = this.getRoles();
+    return roles.find(r => r.name === name);
+  }
+
+  // ── Agents (deprecated, kept for backwards compatibility) ─────────────
+
+  /**
+   * @deprecated Use getRoles() instead. Agents are being replaced by the new
+   * decoupled role/cli/model system.
+   */
   getAgents(): AgentDefinition[] {
     const filePath = path.join(this.mark2Dir, 'agents.yaml');
     if (!fs.existsSync(filePath)) {
@@ -52,6 +83,10 @@ export class ConfigService {
     }
   }
 
+  /**
+   * @deprecated Use updateRoles() instead. Agents are being replaced by the new
+   * decoupled role/cli/model system.
+   */
   updateAgents(agents: AgentDefinition[]): AgentDefinition[] {
     const agentsFile = AgentsFileSchema.parse({ agents });
     const filePath = path.join(this.mark2Dir, 'agents.yaml');

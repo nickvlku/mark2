@@ -34,6 +34,7 @@ describe('ConfigService - Agent Management', () => {
           name: 'test-agent',
           cli_tool: 'claude-code',
           model: 'claude-sonnet-4-20250514',
+          phase: 'coding',
           role_prompt: 'You are a test agent',
           timeout_minutes: 60,
         },
@@ -41,6 +42,7 @@ describe('ConfigService - Agent Management', () => {
           name: 'gemini-agent',
           cli_tool: 'gemini-cli',
           model: 'gemini-1.5-pro',
+          phase: 'design',
           role_prompt: 'You are a Gemini agent',
           timeout_minutes: 30,
         },
@@ -104,6 +106,7 @@ describe('ConfigService - Agent Management', () => {
           name: 'new-agent',
           cli_tool: 'claude-code' as const,
           model: 'claude-sonnet-4-20250514',
+          phase: 'coding' as const,
           role_prompt: 'You are a new agent',
           timeout_minutes: 60,
         },
@@ -132,6 +135,7 @@ describe('ConfigService - Agent Management', () => {
           name: 'nested-agent',
           cli_tool: 'opencode' as const,
           model: 'gpt-4',
+          phase: 'testing' as const,
           role_prompt: 'You are a nested agent',
           timeout_minutes: 45,
         },
@@ -148,8 +152,9 @@ describe('ConfigService - Agent Management', () => {
       const initialAgents = [
         {
           name: 'initial-agent',
-          cli_tool: 'codex-cli',
+          cli_tool: 'codex-cli' as const,
           model: 'gpt-4',
+          phase: 'coding' as const,
           role_prompt: 'Initial agent',
           timeout_minutes: 30,
         },
@@ -162,6 +167,7 @@ describe('ConfigService - Agent Management', () => {
           name: 'updated-agent',
           cli_tool: 'gemini-cli' as const,
           model: 'gemini-1.5-pro',
+          phase: 'design' as const,
           role_prompt: 'Updated agent',
           timeout_minutes: 90,
         },
@@ -182,6 +188,7 @@ describe('ConfigService - Agent Management', () => {
           name: 'agent-one',
           cli_tool: 'claude-code' as const,
           model: 'claude-sonnet-4-20250514',
+          phase: 'design' as const,
           role_prompt: 'You are agent one',
           timeout_minutes: 60,
         },
@@ -189,6 +196,7 @@ describe('ConfigService - Agent Management', () => {
           name: 'agent-two',
           cli_tool: 'gemini-cli' as const,
           model: 'gemini-1.5-pro',
+          phase: 'coding' as const,
           role_prompt: 'You are agent two',
           timeout_minutes: 30,
         },
@@ -196,6 +204,7 @@ describe('ConfigService - Agent Management', () => {
           name: 'agent-three',
           cli_tool: 'opencode' as const,
           model: 'gpt-4-turbo',
+          phase: 'testing' as const,
           role_prompt: 'You are agent three',
           timeout_minutes: 120,
         },
@@ -217,6 +226,7 @@ describe('ConfigService - Agent Management', () => {
           name: 'temp-agent',
           cli_tool: 'claude-code' as const,
           model: 'claude-sonnet-4-20250514',
+          phase: 'coding' as const,
           role_prompt: 'Temporary agent',
           timeout_minutes: 60,
         },
@@ -250,11 +260,12 @@ describe('ConfigService - Agent Management', () => {
     it('should apply default timeout when not specified', () => {
       const agentWithoutTimeout = {
         name: 'default-timeout-agent',
-        cli_tool: 'claude-code' as const,
+        cli_tool: 'claude-code',
         model: 'claude-sonnet-4-20250514',
+        phase: 'coding',
         role_prompt: 'Agent with default timeout',
         // timeout_minutes not specified - should default to 60
-      };
+      } as any;
 
       const result = configService.updateAgents([agentWithoutTimeout]);
 
@@ -266,6 +277,7 @@ describe('ConfigService - Agent Management', () => {
         name: 'custom-timeout-agent',
         cli_tool: 'claude-code' as const,
         model: 'claude-sonnet-4-20250514',
+        phase: 'coding' as const,
         role_prompt: 'Agent with custom timeout',
         timeout_minutes: 180,
       };
@@ -291,6 +303,7 @@ describe('ConfigService - Agent Management', () => {
           name: invalidName,
           cli_tool: 'claude-code' as const,
           model: 'claude-sonnet-4-20250514',
+          phase: 'coding' as const,
           role_prompt: 'Test agent',
           timeout_minutes: 60,
         };
@@ -313,6 +326,7 @@ describe('ConfigService - Agent Management', () => {
           name: validName,
           cli_tool: 'claude-code' as const,
           model: 'claude-sonnet-4-20250514',
+          phase: 'coding' as const,
           role_prompt: 'Test agent',
           timeout_minutes: 60,
         };
@@ -329,6 +343,7 @@ describe('ConfigService - Agent Management', () => {
           name: 'test-agent',
           cli_tool: cliTool,
           model: 'test-model',
+          phase: 'coding' as const,
           role_prompt: 'Test agent',
           timeout_minutes: 60,
         };
@@ -341,6 +356,7 @@ describe('ConfigService - Agent Management', () => {
         name: 'test-agent',
         cli_tool: 'invalid-tool' as any,
         model: 'test-model',
+        phase: 'coding' as const,
         role_prompt: 'Test agent',
         timeout_minutes: 60,
       };

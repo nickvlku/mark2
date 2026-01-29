@@ -1,18 +1,38 @@
 'use client';
 
 import { useDraggable } from '@dnd-kit/core';
-import type { Task } from '@/types';
+import type { Task, TaskWithSession, SessionStatus } from '@/types';
 import { PriorityBadge, AgentBadge, StatusIndicator, BlockerBadge } from './CardBadges';
 
 interface CardProps {
-  task: Task;
+  task: Task & { session_status?: SessionStatus };
   onClick: (task: Task) => void;
 }
 
-function getTaskStatus(task: Task): string {
+function getTaskStatus(task: Task & { session_status?: SessionStatus }): string {
   if (task.blockers.length > 0) return 'blocked';
   if (task.phase === 'done') return 'idle';
-  if (task.assigned_agents.length > 0) return 'running';
+
+  // Use session_status if available
+  if (task.session_status) {
+    switch (task.session_status) {
+      case 'running':
+        return 'running';
+      case 'completed':
+        // If completed but not auto_approve, it's waiting for approval
+        if (!task.auto_approve) {
+          return 'waiting';
+        }
+        return 'idle';
+      case 'failed':
+        return 'failed';
+      default:
+        return 'idle';
+    }
+  }
+
+  // Fallback to legacy logic
+  if (task.phase_agents && Object.keys(task.phase_agents).length > 0) return 'running';
   return 'idle';
 }
 
@@ -72,8 +92,8 @@ export function Card({ task, onClick }: CardProps) {
       {/* Bottom row: agents, blockers, time */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 flex-wrap">
-          {task.assigned_agents.map((agent) => (
-            <AgentBadge key={agent} name={agent} />
+          {task.phase_agents && Object.entries(task.phase_agents).map(([phase, agent]) => (
+            <AgentBadge key={phase} name={agent} />
           ))}
           <BlockerBadge count={task.blockers.length} />
         </div>

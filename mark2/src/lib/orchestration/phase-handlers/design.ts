@@ -1,9 +1,7 @@
-import fs from 'fs';
-import path from 'path';
 import type { Task, AgentDefinition } from '../../yaml/schemas';
-import { createWorktree } from '../../utils/git';
+import { CloneService } from '../../services/clone-service';
 import { getDb } from '../../db';
-import { activityEntries, worktreeRecords } from '../../db/schema';
+import { activityEntries } from '../../db/schema';
 import { TmuxManager } from '../tmux-manager';
 import { PromptAssembler } from '../prompt-assembler';
 import type { CLIAdapter } from '../../adapters/types';
@@ -12,7 +10,7 @@ import type { PromptContext } from '../prompt-assembler';
 
 export interface DesignResult {
   tmuxSession: string;
-  worktreePath: string;
+  clonePath: string;
   branchName: string;
   promptFile?: string;
 }
@@ -20,7 +18,7 @@ export interface DesignResult {
 /**
  * Handle the design phase for a task.
  *
- * 1. Create a git worktree for the task
+ * 1. Create a git clone for the task (isolated from main repo)
  * 2. Assemble the design prompt
  * 3. Spawn the agent in a TMUX session
  */
@@ -28,7 +26,7 @@ export async function handleDesign(
   task: Task,
   agent: AgentDefinition,
   adapter: CLIAdapter,
-  projectRoot: string,
+  _projectRoot: string,
   mark2Dir: string,
   apiBaseUrl: string,
   agentToken: string,
@@ -36,25 +34,12 @@ export async function handleDesign(
 ): Promise<DesignResult> {
   const db = getDb(mark2Dir);
   const now = new Date().toISOString();
-  const branchName = `mark2/${task.id}/design`;
-  const worktreePath = path.join(projectRoot, '.worktrees', task.id, 'design');
 
-  // Create the git worktree only if it doesn't already exist (restart case)
-  if (!fs.existsSync(worktreePath)) {
-    await createWorktree(projectRoot, worktreePath, branchName);
-
-    // Record the worktree
-    db.insert(worktreeRecords)
-      .values({
-        task_id: task.id,
-        agent_name: agent.name,
-        worktree_path: worktreePath,
-        branch_name: branchName,
-        created_at: now,
-        status: 'active',
-      })
-      .run();
-  }
+  // Create or reuse the isolated git clone for this task
+  const cloneService = new CloneService(mark2Dir);
+  const cloneInfo = await cloneService.createClone(task.id);
+  const clonePath = cloneInfo.clonePath;
+  const branchName = cloneInfo.branchName;
 
   // Assemble the prompt (include any context from restart)
   const assembler = new PromptAssembler(mark2Dir);
@@ -66,7 +51,7 @@ export async function handleDesign(
   // Build invocation params
   const params: AgentInvocationParams = {
     prompt,
-    workingDirectory: worktreePath,
+    workingDirectory: clonePath,
     agentName: agent.name,
     model: agent.model,
     taskId: task.id,
@@ -88,7 +73,7 @@ export async function handleDesign(
     agentName: agent.name,
     phase: 'design',
     command,
-    workingDir: worktreePath,
+    workingDir: clonePath,
     env,
   });
 
@@ -103,11 +88,11 @@ export async function handleDesign(
       metadata_json: JSON.stringify({
         agent: agent.name,
         tmux_session: tmuxSession,
-        worktree: worktreePath,
+        clone_path: clonePath,
         branch: branchName,
       }),
     })
     .run();
 
-  return { tmuxSession, worktreePath, branchName, promptFile };
+  return { tmuxSession, clonePath, branchName, promptFile };
 }

@@ -14,7 +14,8 @@ function makeTask(id: string, overrides: Partial<Task> = {}): Task {
     title: `Task ${id}`,
     description: `Description for ${id}`,
     phase: 'pending',
-    assigned_agents: [],
+    phase_agents: {},
+    phase_overrides: {},
     blockers: [],
     priority: 'P2',
     artifacts: [],
@@ -22,6 +23,8 @@ function makeTask(id: string, overrides: Partial<Task> = {}): Task {
     worktrees: {},
     created_by: 'human',
     merge_strategy: 'squash',
+    auto_advance: true,
+    auto_approve: false,
     created_at: NOW,
     updated_at: NOW,
     phase_entered_at: NOW,
@@ -69,7 +72,7 @@ describe('YAML Roundtrip', () => {
         description: 'Build authentication system',
         phase: 'coding',
         priority: 'P0',
-        assigned_agents: ['design-agent', 'coding-agent'],
+        phase_agents: { design: 'design-agent', coding: 'coding-agent' },
         blockers: ['TASK-2'],
         ports: [3010, 3011],
         worktrees: { 'coding-agent': '/tmp/worktree' },
@@ -88,7 +91,7 @@ describe('YAML Roundtrip', () => {
       expect(data!.description).toBe('Build authentication system');
       expect(data!.phase).toBe('coding');
       expect(data!.priority).toBe('P0');
-      expect(data!.assigned_agents).toEqual(['design-agent', 'coding-agent']);
+      expect(data!.phase_agents).toEqual({ design: 'design-agent', coding: 'coding-agent' });
       expect(data!.blockers).toEqual(['TASK-2']);
       expect(data!.ports).toEqual([3010, 3011]);
       expect(data!.worktrees).toEqual({ 'coding-agent': '/tmp/worktree' });
@@ -202,7 +205,8 @@ describe('YAML Roundtrip', () => {
         title: 'Task',
         description: 'desc',
         phase: 'pending',
-        assigned_agents: [],
+        phase_agents: {},
+        phase_overrides: {},
         blockers: [],
         priority: 'P2',
         artifacts: [],
@@ -210,6 +214,8 @@ describe('YAML Roundtrip', () => {
         worktrees: {},
         created_by: 'human',
         merge_strategy: 'squash',
+        auto_advance: true,
+        auto_approve: false,
         created_at: NOW,
         updated_at: NOW,
         phase_entered_at: NOW,

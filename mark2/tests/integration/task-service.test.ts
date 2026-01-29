@@ -79,7 +79,7 @@ describe('TaskService', () => {
       expect(task.phase).toBe('pending');
       expect(task.priority).toBe('P2');
       expect(task.blockers).toEqual([]);
-      expect(task.assigned_agents).toEqual([]);
+      expect(task.phase_agents).toEqual({});
     });
   });
 

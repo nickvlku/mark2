@@ -29,7 +29,7 @@ afterEach(() => {
 describe('Task creation (simulating API route)', () => {
   it('creates a task with only title (matching UI dialog payload)', () => {
     // This is exactly what the CreateTaskDialog sends
-    const body = {
+    const body: { title: string; description: string; priority: string; story_id: undefined; created_by?: string } = {
       title: 'My new task',
       description: '',
       priority: 'P2',
@@ -41,7 +41,7 @@ describe('Task creation (simulating API route)', () => {
       description: body.description || '',
       priority: body.priority,
       created_by: body.created_by || 'human',
-    } as any);
+    });
 
     expect(task.id).toBe('TASK-1');
     expect(task.title).toBe('My new task');
@@ -70,14 +70,14 @@ describe('Task creation (simulating API route)', () => {
       description: 'A fully specified task',
       priority: 'P0',
       created_by: 'ci-system',
-      assigned_agents: ['coder'],
+      phase_agents: { coding: 'coder' },
       blockers: [],
     });
 
     expect(task.id).toBe('TASK-1');
     expect(task.priority).toBe('P0');
     expect(task.created_by).toBe('ci-system');
-    expect(task.assigned_agents).toEqual(['coder']);
+    expect(task.phase_agents).toEqual({ coding: 'coder' });
   });
 
   it('creates multiple tasks with sequential IDs', () => {
@@ -151,7 +151,7 @@ describe('Task creation (simulating API route)', () => {
 describe('Story creation (simulating API route)', () => {
   it('creates a story with only title (matching UI dialog payload)', () => {
     // This is exactly what the CreateStoryDialog sends
-    const body = {
+    const body: { title: string; description: string; created_by?: string } = {
       title: 'My new story',
       description: '',
     };
@@ -160,7 +160,7 @@ describe('Story creation (simulating API route)', () => {
       title: body.title,
       description: body.description || '',
       created_by: body.created_by || 'human',
-    } as any);
+    });
 
     expect(story.id).toBe('STORY-1');
     expect(story.title).toBe('My new story');

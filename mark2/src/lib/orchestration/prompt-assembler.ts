@@ -23,6 +23,62 @@ interface ContextJson {
 
 // ── Phase-Specific Instructions ─────────────────────────────────────────────
 
+const FILE_TOOLS_WARNING = `
+## CRITICAL: File Operations
+
+You are running in an isolated git clone for this task. You MUST use Claude Code's native file tools
+(Read, Write, Edit, Glob, Grep) for ALL file operations.
+
+DO NOT use Serena/MCP file tools (plugin:serena) as they may be configured for a different project
+and will write files to the WRONG location.
+
+Use these tools:
+- Read: to read files
+- Write: to create new files
+- Edit: to modify existing files
+- Glob: to find files by pattern
+- Grep: to search file contents
+- Bash: for npm, running tests, dev server, etc.
+
+If you see Serena tools available, IGNORE them and use Claude Code's native tools instead.`;
+
+const FILE_LOCATIONS = `
+## File Locations
+
+**Artifacts**: Save design documents, test results, review notes, and other deliverables to: \`$MARK2_ARTIFACTS_DIR/\`
+  - Example: Save your design document as \`$MARK2_ARTIFACTS_DIR/design.md\`
+  - Example: Save test results as \`$MARK2_ARTIFACTS_DIR/test-results.md\`
+  - Example: Save review notes as \`$MARK2_ARTIFACTS_DIR/review.md\`
+
+**Working Directory**: Make all code changes in the current working directory (an isolated git clone).
+  - This is where source code, package.json, and other project files live.
+  - Use the Git API to commit and push your changes (see Git Operations below).
+
+**Important**: Do NOT create \`.mark2/\` folders in the working directory. Do NOT write test outputs,
+artifacts, or temporary files to the working directory. Only source code changes belong there.`;
+
+const GIT_API_INSTRUCTIONS = `
+## Git Operations (CRITICAL)
+
+You MUST use the Mark2 Git API for all git operations. DO NOT run git commands directly.
+The API handles commit, push, and sync operations safely within your isolated clone.
+
+**Check git status:**
+  curl -s "$MARK2_API_URL/api/tasks/$MARK2_TASK_ID/git"
+
+**Commit changes:**
+  curl -s -X POST "$MARK2_API_URL/api/tasks/$MARK2_TASK_ID/git/commit" \\
+    -H "Content-Type: application/json" \\
+    -d '{"message": "Your commit message here"}'
+
+**Push to remote:**
+  curl -s -X POST "$MARK2_API_URL/api/tasks/$MARK2_TASK_ID/git/push"
+
+**Sync with latest from main (rebase):**
+  curl -s -X POST "$MARK2_API_URL/api/tasks/$MARK2_TASK_ID/git/sync"
+
+IMPORTANT: Always commit your changes before emitting an end token. Push is optional but recommended.`;
+
 const ARTIFACT_INSTRUCTIONS = `
 ## Reporting Artifacts
 
@@ -32,13 +88,16 @@ that are already set in your shell:
 
   curl -s -X POST "$MARK2_API_URL/api/tasks/$MARK2_TASK_ID/artifacts" \\
     -H "Content-Type: application/json" \\
-    -d '{"name": "<artifact-name>", "phase": "<current-phase>", "path": "<relative-path-from-worktree>"}'
+    -d '{"name": "<artifact-name>", "phase": "<current-phase>", "path": "<artifact-filename>"}'
 
-For example, after creating design.md:
+For example, after creating design.md in $MARK2_ARTIFACTS_DIR:
 
   curl -s -X POST "$MARK2_API_URL/api/tasks/$MARK2_TASK_ID/artifacts" \\
     -H "Content-Type: application/json" \\
     -d '{"name": "design-document", "phase": "design", "path": "design.md"}'
+
+Note: The path should be the filename only (e.g., "design.md"), not the full path.
+The system will resolve it from the artifacts directory.
 
 Always register artifacts BEFORE emitting the end token.`;
 
@@ -49,7 +108,7 @@ const PHASE_INSTRUCTIONS: Record<Phase, string> = {
 1. Analyze the task requirements thoroughly
 2. Produce a design document covering architecture, data models, API contracts, and file changes
 3. Identify risks and edge cases
-4. Save your design document as design.md in the worktree root
+4. Save your design document as $MARK2_ARTIFACTS_DIR/design.md
 5. Register design.md as an artifact (see artifact instructions below)
 
 When you have completed the design and registered artifacts, emit the end token: [DESIGN_COMPLETED]`,
@@ -59,16 +118,16 @@ When you have completed the design and registered artifacts, emit the end token:
 2. Follow the project's coding conventions and style
 3. Write clean, well-documented code
 4. Ensure the code compiles/builds without errors
-5. Commit your changes with clear commit messages
+5. Commit your changes using the Git API (see Git Operations section)
 
-When you have completed the implementation, emit the end token: [CODING_COMPLETED]`,
+When you have completed the implementation and committed your changes, emit the end token: [CODING_COMPLETED]`,
 
   testing: `You are in the TESTING phase. Your job is to:
 1. Run the existing test suite and verify it passes
 2. Write new tests covering the changes made in the coding phase
 3. Ensure adequate test coverage for edge cases
 4. Run all tests and report results
-5. Save a test report as test-results.md and register it as an artifact
+5. Save a test report as $MARK2_ARTIFACTS_DIR/test-results.md and register it as an artifact
 
 If all tests pass, emit: [TESTING_PASSED]
 If any tests fail, emit: [TESTING_FAILED]`,
@@ -78,14 +137,14 @@ If any tests fail, emit: [TESTING_FAILED]`,
 2. Check for correctness, security issues, performance problems, and style violations
 3. Classify each issue by severity: P0 (must fix), P1 (should fix), P2 (nice to fix)
 4. Provide specific, actionable feedback with file paths and line numbers
-5. Save your review as review.md in the worktree root and register it as an artifact
+5. Save your review as $MARK2_ARTIFACTS_DIR/review.md and register it as an artifact
 
 When you have completed the review, emit: [REVIEW_COMPLETED]`,
 
   manual_testing: `You are in the MANUAL TESTING phase. Your job is to:
 1. Start any development servers needed to test the changes
 2. Generate a test plan with specific steps a human tester should follow
-3. Save the test plan as test-plan.md in the worktree root and register it as an artifact
+3. Save the test plan as $MARK2_ARTIFACTS_DIR/test-plan.md and register it as an artifact
 4. Report which ports are in use
 
 When the test environment is ready, emit: [MANUAL_TESTING_READY]`,
@@ -158,11 +217,19 @@ export class PromptAssembler {
     const artifactPhases: Phase[] = ['design', 'testing', 'code_review', 'manual_testing'];
     const includeArtifacts = artifactPhases.includes(phase);
 
+    // Include git API instructions for coding phase
+    const includeGitApi = phase === 'coding';
+
     if (!task.auto_advance) {
       // If auto_advance is disabled, modify the instructions to not emit end tokens
       orchestrationInstructions = [
         `Current phase: ${phase}`,
         '',
+        FILE_TOOLS_WARNING,
+        '',
+        FILE_LOCATIONS,
+        '',
+        ...(includeGitApi ? [GIT_API_INSTRUCTIONS, ''] : []),
         instructions,
         '',
         ...(includeArtifacts ? [ARTIFACT_INSTRUCTIONS, ''] : []),
@@ -175,6 +242,11 @@ export class PromptAssembler {
       orchestrationInstructions = [
         `Current phase: ${phase}`,
         '',
+        FILE_TOOLS_WARNING,
+        '',
+        FILE_LOCATIONS,
+        '',
+        ...(includeGitApi ? [GIT_API_INSTRUCTIONS, ''] : []),
         instructions,
         '',
         ...(includeArtifacts ? [ARTIFACT_INSTRUCTIONS, ''] : []),

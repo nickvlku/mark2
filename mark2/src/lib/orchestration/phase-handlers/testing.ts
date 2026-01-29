@@ -1,6 +1,6 @@
-import path from 'path';
 import fs from 'fs';
 import type { Task, AgentDefinition } from '../../yaml/schemas';
+import { CloneService } from '../../services/clone-service';
 import { getDb } from '../../db';
 import { activityEntries } from '../../db/schema';
 import { TmuxManager } from '../tmux-manager';
@@ -22,7 +22,7 @@ export async function handleTesting(
   task: Task,
   agent: AgentDefinition,
   adapter: CLIAdapter,
-  projectRoot: string,
+  _projectRoot: string,
   mark2Dir: string,
   apiBaseUrl: string,
   agentToken: string,
@@ -30,12 +30,18 @@ export async function handleTesting(
   const db = getDb(mark2Dir);
   const now = new Date().toISOString();
 
-  // Reuse the existing worktree
-  const worktreePath = path.join(projectRoot, '.worktrees', task.id, 'design');
+  // Get the clone path for this task
+  const cloneService = new CloneService(mark2Dir);
+  const clonePath = cloneService.getClonePath(task.id);
+
+  // Ensure clone exists
+  if (!cloneService.cloneExists(task.id)) {
+    await cloneService.createClone(task.id);
+  }
 
   // Try to read the design document for context
   let designDocument: string | undefined;
-  const designPath = path.join(worktreePath, 'design.md');
+  const designPath = `${clonePath}/design.md`;
   try {
     if (fs.existsSync(designPath)) {
       designDocument = fs.readFileSync(designPath, 'utf-8');
@@ -55,7 +61,7 @@ export async function handleTesting(
   // Build invocation params
   const params: AgentInvocationParams = {
     prompt,
-    workingDirectory: worktreePath,
+    workingDirectory: clonePath,
     agentName: agent.name,
     model: agent.model,
     taskId: task.id,
@@ -76,7 +82,7 @@ export async function handleTesting(
     agentName: agent.name,
     phase: 'testing',
     command,
-    workingDir: worktreePath,
+    workingDir: clonePath,
     env,
   });
 

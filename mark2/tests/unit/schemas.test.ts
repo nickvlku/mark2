@@ -22,7 +22,7 @@ function makeValidTask(overrides: Record<string, unknown> = {}) {
     title: 'Implement feature X',
     description: 'Detailed description here',
     phase: 'pending',
-    assigned_agents: [],
+    phase_agents: {},
     blockers: [],
     priority: 'P2',
     artifacts: [],
@@ -30,6 +30,8 @@ function makeValidTask(overrides: Record<string, unknown> = {}) {
     worktrees: {},
     created_by: 'human',
     merge_strategy: 'squash',
+    auto_advance: true,
+    auto_approve: false,
     created_at: NOW,
     updated_at: NOW,
     phase_entered_at: NOW,
@@ -117,7 +119,7 @@ describe('Zod Schemas', () => {
       expect(result.title).toBe('Implement feature X');
       expect(result.phase).toBe('pending');
       expect(result.priority).toBe('P2');
-      expect(result.assigned_agents).toEqual([]);
+      expect(result.phase_agents).toEqual({});
       expect(result.blockers).toEqual([]);
       expect(result.artifacts).toEqual([]);
       expect(result.ports).toEqual([]);
@@ -139,7 +141,7 @@ describe('Zod Schemas', () => {
       const result = TaskSchema.parse(minimal);
       expect(result.phase).toBe('pending');
       expect(result.priority).toBe('P2');
-      expect(result.assigned_agents).toEqual([]);
+      expect(result.phase_agents).toEqual({});
       expect(result.blockers).toEqual([]);
       expect(result.artifacts).toEqual([]);
       expect(result.ports).toEqual([]);
@@ -369,12 +371,14 @@ describe('Zod Schemas', () => {
         name: 'design-agent',
         cli_tool: 'claude-code',
         model: 'claude-sonnet-4-20250514',
+        phase: 'design',
         role_prompt: 'You are a design agent.',
         timeout_minutes: 30,
       };
       const result = AgentDefinitionSchema.parse(input);
       expect(result.name).toBe('design-agent');
       expect(result.cli_tool).toBe('claude-code');
+      expect(result.phase).toBe('design');
     });
 
     it('validates all cli_tool enum values', () => {
@@ -384,9 +388,24 @@ describe('Zod Schemas', () => {
           name: 'agent',
           cli_tool: tool,
           model: 'model',
+          phase: 'coding',
           role_prompt: 'prompt',
         });
         expect(result.cli_tool).toBe(tool);
+      }
+    });
+
+    it('validates all phase enum values', () => {
+      const phases = ['design', 'coding', 'testing', 'code_review', 'manual_testing'];
+      for (const phase of phases) {
+        const result = AgentDefinitionSchema.parse({
+          name: 'agent',
+          cli_tool: 'claude-code',
+          model: 'model',
+          phase,
+          role_prompt: 'prompt',
+        });
+        expect(result.phase).toBe(phase);
       }
     });
 
@@ -396,6 +415,19 @@ describe('Zod Schemas', () => {
           name: 'agent',
           cli_tool: 'unknown-tool',
           model: 'model',
+          phase: 'coding',
+          role_prompt: 'prompt',
+        }),
+      ).toThrow();
+    });
+
+    it('rejects invalid phase', () => {
+      expect(() =>
+        AgentDefinitionSchema.parse({
+          name: 'agent',
+          cli_tool: 'claude-code',
+          model: 'model',
+          phase: 'invalid-phase',
           role_prompt: 'prompt',
         }),
       ).toThrow();
@@ -407,6 +439,7 @@ describe('Zod Schemas', () => {
           name: 'Design_Agent',
           cli_tool: 'claude-code',
           model: 'model',
+          phase: 'design',
           role_prompt: 'prompt',
         }),
       ).toThrow();
@@ -417,6 +450,7 @@ describe('Zod Schemas', () => {
         name: 'agent',
         cli_tool: 'claude-code',
         model: 'model',
+        phase: 'coding',
         role_prompt: 'prompt',
       });
       expect(result.timeout_minutes).toBe(60);

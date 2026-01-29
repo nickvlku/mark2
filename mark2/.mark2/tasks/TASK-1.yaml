@@ -1,17 +1,24 @@
 id: TASK-1
-title: End token fix test
-description: Should stay in design phase
-phase: done
-assigned_agents: []
+title: "Create two npm commands: npm mark2 start and npm mark2 stop"
+description: I'd like two new npm commands that let you start and stop the server under the mark2 command
+phase: coding
+phase_agents: {}
+phase_overrides: {}
 blockers: []
 priority: P2
-artifacts: []
+artifacts:
+  - name: design-document
+    phase: design
+    path: design.md
+    mime_type: text/markdown
+    created_at: 2026-01-29T04:38:07.785Z
 ports: []
 worktrees: {}
 created_by: human
 merge_strategy: squash
-auto_advance: false
-created_at: 2026-01-28T03:46:41.211Z
-updated_at: 2026-01-28T03:47:13.228Z
-phase_entered_at: 2026-01-28T03:47:13.228Z
+auto_advance: true
+auto_approve: false
+created_at: 2026-01-29T04:30:46.727Z
+updated_at: 2026-01-29T04:44:52.880Z
+phase_entered_at: 2026-01-29T04:44:52.880Z
 loop_count: 0

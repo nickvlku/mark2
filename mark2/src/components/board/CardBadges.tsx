@@ -44,7 +44,8 @@ interface StatusIndicatorProps {
 const statusConfig: Record<string, { color: string; label: string; pulse: boolean }> = {
   running: { color: 'bg-green-400', label: 'Running', pulse: true },
   idle: { color: 'bg-gray-500', label: 'Idle', pulse: false },
-  waiting: { color: 'bg-amber-400', label: 'Waiting', pulse: true },
+  waiting: { color: 'bg-amber-400', label: 'Awaiting', pulse: true },
+  completed: { color: 'bg-green-500', label: 'Done', pulse: false },
   failed: { color: 'bg-red-400', label: 'Failed', pulse: false },
   looping: { color: 'bg-purple-400', label: 'Looping', pulse: true },
   blocked: { color: 'bg-red-500', label: 'Blocked', pulse: false },

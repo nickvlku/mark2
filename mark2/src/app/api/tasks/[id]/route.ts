@@ -9,11 +9,19 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+
+    // Sync artifacts from storage before returning task
+    service.syncArtifactsFromStorage(id);
+
     const task = service.getById(id);
     if (!task) {
       return NextResponse.json({ error: `Task ${id} not found` }, { status: 404 });
     }
-    return NextResponse.json({ task });
+
+    // Include session status
+    const session_status = await service.getSessionStatus(id);
+
+    return NextResponse.json({ task: { ...task, session_status } });
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message ?? 'Failed to get task' },

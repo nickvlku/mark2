@@ -16,14 +16,32 @@ interface WatcherEntry {
   interval: ReturnType<typeof setInterval>;
   phase: Phase;
   callback: EndTokenCallback;
-  lastCaptureLength: number;
-  baselineContent: string;
+  lastContentHash: string;
+  baselineTokenCounts: Map<string, number>; // count of each token in baseline
+}
+
+/** Escape special regex characters */
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // ── End Token Watcher ───────────────────────────────────────────────────────
 
 const POLL_INTERVAL_MS = 2000;
 const CAPTURE_LINES = 100;
+// Minimum time to wait before detecting end tokens (allows prompt to be fully displayed)
+const MIN_BASELINE_WAIT_MS = 20000;
+
+/** Simple string hash for change detection */
+function hashContent(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return hash.toString(16);
+}
 
 export class EndTokenWatcher {
   private watchers: Map<string, WatcherEntry> = new Map();
@@ -45,17 +63,36 @@ export class EndTokenWatcher {
 
     // Wait for the command text to be fully rendered in the TMUX pane.
     // The prompt contains end token strings literally, so we must capture
-    // everything currently in the pane as baseline content to exclude from scanning.
-    // We poll repeatedly until the pane content stabilizes (stops growing).
+    // which tokens are already present to exclude from detection.
+    //
+    // IMPORTANT: We must wait long enough for the prompt to be fully delivered.
+    // The prompt is sent via sendPromptFile which waits 5s + 1s before sending Enter.
+    // Then Claude Code needs time to process and display it.
+    // We wait a minimum of MIN_BASELINE_WAIT_MS to ensure the prompt is fully shown.
+    console.log(`[watcher] Starting baseline capture for ${sessionName}, waiting ${MIN_BASELINE_WAIT_MS}ms minimum`);
+
+    const startTime = Date.now();
     let baselineContent = '';
     let stableCount = 0;
-    for (let i = 0; i < 15; i++) {
+
+    // Wait at least MIN_BASELINE_WAIT_MS, then continue until content stabilizes
+    while (true) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      const elapsed = Date.now() - startTime;
+
       try {
         const current = await capturePane(sessionName, CAPTURE_LINES) ?? '';
-        if (current.length === baselineContent.length && current.length > 0) {
+        const currentHash = hashContent(current);
+        const baselineHash = hashContent(baselineContent);
+
+        if (currentHash === baselineHash && current.length > 0) {
           stableCount++;
-          if (stableCount >= 2) break; // Content has stabilized
+          // Only exit if we've waited the minimum time AND content is stable
+          if (elapsed >= MIN_BASELINE_WAIT_MS && stableCount >= 3) {
+            console.log(`[watcher] Baseline stabilized for ${sessionName} after ${elapsed}ms`);
+            break;
+          }
         } else {
           stableCount = 0;
           baselineContent = current;
@@ -63,13 +100,30 @@ export class EndTokenWatcher {
       } catch {
         // Session may not be ready yet
       }
+
+      // Safety: don't wait forever (max 60 seconds)
+      if (elapsed > 60000) {
+        console.log(`[watcher] Baseline timeout for ${sessionName} after ${elapsed}ms`);
+        break;
+      }
+    }
+
+    // Count how many times each token appears in the baseline.
+    // We only trigger on NEW occurrences (count increased).
+    const baselineTokenCounts = new Map<string, number>();
+    for (const token of tokens) {
+      const count = (baselineContent.match(new RegExp(escapeRegExp(token), 'g')) || []).length;
+      baselineTokenCounts.set(token, count);
+      if (count > 0) {
+        console.log(`[watcher] Baseline contains ${count} occurrence(s) of "${token}" for ${sessionName}`);
+      }
     }
 
     const entry: WatcherEntry = {
       phase,
       callback: onToken,
-      lastCaptureLength: baselineContent.length,
-      baselineContent,
+      lastContentHash: hashContent(baselineContent),
+      baselineTokenCounts,
       interval: setInterval(() => {
         void this.poll(sessionName);
       }, POLL_INTERVAL_MS),
@@ -132,27 +186,24 @@ export class EndTokenWatcher {
       const output = await capturePane(sessionName, CAPTURE_LINES);
       if (!output) return;
 
-      // Only scan content that appeared after the baseline (command text).
-      // This prevents false positives from end tokens in the prompt itself.
-      let newContent: string;
-      if (output.length > entry.lastCaptureLength) {
-        newContent = output.slice(entry.lastCaptureLength);
-      } else {
-        // Content hasn't grown — nothing new to scan
+      // Check if content has changed using hash comparison
+      const currentHash = hashContent(output);
+      if (currentHash === entry.lastContentHash) {
+        // Content unchanged — nothing new to scan
         return;
       }
-      entry.lastCaptureLength = output.length;
+      entry.lastContentHash = currentHash;
 
-      // Double-check: skip if the new content is still part of the baseline
-      // (can happen if pane reflowed/resized)
-      if (entry.baselineContent && entry.baselineContent.includes(newContent.trim())) {
-        return;
-      }
-
+      // Scan the entire captured output for end tokens.
+      // Only trigger if the token count INCREASED from baseline (new occurrence).
       const tokens = END_TOKENS[entry.phase];
       for (const token of tokens) {
-        if (newContent.includes(token)) {
-          // Found an end token -- stop watching and fire callback
+        const currentCount = (output.match(new RegExp(escapeRegExp(token), 'g')) || []).length;
+        const baselineCount = entry.baselineTokenCounts.get(token) ?? 0;
+
+        if (currentCount > baselineCount) {
+          // Found a NEW occurrence of the end token
+          console.log(`[watcher] End token "${token}" detected for ${sessionName} (baseline: ${baselineCount}, current: ${currentCount})`);
           this.stop(sessionName);
           await entry.callback({
             token,

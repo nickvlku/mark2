@@ -68,7 +68,8 @@ export function initializeDatabase(mark2Dir?: string): void {
       updated_at TEXT NOT NULL,
       phase_entered_at TEXT NOT NULL,
       loop_count INTEGER NOT NULL DEFAULT 0,
-      assigned_agents_json TEXT NOT NULL DEFAULT '[]',
+      phase_agents_json TEXT NOT NULL DEFAULT '{}',
+      phase_overrides_json TEXT NOT NULL DEFAULT '{}',
       blockers_json TEXT NOT NULL DEFAULT '[]',
       artifacts_json TEXT NOT NULL DEFAULT '[]',
       ports_json TEXT NOT NULL DEFAULT '[]',
@@ -151,6 +152,34 @@ export function initializeDatabase(mark2Dir?: string): void {
   // Migrations: add columns that may not exist yet
   try {
     sqliteInstance.exec(`ALTER TABLE tasks ADD COLUMN auto_approve INTEGER NOT NULL DEFAULT 0`);
+  } catch {
+    // Column already exists
+  }
+
+  try {
+    sqliteInstance.exec(`ALTER TABLE tasks ADD COLUMN auto_advance INTEGER NOT NULL DEFAULT 1`);
+  } catch {
+    // Column already exists
+  }
+
+  // Migrate assigned_agents_json to phase_agents_json if needed
+  try {
+    // Check if old column exists
+    const columns = sqliteInstance.pragma('table_info(tasks)') as { name: string }[];
+    const hasOldColumn = columns.some(c => c.name === 'assigned_agents_json');
+    const hasNewColumn = columns.some(c => c.name === 'phase_agents_json');
+    
+    if (hasOldColumn && !hasNewColumn) {
+      sqliteInstance.exec(`ALTER TABLE tasks ADD COLUMN phase_agents_json TEXT NOT NULL DEFAULT '{}'`);
+      // Note: Old data is lost, but it was just an array of names anyway
+    }
+  } catch {
+    // Migration already done or not needed
+  }
+
+  // Add phase_overrides_json column for new role/cli/model decoupling
+  try {
+    sqliteInstance.exec(`ALTER TABLE tasks ADD COLUMN phase_overrides_json TEXT NOT NULL DEFAULT '{}'`);
   } catch {
     // Column already exists
   }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import useSWR from 'swr';
-import type { Task } from '@/types';
+import type { Task, SessionStatus } from '@/types';
 import { Badge } from '../shared/Badge';
 import { ActionBar } from '../shared/ActionBar';
 import { PhaseTimeline } from './PhaseTimeline';
@@ -10,6 +10,8 @@ import { ArtifactsTab } from './ArtifactsTab';
 import { ActivityTab } from './ActivityTab';
 import { CodeTab } from './CodeTab';
 import { TerminalTab } from './TerminalTab';
+import { PhaseOverridesTab } from './PhaseOverridesTab';
+import { DevServerPanel } from './DevServerPanel';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -19,13 +21,14 @@ interface TaskDetailProps {
   onUpdate: () => void;
 }
 
-type TabId = 'artifacts' | 'activity' | 'code' | 'terminal';
+type TabId = 'artifacts' | 'activity' | 'code' | 'terminal' | 'overrides';
 
 const tabs: { id: TabId; label: string }[] = [
   { id: 'artifacts', label: 'Artifacts' },
   { id: 'activity', label: 'Activity' },
   { id: 'code', label: 'Code' },
   { id: 'terminal', label: 'Terminal' },
+  { id: 'overrides', label: 'Overrides' },
 ];
 
 export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailProps) {
@@ -33,12 +36,13 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
 
   // Fetch our own copy of the task so parent SWR revalidations don't
   // unmount/remount us and destroy child state (e.g. comment input).
-  const { data } = useSWR<{ task: Task }>(
+  const { data } = useSWR<{ task: Task & { session_status?: SessionStatus } }>(
     `/api/tasks/${initialTask.id}`,
     fetcher,
     { refreshInterval: 5000, fallbackData: { task: initialTask } },
   );
   const task = data?.task ?? initialTask;
+  const sessionStatus = (task as any).session_status as SessionStatus | undefined;
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -124,13 +128,19 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
                 </p>
               )}
 
-              {/* Agents */}
-              {task.assigned_agents.length > 0 && (
-                <div className="mt-2 flex items-center gap-1.5">
-                  <span className="text-xs text-text-secondary">Agents:</span>
-                  {task.assigned_agents.map((agent) => (
-                    <Badge key={agent} variant="agent" value={agent} />
-                  ))}
+              {/* Phase Overrides */}
+              {task.phase_overrides && Object.keys(task.phase_overrides).length > 0 && (
+                <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs text-text-secondary">Overrides:</span>
+                  {Object.entries(task.phase_overrides).map(([phase, override]) => {
+                    const parts = [];
+                    if (override.role) parts.push(override.role);
+                    if (override.cli_tool) parts.push(override.cli_tool);
+                    if (override.model) parts.push(override.model);
+                    return parts.length > 0 ? (
+                      <Badge key={phase} variant="agent" value={`${phase}: ${parts.join(', ')}`} />
+                    ) : null;
+                  })}
                 </div>
               )}
             </div>
@@ -149,7 +159,11 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
 
         {/* Phase Timeline */}
         <div className="border-b border-border">
-          <PhaseTimeline currentPhase={task.phase} />
+          <PhaseTimeline
+            currentPhase={task.phase}
+            sessionStatus={sessionStatus}
+            autoApprove={task.auto_approve}
+          />
         </div>
 
         {/* Tabs */}
@@ -177,7 +191,13 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
           {activeTab === 'activity' && <ActivityTab task={task} />}
           {activeTab === 'code' && <CodeTab task={task} />}
           {activeTab === 'terminal' && <TerminalTab task={task} />}
+          {activeTab === 'overrides' && <PhaseOverridesTab task={task} onUpdate={onUpdate} />}
         </div>
+
+        {/* Dev Server Panel - show when task has a worktree */}
+        {task.phase !== 'pending' && task.phase !== 'done' && (
+          <DevServerPanel task={task} />
+        )}
 
         {/* Action Bar */}
         <ActionBar task={task} onPhaseAction={handlePhaseAction} onToggleAutoApprove={handleToggleAutoApprove} />

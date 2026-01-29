@@ -1,11 +1,20 @@
 import { getDb } from '../db';
-import { tasks, activityEntries } from '../db/schema';
+import { tasks, activityEntries, agentSessions } from '../db/schema';
 import { YamlReader } from '../yaml/reader';
 import { YamlWriter } from '../yaml/writer';
 import { TaskSchema, Phase } from '../yaml/schemas';
-import type { Task } from '../yaml/schemas';
+import type { Task, TaskPhaseOverride } from '../yaml/schemas';
 import { generateTaskId } from '../utils/id-generator';
-import { eq, and, sql } from 'drizzle-orm';
+import { ensureTaskStorageExistsSync, getTaskStoragePaths } from '../utils/storage';
+import { eq, and, sql, desc } from 'drizzle-orm';
+import { isSessionAlive } from '../utils/tmux';
+import fs from 'fs';
+
+export type SessionStatus = 'idle' | 'running' | 'completed' | 'failed';
+
+export interface TaskWithSession extends Task {
+  session_status: SessionStatus;
+}
 import path from 'path';
 
 export class TaskService {
@@ -24,7 +33,9 @@ export class TaskService {
     description: string;
     priority?: string;
     blockers?: string[];
-    assigned_agents?: string[];
+    /** @deprecated Use phase_overrides instead */
+    phase_agents?: Record<string, string>;
+    phase_overrides?: Record<string, TaskPhaseOverride>;
     story_id?: string;
     parent_task?: string;
     created_by: string;
@@ -39,7 +50,8 @@ export class TaskService {
       phase: 'pending',
       priority: data.priority ?? 'P2',
       blockers: data.blockers ?? [],
-      assigned_agents: data.assigned_agents ?? [],
+      phase_agents: data.phase_agents ?? {},
+      phase_overrides: data.phase_overrides ?? {},
       story_id: data.story_id,
       parent_task: data.parent_task,
       created_by: data.created_by,
@@ -55,6 +67,10 @@ export class TaskService {
 
     // Write YAML (canonical store)
     this.writer.writeTask(task);
+
+    // Initialize storage directories for the task
+    const projectRoot = path.dirname(this.mark2Dir);
+    ensureTaskStorageExistsSync(projectRoot, task.id);
 
     // Update SQLite (index)
     const db = getDb(this.mark2Dir);
@@ -72,7 +88,8 @@ export class TaskService {
       updated_at: task.updated_at,
       phase_entered_at: task.phase_entered_at,
       loop_count: task.loop_count,
-      assigned_agents_json: JSON.stringify(task.assigned_agents),
+      phase_agents_json: JSON.stringify(task.phase_agents),
+      phase_overrides_json: JSON.stringify(task.phase_overrides),
       blockers_json: JSON.stringify(task.blockers),
       artifacts_json: JSON.stringify(task.artifacts),
       ports_json: JSON.stringify(task.ports),
@@ -161,12 +178,14 @@ export class TaskService {
         parent_task: task.parent_task ?? null,
         created_by: task.created_by,
         merge_strategy: task.merge_strategy,
+        auto_advance: task.auto_advance,
         auto_approve: task.auto_approve,
         created_at: task.created_at,
         updated_at: task.updated_at,
         phase_entered_at: task.phase_entered_at,
         loop_count: task.loop_count,
-        assigned_agents_json: JSON.stringify(task.assigned_agents),
+        phase_agents_json: JSON.stringify(task.phase_agents),
+        phase_overrides_json: JSON.stringify(task.phase_overrides),
         blockers_json: JSON.stringify(task.blockers),
         artifacts_json: JSON.stringify(task.artifacts),
         ports_json: JSON.stringify(task.ports),
@@ -269,6 +288,147 @@ export class TaskService {
     return true;
   }
 
+  /**
+   * Get the current session status for a task.
+   * Checks the agent_sessions table. DB status takes precedence over tmux state
+   * because the session may still be alive even after the agent completed.
+   */
+  async getSessionStatus(taskId: string): Promise<SessionStatus> {
+    const db = getDb(this.mark2Dir);
+
+    // Get most recent session for this task
+    const row = db
+      .select({
+        tmux_session: agentSessions.tmux_session,
+        status: agentSessions.status,
+      })
+      .from(agentSessions)
+      .where(eq(agentSessions.task_id, taskId))
+      .orderBy(desc(agentSessions.started_at))
+      .limit(1)
+      .get();
+
+    if (!row) {
+      return 'idle';
+    }
+
+    // DB status takes precedence
+    if (row.status === 'completed') {
+      return 'completed';
+    }
+    if (row.status === 'failed') {
+      return 'failed';
+    }
+
+    // For 'running' status, verify the tmux session is actually alive
+    if (row.status === 'running') {
+      try {
+        const alive = await isSessionAlive(row.tmux_session);
+        if (alive) {
+          return 'running';
+        }
+        // Tmux died but DB still says running - it crashed
+        return 'failed';
+      } catch {
+        return 'failed';
+      }
+    }
+
+    return 'idle';
+  }
+
+  /**
+   * List tasks with session status included.
+   */
+  async listWithStatus(filters?: {
+    phase?: string;
+    priority?: string;
+    story_id?: string;
+    blocked?: boolean;
+  }): Promise<TaskWithSession[]> {
+    const taskList = this.list(filters);
+
+    // Get session status for each task
+    const results: TaskWithSession[] = [];
+    for (const task of taskList) {
+      const session_status = await this.getSessionStatus(task.id);
+      results.push({ ...task, session_status });
+    }
+
+    return results;
+  }
+
+  /**
+   * Auto-detect and register artifacts from the storage directory.
+   * This ensures artifacts are registered even if the agent forgot to call the API.
+   */
+  syncArtifactsFromStorage(taskId: string): void {
+    const projectRoot = path.dirname(this.mark2Dir);
+    const storagePaths = getTaskStoragePaths(projectRoot, taskId);
+
+    if (!fs.existsSync(storagePaths.artifacts)) {
+      return;
+    }
+
+    const task = this.getById(taskId);
+    if (!task) return;
+
+    const existingPaths = new Set(task.artifacts.map(a => a.path));
+    const files = fs.readdirSync(storagePaths.artifacts);
+    const now = new Date().toISOString();
+    let updated = false;
+
+    for (const file of files) {
+      if (existingPaths.has(file)) continue;
+
+      // Determine phase and name from filename
+      const baseName = file.replace(/\.[^/.]+$/, '');
+      let phase: Task['phase'] = task.phase;
+      let name = baseName;
+
+      // Common artifact patterns
+      if (file === 'design.md') {
+        phase = 'design';
+        name = 'design-document';
+      } else if (file === 'test-results.md') {
+        phase = 'testing';
+        name = 'test-results';
+      } else if (file === 'review.md') {
+        phase = 'code_review';
+        name = 'code-review';
+      } else if (file === 'test-plan.md') {
+        phase = 'manual_testing';
+        name = 'test-plan';
+      } else if (file.endsWith('-diff.patch')) {
+        phase = 'coding';
+        name = baseName;
+      }
+
+      // Determine mime type
+      let mime_type = 'text/plain';
+      if (file.endsWith('.md')) {
+        mime_type = 'text/markdown';
+      } else if (file.endsWith('.patch')) {
+        mime_type = 'text/x-patch';
+      } else if (file.endsWith('.json')) {
+        mime_type = 'application/json';
+      }
+
+      task.artifacts.push({
+        name,
+        phase,
+        path: file,
+        mime_type,
+        created_at: now,
+      });
+      updated = true;
+    }
+
+    if (updated) {
+      this.update(taskId, { artifacts: task.artifacts });
+    }
+  }
+
   private rowToTask(row: typeof tasks.$inferSelect): Task {
     return {
       id: row.id,
@@ -286,7 +446,8 @@ export class TaskService {
       updated_at: row.updated_at,
       phase_entered_at: row.phase_entered_at,
       loop_count: row.loop_count,
-      assigned_agents: JSON.parse(row.assigned_agents_json),
+      phase_agents: JSON.parse(row.phase_agents_json),
+      phase_overrides: JSON.parse(row.phase_overrides_json),
       blockers: JSON.parse(row.blockers_json),
       artifacts: JSON.parse(row.artifacts_json),
       ports: JSON.parse(row.ports_json),

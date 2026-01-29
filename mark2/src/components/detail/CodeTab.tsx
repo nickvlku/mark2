@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import type { Task } from '@/types';
+import { DiffModal } from './DiffModal';
 
 interface CodeTabProps {
   task: Task;
@@ -11,6 +12,7 @@ export function CodeTab({ task }: CodeTabProps) {
   const [diff, setDiff] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -73,26 +75,54 @@ export function CodeTab({ task }: CodeTabProps) {
   }
 
   return (
-    <div className="overflow-auto p-4">
-      <pre className="rounded-lg border border-border bg-bg-primary p-4 text-xs font-mono leading-relaxed overflow-x-auto">
-        {diff.split('\n').map((line, i) => {
-          let lineClass = 'text-text-secondary';
-          if (line.startsWith('+') && !line.startsWith('+++')) {
-            lineClass = 'text-green-400 bg-green-500/10';
-          } else if (line.startsWith('-') && !line.startsWith('---')) {
-            lineClass = 'text-red-400 bg-red-500/10';
-          } else if (line.startsWith('@@')) {
-            lineClass = 'text-cyan-400';
-          } else if (line.startsWith('diff ') || line.startsWith('index ')) {
-            lineClass = 'text-text-secondary/50 font-bold';
-          }
-          return (
-            <div key={i} className={`${lineClass} px-2 -mx-2`}>
-              {line || '\u00A0'}
-            </div>
-          );
-        })}
-      </pre>
+    <div className="flex flex-col h-full">
+      {/* Header with expand button */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-bg-secondary/50">
+        <span className="text-xs text-text-secondary">
+          {diff.split('\n').length} lines changed
+        </span>
+        <button
+          onClick={() => setShowModal(true)}
+          className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary transition-colors px-2 py-1 rounded hover:bg-bg-hover"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+          </svg>
+          Expand
+        </button>
+      </div>
+
+      {/* Scrollable diff content */}
+      <div className="flex-1 overflow-auto min-h-0">
+        <pre className="p-4 text-xs font-mono leading-relaxed">
+          {diff.split('\n').map((line, i) => {
+            let lineClass = 'text-text-secondary';
+            if (line.startsWith('+') && !line.startsWith('+++')) {
+              lineClass = 'text-green-400 bg-green-500/10';
+            } else if (line.startsWith('-') && !line.startsWith('---')) {
+              lineClass = 'text-red-400 bg-red-500/10';
+            } else if (line.startsWith('@@')) {
+              lineClass = 'text-cyan-400';
+            } else if (line.startsWith('diff ') || line.startsWith('index ')) {
+              lineClass = 'text-text-secondary/50 font-bold';
+            }
+            return (
+              <div key={i} className={`${lineClass} px-2 -mx-2 whitespace-pre`}>
+                {line || '\u00A0'}
+              </div>
+            );
+          })}
+        </pre>
+      </div>
+
+      {/* Full-screen modal */}
+      {showModal && (
+        <DiffModal
+          diff={diff}
+          taskId={task.id}
+          onClose={() => setShowModal(false)}
+        />
+      )}
     </div>
   );
 }

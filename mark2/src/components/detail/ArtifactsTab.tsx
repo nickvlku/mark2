@@ -53,8 +53,11 @@ export function ArtifactsTab({ task }: ArtifactsTabProps) {
     }
   };
 
-  const isMarkdown = (name: string) =>
-    name.endsWith('.md') || name.endsWith('.markdown');
+  const isMarkdown = (artifact: TaskArtifact) =>
+    artifact.name.endsWith('.md') ||
+    artifact.name.endsWith('.markdown') ||
+    artifact.path.endsWith('.md') ||
+    artifact.path.endsWith('.markdown');
 
   if (task.artifacts.length === 0) {
     return (
@@ -110,7 +113,7 @@ export function ArtifactsTab({ task }: ArtifactsTabProps) {
                 {expandedArtifact === artifact.path && (
                   <div className="border-t border-border px-3 py-3">
                     {artifactContent[artifact.path] ? (
-                      isMarkdown(artifact.name) ? (
+                      isMarkdown(artifact) ? (
                         <MarkdownRenderer content={artifactContent[artifact.path]} />
                       ) : (
                         <pre className="rounded-lg bg-bg-primary p-3 text-xs text-text-secondary font-mono overflow-x-auto">

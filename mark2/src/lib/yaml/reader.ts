@@ -2,8 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import YAML from 'yaml';
 import { z } from 'zod';
-import { TaskSchema, ActivityLog, StorySchema, ConfigSchema } from './schemas';
-import type { Task, Story, Config, ActivityLog as ActivityLogType, ParseError } from './schemas';
+import { TaskSchema, ActivityLog, StorySchema, ConfigSchema, RolesFileSchema } from './schemas';
+import type { Task, Story, Config, ActivityLog as ActivityLogType, ParseError, RolesFile } from './schemas';
 
 export class YamlReader {
   constructor(private mark2Dir: string) {}
@@ -80,6 +80,11 @@ export class YamlReader {
   readConfig(): { data: Config | null; error: ParseError | null } {
     const filePath = path.join(this.mark2Dir, 'config.yaml');
     return this.readAndValidate(filePath, ConfigSchema);
+  }
+
+  readRoles(): { data: RolesFile | null; error: ParseError | null } {
+    const filePath = path.join(this.mark2Dir, 'roles.yaml');
+    return this.readAndValidate(filePath, RolesFileSchema);
   }
 
   private readAndValidate<T>(filePath: string, schema: z.ZodSchema<T>): { data: T | null; error: ParseError | null } {

@@ -25,7 +25,7 @@ export function TerminalTab({ task }: TerminalTabProps) {
 
   const { lastMessage, isConnected } = useWebSocket(task.id);
 
-  // ── Fetch session info ──────────────────────────────────────────────────
+  // ── Fetch session info and start streaming ──────────────────────────────
   const fetchSession = useCallback(async (retries = 0) => {
     setSessionLoading(true);
     try {
@@ -38,6 +38,23 @@ export function TerminalTab({ task }: TerminalTabProps) {
       if (!sess && retries < 3) {
         setTimeout(() => fetchSession(retries + 1), 1500);
         return; // keep loading state
+      }
+
+      // If we have a session, start streaming and get the buffer
+      if (sess) {
+        try {
+          const streamRes = await fetch(`/api/tasks/${task.id}/session`, {
+            method: 'PATCH',
+          });
+          const streamData = await streamRes.json();
+          if (streamData.buffer && terminalRef.current) {
+            // Clear terminal and write the captured buffer
+            terminalRef.current.clear();
+            terminalRef.current.write(streamData.buffer);
+          }
+        } catch {
+          // Streaming start failed, but session info is still valid
+        }
       }
     } catch {
       setSession(null);

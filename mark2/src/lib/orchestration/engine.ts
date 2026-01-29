@@ -1,12 +1,14 @@
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 import { getDb } from '../db';
 import { tasks, activityEntries } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { YamlReader } from '../yaml/reader';
 import { YamlWriter } from '../yaml/writer';
-import type { Task, AgentDefinition, Phase } from '../yaml/schemas';
-import type { AgentsFile } from '../yaml/schemas';
+import type { Task, Phase, ResolvedAgent, RolesFile, Role, CLITool } from '../yaml/schemas';
+import { isNewPhaseDefault, isLegacyPhaseDefault, AgentsFileSchema } from '../yaml/schemas';
+import type { AgentsFile, AgentDefinition } from '../yaml/schemas';
 import type { CLIAdapter } from '../adapters/types';
 
 import { ClaudeCodeAdapter } from '../adapters/claude-code';
@@ -31,6 +33,8 @@ import { handleTesting } from './phase-handlers/testing';
 import { handleCodeReview } from './phase-handlers/code-review';
 import { handleManualTesting } from './phase-handlers/manual-testing';
 import { handleDone } from './phase-handlers/done';
+import { ArtifactService } from '../services/artifact-service';
+import { getTaskStoragePaths, ensureTaskStorageExistsSync, resolveArtifactPath, fileExistsSync } from '../utils/storage';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -159,6 +163,26 @@ export class OrchestrationEngine {
       return;
     }
 
+    // Capture and save diff for coding phase (before any early returns)
+    if (phase === 'coding' && token === '[CODING_COMPLETED]') {
+      try {
+        const diff = await this.captureAndSaveDiff(taskId, phase);
+        if (diff) {
+          db.insert(activityEntries)
+            .values({
+              task_id: taskId,
+              timestamp: now,
+              source: 'orchestration',
+              type: 'note',
+              message: `Code diff captured and saved as artifact (${diff.split('\n').length} lines)`,
+            })
+            .run();
+        }
+      } catch (err) {
+        console.error(`[engine] Failed to capture diff for ${taskId}:`, err);
+      }
+    }
+
     if (!task.auto_approve) {
       db.insert(activityEntries)
         .values({
@@ -202,16 +226,21 @@ export class OrchestrationEngine {
 
     if (token === '[REVIEW_COMPLETED]:autofix' && nextPhase === 'coding') {
       // Read review comments from the review.md artifact
+      // Try storage location first (new structure), then fallback to worktree (legacy)
+      const storagePath = resolveArtifactPath(this.config.projectRoot, taskId, 'review.md');
       const worktreePath = path.join(
         this.config.projectRoot,
         '.worktrees',
         taskId,
         'design',
+        'review.md',
       );
-      const reviewPath = path.join(worktreePath, 'review.md');
+
       try {
-        if (fs.existsSync(reviewPath)) {
-          loopContext = { reviewComments: fs.readFileSync(reviewPath, 'utf-8') };
+        if (fileExistsSync(storagePath)) {
+          loopContext = { reviewComments: fs.readFileSync(storagePath, 'utf-8') };
+        } else if (fs.existsSync(worktreePath)) {
+          loopContext = { reviewComments: fs.readFileSync(worktreePath, 'utf-8') };
         }
       } catch {
         // Best-effort
@@ -243,7 +272,16 @@ export class OrchestrationEngine {
       throw new Error(`Task ${taskId} not found`);
     }
 
-    const agent = this.resolveAgent(task, phase);
+    const resolved = this.resolveAgent(task, phase);
+    // Convert ResolvedAgent to the agent shape expected by phase handlers
+    const agent = {
+      name: resolved.roleName,
+      cli_tool: resolved.cli_tool,
+      model: resolved.model,
+      phase: phase as any,
+      role_prompt: resolved.role_prompt,
+      timeout_minutes: resolved.timeout_minutes,
+    };
     const adapter = this.getAdapterForTool(agent.cli_tool);
     const { projectRoot, mark2Dir, apiBaseUrl, agentToken } = this.config;
 
@@ -440,17 +478,189 @@ export class OrchestrationEngine {
 
   // ── Private Helpers ─────────────────────────────────────────────────────
 
+  /**
+   * Capture git diff from a task's worktree and save it as an artifact.
+   * Saves the diff to the storage directory, not the worktree.
+   * Returns the diff content or null if no changes.
+   */
+  private async captureAndSaveDiff(
+    taskId: string,
+    phase: Phase,
+  ): Promise<string | null> {
+    const worktreePath = path.join(
+      this.config.projectRoot,
+      '.worktrees',
+      taskId,
+      phase,
+    );
+
+    if (!fs.existsSync(worktreePath)) {
+      return null;
+    }
+
+    try {
+      // Capture both staged and unstaged changes, plus untracked files
+      let diff = '';
+
+      // Get diff of tracked files (staged + unstaged)
+      try {
+        const trackedDiff = execSync('git diff HEAD', {
+          cwd: worktreePath,
+          encoding: 'utf-8',
+          maxBuffer: 10 * 1024 * 1024, // 10MB buffer
+        });
+        if (trackedDiff.trim()) {
+          diff += trackedDiff;
+        }
+      } catch {
+        // No HEAD or no tracked changes
+      }
+
+      // Get list of untracked files and their content
+      try {
+        const untrackedFiles = execSync('git ls-files --others --exclude-standard', {
+          cwd: worktreePath,
+          encoding: 'utf-8',
+        }).trim();
+
+        if (untrackedFiles) {
+          const files = untrackedFiles.split('\n').filter(Boolean);
+          for (const file of files) {
+            const filePath = path.join(worktreePath, file);
+            if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+              const content = fs.readFileSync(filePath, 'utf-8');
+              diff += `\ndiff --git a/${file} b/${file}\nnew file mode 100644\n--- /dev/null\n+++ b/${file}\n`;
+              const lines = content.split('\n');
+              diff += `@@ -0,0 +1,${lines.length} @@\n`;
+              for (const line of lines) {
+                diff += `+${line}\n`;
+              }
+            }
+          }
+        }
+      } catch {
+        // Failed to list untracked files
+      }
+
+      if (!diff.trim()) {
+        return null;
+      }
+
+      // Ensure storage directories exist
+      ensureTaskStorageExistsSync(this.config.projectRoot, taskId);
+
+      // Save diff to storage directory (not worktree)
+      const diffFileName = `${phase}-diff.patch`;
+      const storagePaths = getTaskStoragePaths(this.config.projectRoot, taskId);
+      const diffPath = path.join(storagePaths.artifacts, diffFileName);
+      fs.writeFileSync(diffPath, diff);
+
+      // Register as artifact
+      const artifactService = new ArtifactService(this.config.mark2Dir);
+      artifactService.report(taskId, {
+        name: `${phase}-diff`,
+        phase,
+        path: diffFileName,
+        mime_type: 'text/x-patch',
+      });
+
+      return diff;
+    } catch (err) {
+      console.error(`[engine] Failed to capture diff for ${taskId}:`, err);
+      return null;
+    }
+  }
+
   private getTask(taskId: string): Task | null {
     const { data } = this.reader.readTask(taskId);
     return data;
   }
 
   /**
-   * Resolve which agent to use for a given task and phase.
-   * Checks assigned_agents first, then falls back to phase_defaults in config,
-   * then falls back to the first agent defined.
+   * Resolve which agent configuration to use for a given task and phase.
+   * 
+   * Resolution order:
+   * 1. Check if config has new format phase_defaults (role + cli_tool + model)
+   *    - If yes, use roles.yaml to get role_prompt, apply task-level overrides
+   * 2. Fall back to legacy format (default_agent pointing to agents.yaml)
+   * 3. Fall back to first agent in agents.yaml for the phase
    */
-  private resolveAgent(task: Task, phase: Phase): AgentDefinition {
+  private resolveAgent(task: Task, phase: Phase): ResolvedAgent {
+    const configResult = this.reader.readConfig();
+    const config = configResult.data;
+    
+    if (!config) {
+      throw new Error('Config not found. Ensure .mark2/config.yaml exists.');
+    }
+
+    const phaseDefault = config.phase_defaults?.[phase];
+
+    // Check if we're using the new format (has role, cli_tool, model)
+    if (phaseDefault && isNewPhaseDefault(phaseDefault)) {
+      return this.resolveAgentNewFormat(task, phase, phaseDefault);
+    }
+
+    // Legacy format: use agents.yaml
+    return this.resolveAgentLegacyFormat(task, phase, phaseDefault);
+  }
+
+  /**
+   * Resolve agent using the new decoupled role/cli/model format.
+   */
+  private resolveAgentNewFormat(
+    task: Task,
+    phase: Phase,
+    phaseDefault: { role: string; cli_tool: CLITool; model: string; timeout_minutes?: number; auto_advance?: boolean }
+  ): ResolvedAgent {
+    // Read roles file
+    const rolesResult = this.reader.readRoles();
+    const rolesFile = rolesResult.data;
+
+    if (!rolesFile || rolesFile.roles.length === 0) {
+      throw new Error(
+        'No roles defined. Create .mark2/roles.yaml with at least one role, or use legacy agents.yaml format.',
+      );
+    }
+
+    // Get the base role from phase default
+    const baseRole = rolesFile.roles.find(r => r.name === phaseDefault.role);
+    if (!baseRole) {
+      throw new Error(`Role "${phaseDefault.role}" not found in roles.yaml`);
+    }
+
+    // Apply task-level overrides
+    const override = task.phase_overrides?.[phase] ?? {};
+
+    // Resolve final role (if overridden at task level)
+    let finalRole: Role = baseRole;
+    if (override.role) {
+      const overrideRole = rolesFile.roles.find(r => r.name === override.role);
+      if (overrideRole) {
+        finalRole = overrideRole;
+      } else {
+        console.warn(`[engine] Override role "${override.role}" not found, using default "${baseRole.name}"`);
+      }
+    }
+
+    // Build resolved agent
+    return {
+      roleName: finalRole.name,
+      role_prompt: finalRole.role_prompt,
+      cli_tool: override.cli_tool ?? phaseDefault.cli_tool,
+      model: override.model ?? phaseDefault.model,
+      timeout_minutes: override.timeout_minutes ?? phaseDefault.timeout_minutes ?? finalRole.timeout_minutes,
+    };
+  }
+
+  /**
+   * Resolve agent using the legacy agents.yaml format.
+   * Kept for backwards compatibility.
+   */
+  private resolveAgentLegacyFormat(
+    task: Task,
+    phase: Phase,
+    phaseDefault?: { default_agent?: string; timeout_minutes?: number; auto_advance?: boolean }
+  ): ResolvedAgent {
     // Read agents file
     const agentsPath = path.join(this.config.mark2Dir, 'agents.yaml');
     let agentsFile: AgentsFile | null = null;
@@ -460,7 +670,6 @@ export class OrchestrationEngine {
         const YAML = require('yaml');
         const raw = fs.readFileSync(agentsPath, 'utf-8');
         const parsed = YAML.parse(raw);
-        const { AgentsFileSchema } = require('../yaml/schemas');
         const result = AgentsFileSchema.safeParse(parsed);
         if (result.success) {
           agentsFile = result.data;
@@ -472,31 +681,44 @@ export class OrchestrationEngine {
 
     if (!agentsFile || agentsFile.agents.length === 0) {
       throw new Error(
-        'No agents defined. Create .mark2/agents.yaml with at least one agent.',
+        'No agents defined. Create .mark2/agents.yaml with at least one agent, or configure roles.yaml with new format.',
       );
     }
 
-    // Check if the task has assigned agents
-    if (task.assigned_agents.length > 0) {
-      const agentName = task.assigned_agents[0];
-      const agent = agentsFile.agents.find((a) => a.name === agentName);
-      if (agent) return agent;
+    // Filter agents that match this phase
+    const phaseAgents = agentsFile.agents.filter((a) => a.phase === phase);
+
+    let agent: AgentDefinition | undefined;
+
+    // 1. Check if the task has a specific agent assigned for this phase (legacy phase_agents)
+    const assignedAgentName = task.phase_agents?.[phase as keyof typeof task.phase_agents];
+    if (assignedAgentName) {
+      agent = phaseAgents.find((a) => a.name === assignedAgentName);
     }
 
-    // Check phase defaults in config
-    const configResult = this.reader.readConfig();
-    if (configResult.data?.phase_defaults) {
-      const phaseConfig = configResult.data.phase_defaults[phase];
-      if (phaseConfig?.default_agent) {
-        const agent = agentsFile.agents.find(
-          (a) => a.name === phaseConfig.default_agent,
-        );
-        if (agent) return agent;
-      }
+    // 2. Check phase defaults in config
+    if (!agent && phaseDefault?.default_agent) {
+      agent = phaseAgents.find((a) => a.name === phaseDefault.default_agent);
     }
 
-    // Fall back to first agent
-    return agentsFile.agents[0];
+    // 3. Fall back to first agent for this phase
+    if (!agent && phaseAgents.length > 0) {
+      agent = phaseAgents[0];
+    }
+
+    // 4. Final fallback: first agent in the file
+    if (!agent) {
+      agent = agentsFile.agents[0];
+    }
+
+    // Convert AgentDefinition to ResolvedAgent
+    return {
+      roleName: agent.name,
+      role_prompt: agent.role_prompt,
+      cli_tool: agent.cli_tool,
+      model: agent.model,
+      timeout_minutes: agent.timeout_minutes,
+    };
   }
 
   /**

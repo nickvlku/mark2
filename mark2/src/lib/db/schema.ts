@@ -25,7 +25,10 @@ export const tasks = sqliteTable(
     phase_entered_at: text('phase_entered_at').notNull(),
     loop_count: integer('loop_count').notNull().default(0),
     // JSON text columns for array/object fields
-    assigned_agents_json: text('assigned_agents_json').notNull().default('[]'),
+    // Deprecated: use phase_overrides_json instead
+    phase_agents_json: text('phase_agents_json').notNull().default('{}'),
+    // New: phase-specific overrides for role, cli_tool, model
+    phase_overrides_json: text('phase_overrides_json').notNull().default('{}'),
     blockers_json: text('blockers_json').notNull().default('[]'),
     artifacts_json: text('artifacts_json').notNull().default('[]'),
     ports_json: text('ports_json').notNull().default('[]'),

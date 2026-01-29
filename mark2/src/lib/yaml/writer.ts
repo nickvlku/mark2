@@ -2,8 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import YAML from 'yaml';
-import { TaskSchema, ActivityLog, StorySchema, ConfigSchema } from './schemas';
-import type { Task, Story, Config, ActivityLog as ActivityLogType } from './schemas';
+import { TaskSchema, ActivityLog, StorySchema, ConfigSchema, RolesFileSchema } from './schemas';
+import type { Task, Story, Config, ActivityLog as ActivityLogType, RolesFile } from './schemas';
 
 export class YamlWriter {
   constructor(private mark2Dir: string) {}
@@ -30,6 +30,12 @@ export class YamlWriter {
     ConfigSchema.parse(config);
     const filePath = path.join(this.mark2Dir, 'config.yaml');
     this.atomicWrite(filePath, config);
+  }
+
+  writeRoles(rolesFile: RolesFile): void {
+    RolesFileSchema.parse(rolesFile);
+    const filePath = path.join(this.mark2Dir, 'roles.yaml');
+    this.atomicWrite(filePath, rolesFile);
   }
 
   deleteTask(taskId: string): void {

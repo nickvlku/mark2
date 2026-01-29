@@ -7,6 +7,7 @@ describe('Agent Schemas', () => {
       name: 'test-agent',
       cli_tool: 'claude-code',
       model: 'claude-sonnet-4-20250514',
+      phase: 'coding',
       role_prompt: 'You are a helpful assistant',
       timeout_minutes: 60,
     };
@@ -20,10 +21,7 @@ describe('Agent Schemas', () => {
     });
 
     it('should apply default timeout of 60 minutes', () => {
-      const agentWithoutTimeout = {
-        ...validAgent,
-      };
-      delete agentWithoutTimeout.timeout_minutes;
+      const { timeout_minutes, ...agentWithoutTimeout } = validAgent;
 
       const result = AgentDefinitionSchema.safeParse(agentWithoutTimeout);
       expect(result.success).toBe(true);
@@ -41,7 +39,6 @@ describe('Agent Schemas', () => {
           'my-cool-agent',
           'a',
           'agent-with-multiple-hyphens',
-          '123agent',
         ];
 
         validNames.forEach((name) => {
@@ -79,6 +76,7 @@ describe('Agent Schemas', () => {
           'agent:', // Colon
           'agent;', // Semicolon
           'agent,', // Comma
+          '123agent', // Starts with digit
         ];
 
         invalidNames.forEach((name) => {
@@ -92,8 +90,7 @@ describe('Agent Schemas', () => {
       });
 
       it('should require name field', () => {
-        const agentWithoutName = { ...validAgent };
-        delete agentWithoutName.name;
+        const { name, ...agentWithoutName } = validAgent;
 
         const result = AgentDefinitionSchema.safeParse(agentWithoutName);
         expect(result.success).toBe(false);
@@ -131,8 +128,7 @@ describe('Agent Schemas', () => {
       });
 
       it('should require cli_tool field', () => {
-        const agentWithoutCliTool = { ...validAgent };
-        delete agentWithoutCliTool.cli_tool;
+        const { cli_tool, ...agentWithoutCliTool } = validAgent;
 
         const result = AgentDefinitionSchema.safeParse(agentWithoutCliTool);
         expect(result.success).toBe(false);
@@ -165,8 +161,7 @@ describe('Agent Schemas', () => {
       });
 
       it('should require model field', () => {
-        const agentWithoutModel = { ...validAgent };
-        delete agentWithoutModel.model;
+        const { model, ...agentWithoutModel } = validAgent;
 
         const result = AgentDefinitionSchema.safeParse(agentWithoutModel);
         expect(result.success).toBe(false);
@@ -199,8 +194,7 @@ describe('Agent Schemas', () => {
       });
 
       it('should require role_prompt field', () => {
-        const agentWithoutPrompt = { ...validAgent };
-        delete agentWithoutPrompt.role_prompt;
+        const { role_prompt, ...agentWithoutPrompt } = validAgent;
 
         const result = AgentDefinitionSchema.safeParse(agentWithoutPrompt);
         expect(result.success).toBe(false);
@@ -275,6 +269,7 @@ describe('Agent Schemas', () => {
           name: 'agent-one',
           cli_tool: 'claude-code',
           model: 'claude-sonnet-4-20250514',
+          phase: 'design',
           role_prompt: 'You are agent one',
           timeout_minutes: 60,
         },
@@ -282,6 +277,7 @@ describe('Agent Schemas', () => {
           name: 'agent-two',
           cli_tool: 'gemini-cli',
           model: 'gemini-1.5-pro',
+          phase: 'coding',
           role_prompt: 'You are agent two',
           timeout_minutes: 30,
         },
@@ -321,6 +317,7 @@ describe('Agent Schemas', () => {
             name: 'valid-agent',
             cli_tool: 'claude-code',
             model: 'claude-sonnet-4-20250514',
+            phase: 'coding',
             role_prompt: 'Valid agent',
             timeout_minutes: 60,
           },
@@ -328,6 +325,7 @@ describe('Agent Schemas', () => {
             name: 'INVALID-AGENT', // Invalid name
             cli_tool: 'invalid-tool', // Invalid cli_tool
             model: '',
+            phase: 'invalid', // Invalid phase
             role_prompt: '',
             timeout_minutes: 0,
           },
@@ -360,6 +358,7 @@ describe('Agent Schemas', () => {
             name: 'single-agent',
             cli_tool: 'opencode',
             model: 'gpt-4',
+            phase: 'testing',
             role_prompt: 'You are a single agent',
             timeout_minutes: 45,
           },
@@ -381,10 +380,12 @@ describe('Agent Schemas', () => {
     });
 
     it('should handle large number of agents', () => {
+      const phases = ['design', 'coding', 'testing', 'code_review', 'manual_testing'] as const;
       const manyAgents = Array.from({ length: 100 }, (_, i) => ({
         name: `agent-${i}`,
         cli_tool: 'claude-code' as const,
         model: 'claude-sonnet-4-20250514',
+        phase: phases[i % phases.length],
         role_prompt: `You are agent number ${i}`,
         timeout_minutes: 60,
       }));

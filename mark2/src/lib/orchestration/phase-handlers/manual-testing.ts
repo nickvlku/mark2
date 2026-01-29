@@ -1,6 +1,6 @@
-import path from 'path';
 import fs from 'fs';
 import type { Task, AgentDefinition } from '../../yaml/schemas';
+import { CloneService } from '../../services/clone-service';
 import { allocatePortsForTask } from '../../utils/port-allocator';
 import { getDb } from '../../db';
 import { activityEntries, portAllocations } from '../../db/schema';
@@ -26,7 +26,7 @@ export async function handleManualTesting(
   task: Task,
   agent: AgentDefinition,
   adapter: CLIAdapter,
-  projectRoot: string,
+  _projectRoot: string,
   mark2Dir: string,
   apiBaseUrl: string,
   agentToken: string,
@@ -56,12 +56,18 @@ export async function handleManualTesting(
     })
     .run();
 
-  // Reuse the existing worktree
-  const worktreePath = path.join(projectRoot, '.worktrees', task.id, 'design');
+  // Get the clone path for this task
+  const cloneService = new CloneService(mark2Dir);
+  const clonePath = cloneService.getClonePath(task.id);
+
+  // Ensure clone exists
+  if (!cloneService.cloneExists(task.id)) {
+    await cloneService.createClone(task.id);
+  }
 
   // Read the design document for context
   let designDocument: string | undefined;
-  const designPath = path.join(worktreePath, 'design.md');
+  const designPath = `${clonePath}/design.md`;
   try {
     if (fs.existsSync(designPath)) {
       designDocument = fs.readFileSync(designPath, 'utf-8');
@@ -81,7 +87,7 @@ export async function handleManualTesting(
   // Build invocation params
   const params: AgentInvocationParams = {
     prompt,
-    workingDirectory: worktreePath,
+    workingDirectory: clonePath,
     agentName: agent.name,
     model: agent.model,
     taskId: task.id,
@@ -102,7 +108,7 @@ export async function handleManualTesting(
     agentName: agent.name,
     phase: 'manual_testing',
     command,
-    workingDir: worktreePath,
+    workingDir: clonePath,
     env,
   });
 

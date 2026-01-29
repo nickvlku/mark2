@@ -1,6 +1,6 @@
-import path from 'path';
 import fs from 'fs';
 import type { Task, AgentDefinition } from '../../yaml/schemas';
+import { CloneService } from '../../services/clone-service';
 import { getDb } from '../../db';
 import { activityEntries } from '../../db/schema';
 import { TmuxManager } from '../tmux-manager';
@@ -23,7 +23,7 @@ export async function handleCoding(
   task: Task,
   agent: AgentDefinition,
   adapter: CLIAdapter,
-  projectRoot: string,
+  _projectRoot: string,
   mark2Dir: string,
   apiBaseUrl: string,
   agentToken: string,
@@ -36,12 +36,18 @@ export async function handleCoding(
   const db = getDb(mark2Dir);
   const now = new Date().toISOString();
 
-  // Determine the worktree path -- reuse the existing worktree from design
-  const worktreePath = path.join(projectRoot, '.worktrees', task.id, 'design');
+  // Get the clone path for this task (should already exist from design phase)
+  const cloneService = new CloneService(mark2Dir);
+  const clonePath = cloneService.getClonePath(task.id);
+
+  // Ensure clone exists, create if needed (shouldn't happen but just in case)
+  if (!cloneService.cloneExists(task.id)) {
+    await cloneService.createClone(task.id);
+  }
 
   // Try to read the design document if it exists
   let designDocument: string | undefined;
-  const designPath = path.join(worktreePath, 'design.md');
+  const designPath = `${clonePath}/design.md`;
   try {
     if (fs.existsSync(designPath)) {
       designDocument = fs.readFileSync(designPath, 'utf-8');
@@ -66,7 +72,7 @@ export async function handleCoding(
   // Build invocation params
   const params: AgentInvocationParams = {
     prompt,
-    workingDirectory: worktreePath,
+    workingDirectory: clonePath,
     agentName: agent.name,
     model: agent.model,
     taskId: task.id,
@@ -88,7 +94,7 @@ export async function handleCoding(
     agentName: agent.name,
     phase: 'coding',
     command,
-    workingDir: worktreePath,
+    workingDir: clonePath,
     env,
   });
 

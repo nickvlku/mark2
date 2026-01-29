@@ -1,7 +1,6 @@
-import path from 'path';
 import fs from 'fs';
 import type { Task, AgentDefinition } from '../../yaml/schemas';
-import { getDiff } from '../../utils/git';
+import { CloneService } from '../../services/clone-service';
 import { getDb } from '../../db';
 import { activityEntries } from '../../db/schema';
 import { TmuxManager } from '../tmux-manager';
@@ -24,7 +23,7 @@ export async function handleCodeReview(
   task: Task,
   agent: AgentDefinition,
   adapter: CLIAdapter,
-  projectRoot: string,
+  _projectRoot: string,
   mark2Dir: string,
   apiBaseUrl: string,
   agentToken: string,
@@ -32,20 +31,27 @@ export async function handleCodeReview(
   const db = getDb(mark2Dir);
   const now = new Date().toISOString();
 
-  // Reuse the existing worktree
-  const worktreePath = path.join(projectRoot, '.worktrees', task.id, 'design');
+  // Get the clone path for this task
+  const cloneService = new CloneService(mark2Dir);
+  const clonePath = cloneService.getClonePath(task.id);
 
-  // Get the diff for review
+  // Ensure clone exists
+  if (!cloneService.cloneExists(task.id)) {
+    await cloneService.createClone(task.id);
+  }
+
+  // Get the diff for review using CloneService
   let diff = '';
   try {
-    diff = await getDiff(worktreePath);
+    const result = await cloneService.getDiff(task.id);
+    diff = result.diff || '(No changes)';
   } catch {
     diff = '(Unable to generate diff)';
   }
 
   // Read the design document for context
   let designDocument: string | undefined;
-  const designPath = path.join(worktreePath, 'design.md');
+  const designPath = `${clonePath}/design.md`;
   try {
     if (fs.existsSync(designPath)) {
       designDocument = fs.readFileSync(designPath, 'utf-8');
@@ -66,7 +72,7 @@ export async function handleCodeReview(
   // Build invocation params
   const params: AgentInvocationParams = {
     prompt,
-    workingDirectory: worktreePath,
+    workingDirectory: clonePath,
     agentName: agent.name,
     model: agent.model,
     taskId: task.id,
@@ -87,7 +93,7 @@ export async function handleCodeReview(
     agentName: agent.name,
     phase: 'code_review',
     command,
-    workingDir: worktreePath,
+    workingDir: clonePath,
     env,
   });
 

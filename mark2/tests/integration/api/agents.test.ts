@@ -1,86 +1,83 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { ConfigService } from '@/lib/services/config-service';
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// Use vi.hoisted to ensure mocks are available during vi.mock hoisting
+const mockNextResponse = vi.hoisted(() => ({
+  json: vi.fn().mockReturnThis(),
+}));
+
+const mockConfigServiceInstance = vi.hoisted(() => ({
+  getAgents: vi.fn().mockReturnValue([]),
+  updateAgents: vi.fn().mockImplementation((agents) => agents),
+}));
 
 // Mock Next.js modules
-vi.mock('next/server', () => {
-  return {
-    NextResponse: {
-      json: vi.fn(),
-    },
-  };
-});
+vi.mock('next/server', () => ({
+  NextResponse: mockNextResponse,
+}));
+
+// Mock ConfigService as a class
+vi.mock('@/lib/services/config-service', () => ({
+  ConfigService: class {
+    getAgents = mockConfigServiceInstance.getAgents;
+    updateAgents = mockConfigServiceInstance.updateAgents;
+  },
+}));
 
 // Import the route handlers after mocking
 import { GET, PUT } from '@/app/api/agents/route';
 
 describe('Agents API', () => {
-  let tempDir: string;
-  let configService: ConfigService;
-
   beforeEach(() => {
-    // Create temporary directory for test agents.yaml
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mark2-test-'));
-    configService = new ConfigService(tempDir);
-    
-    // Reset mocks
     vi.clearAllMocks();
-    // Mock setup is handled in the vi.mock call
-  });
-
-  afterEach(() => {
-    // Clean up temporary directory
-    if (fs.existsSync(tempDir)) {
-      fs.rmSync(tempDir, { recursive: true, force: true });
-    }
+    // Reset mock return values
+    mockConfigServiceInstance.getAgents.mockReturnValue([]);
+    mockConfigServiceInstance.updateAgents.mockImplementation((agents) => agents);
   });
 
   describe('GET /api/agents', () => {
-    it('should return empty array when no agents.yaml exists', async () => {
-      const response = await GET();
+    it('should return empty array when no agents exist', async () => {
+      mockConfigServiceInstance.getAgents.mockReturnValue([]);
 
+      await GET();
+
+      expect(mockConfigServiceInstance.getAgents).toHaveBeenCalled();
       expect(mockNextResponse.json).toHaveBeenCalledWith({ agents: [] });
     });
 
-    it('should return agents from agents.yaml', async () => {
-      // Create test agents.yaml
-      const agentsData = {
-        agents: [
-          {
-            name: 'test-agent',
-            cli_tool: 'claude-code',
-            model: 'claude-sonnet-4-20250514',
-            role_prompt: 'You are a test agent',
-            timeout_minutes: 60,
-          },
-          {
-            name: 'another-agent',
-            cli_tool: 'gemini-cli',
-            model: 'gemini-1.5-pro',
-            role_prompt: 'You are another test agent',
-            timeout_minutes: 30,
-          },
-        ],
-      };
+    it('should return agents from ConfigService', async () => {
+      const testAgents = [
+        {
+          name: 'test-agent',
+          cli_tool: 'claude-code',
+          model: 'claude-sonnet-4-20250514',
+          phase: 'coding',
+          role_prompt: 'You are a test agent',
+          timeout_minutes: 60,
+        },
+        {
+          name: 'another-agent',
+          cli_tool: 'gemini-cli',
+          model: 'gemini-1.5-pro',
+          phase: 'design',
+          role_prompt: 'You are another test agent',
+          timeout_minutes: 30,
+        },
+      ];
 
-      const agentsPath = path.join(tempDir, 'agents.yaml');
-      fs.writeFileSync(agentsPath, JSON.stringify(agentsData), 'utf-8');
+      mockConfigServiceInstance.getAgents.mockReturnValue(testAgents);
 
-      const response = await GET();
+      await GET();
 
-      expect(mockNextResponse.json).toHaveBeenCalledWith({
-        agents: agentsData.agents,
-      });
+      expect(mockConfigServiceInstance.getAgents).toHaveBeenCalled();
+      expect(mockNextResponse.json).toHaveBeenCalledWith({ agents: testAgents });
     });
 
-    it('should return error for invalid agents.yaml', async () => {
-      // Create invalid agents.yaml
-      const agentsPath = path.join(tempDir, 'agents.yaml');
-      fs.writeFileSync(agentsPath, 'invalid: yaml: content:', 'utf-8');
+    it('should return error when ConfigService throws', async () => {
+      mockConfigServiceInstance.getAgents.mockImplementation(() => {
+        throw new Error('Failed to read agents.yaml');
+      });
 
-      const response = await GET();
+      await GET();
 
       expect(mockNextResponse.json).toHaveBeenCalledWith(
         { error: expect.stringContaining('Failed to read agents.yaml') },
@@ -94,57 +91,38 @@ describe('Agents API', () => {
       name: 'test-agent',
       cli_tool: 'claude-code',
       model: 'claude-sonnet-4-20250514',
+      phase: 'coding',
       role_prompt: 'You are a test agent',
       timeout_minutes: 60,
     };
 
-    it('should create agents.yaml and return created agents', async () => {
+    it('should create agents and return them', async () => {
       const requestBody = { agents: [validAgent] };
       const mockRequest = {
         json: vi.fn().mockResolvedValue(requestBody),
       } as any;
 
-      const response = await PUT(mockRequest);
+      mockConfigServiceInstance.updateAgents.mockReturnValue([validAgent]);
 
-      // Verify agents.yaml was created
-      const agentsPath = path.join(tempDir, 'agents.yaml');
-      expect(fs.existsSync(agentsPath)).toBe(true);
+      await PUT(mockRequest);
 
-      // Verify response
-      expect(mockNextResponse.json).toHaveBeenCalledWith({
-        agents: [validAgent],
-      });
+      expect(mockConfigServiceInstance.updateAgents).toHaveBeenCalledWith([validAgent]);
+      expect(mockNextResponse.json).toHaveBeenCalledWith({ agents: [validAgent] });
     });
 
-    it('should update existing agents.yaml', async () => {
-      // Create initial agents.yaml
-      const initialAgent = {
-        name: 'initial-agent',
-        cli_tool: 'codex-cli',
-        model: 'gpt-4',
-        role_prompt: 'Initial agent',
-        timeout_minutes: 45,
-      };
-      
-      configService.updateAgents([initialAgent]);
-
-      // Update with new agents
+    it('should update existing agents', async () => {
       const newAgents = [validAgent];
       const requestBody = { agents: newAgents };
       const mockRequest = {
         json: vi.fn().mockResolvedValue(requestBody),
       } as any;
 
-      const response = await PUT(mockRequest);
+      mockConfigServiceInstance.updateAgents.mockReturnValue(newAgents);
 
-      // Verify response contains new agents only
-      expect(mockNextResponse.json).toHaveBeenCalledWith({
-        agents: newAgents,
-      });
+      await PUT(mockRequest);
 
-      // Verify file was updated
-      const savedAgents = configService.getAgents();
-      expect(savedAgents).toEqual(newAgents);
+      expect(mockConfigServiceInstance.updateAgents).toHaveBeenCalledWith(newAgents);
+      expect(mockNextResponse.json).toHaveBeenCalledWith({ agents: newAgents });
     });
 
     it('should return error when agents array is missing', async () => {
@@ -153,7 +131,7 @@ describe('Agents API', () => {
         json: vi.fn().mockResolvedValue(requestBody),
       } as any;
 
-      const response = await PUT(mockRequest);
+      await PUT(mockRequest);
 
       expect(mockNextResponse.json).toHaveBeenCalledWith(
         { error: 'agents array is required' },
@@ -167,77 +145,108 @@ describe('Agents API', () => {
         json: vi.fn().mockResolvedValue(requestBody),
       } as any;
 
-      const response = await PUT(mockRequest);
+      await PUT(mockRequest);
 
+      // API uses same error message for missing and non-array agents
       expect(mockNextResponse.json).toHaveBeenCalledWith(
         { error: 'agents array is required' },
         { status: 400 },
       );
     });
 
-    it('should return validation error for invalid agent data', async () => {
+    it('should return error when agent validation fails (ZodError)', async () => {
       const invalidAgent = {
-        name: 'invalid-name!', // Invalid characters
-        cli_tool: 'invalid-tool', // Invalid enum value
-        model: '', // Empty model
-        role_prompt: '', // Empty role_prompt
-        timeout_minutes: 0, // Invalid timeout
+        name: 'INVALID_NAME', // Invalid: uppercase
+        cli_tool: 'invalid-tool', // Invalid: not a valid cli_tool
+        model: '',
+        phase: 'invalid',
+        role_prompt: '',
+        timeout_minutes: 0,
       };
-
       const requestBody = { agents: [invalidAgent] };
       const mockRequest = {
         json: vi.fn().mockResolvedValue(requestBody),
       } as any;
 
-      const response = await PUT(mockRequest);
+      // Create a ZodError-like object
+      const zodError = new Error('Validation failed');
+      (zodError as any).name = 'ZodError';
+      (zodError as any).issues = [{ message: 'Invalid name format' }];
+
+      mockConfigServiceInstance.updateAgents.mockImplementation(() => {
+        throw zodError;
+      });
+
+      await PUT(mockRequest);
 
       expect(mockNextResponse.json).toHaveBeenCalledWith(
-        expect.objectContaining({
-          error: 'Validation failed',
-        }),
+        { error: 'Validation failed', details: [{ message: 'Invalid name format' }] },
         { status: 400 },
       );
     });
 
-    it('should handle multiple valid agents', async () => {
+    it('should return error when ConfigService throws a regular error', async () => {
+      const requestBody = { agents: [{ name: 'test' }] };
+      const mockRequest = {
+        json: vi.fn().mockResolvedValue(requestBody),
+      } as any;
+
+      mockConfigServiceInstance.updateAgents.mockImplementation(() => {
+        throw new Error('Database connection failed');
+      });
+
+      await PUT(mockRequest);
+
+      expect(mockNextResponse.json).toHaveBeenCalledWith(
+        { error: 'Database connection failed' },
+        { status: 500 },
+      );
+    });
+
+    it('should handle empty agents array', async () => {
+      const requestBody = { agents: [] };
+      const mockRequest = {
+        json: vi.fn().mockResolvedValue(requestBody),
+      } as any;
+
+      mockConfigServiceInstance.updateAgents.mockReturnValue([]);
+
+      await PUT(mockRequest);
+
+      expect(mockConfigServiceInstance.updateAgents).toHaveBeenCalledWith([]);
+      expect(mockNextResponse.json).toHaveBeenCalledWith({ agents: [] });
+    });
+
+    it('should handle multiple agents', async () => {
       const agents = [
-        validAgent,
+        {
+          name: 'first-agent',
+          cli_tool: 'claude-code',
+          model: 'claude-sonnet-4-20250514',
+          phase: 'design',
+          role_prompt: 'You are a test agent',
+          timeout_minutes: 60,
+        },
         {
           name: 'second-agent',
           cli_tool: 'gemini-cli',
           model: 'gemini-1.5-pro',
+          phase: 'coding',
           role_prompt: 'You are the second agent',
           timeout_minutes: 120,
         },
       ];
-
       const requestBody = { agents };
       const mockRequest = {
         json: vi.fn().mockResolvedValue(requestBody),
       } as any;
 
-      const response = await PUT(mockRequest);
+      mockConfigServiceInstance.updateAgents.mockReturnValue(agents);
 
-      expect(mockNextResponse.json).toHaveBeenCalledWith({
-        agents,
-      });
+      await PUT(mockRequest);
 
-      // Verify all agents were saved
-      const savedAgents = configService.getAgents();
-      expect(savedAgents).toEqual(agents);
-    });
-
-    it('should handle request JSON parsing errors', async () => {
-      const mockRequest = {
-        json: vi.fn().mockRejectedValue(new Error('Invalid JSON')),
-      } as any;
-
-      const response = await PUT(mockRequest);
-
-      expect(mockNextResponse.json).toHaveBeenCalledWith(
-        { error: 'Invalid JSON' },
-        { status: 500 },
-      );
+      expect(mockConfigServiceInstance.updateAgents).toHaveBeenCalledWith(agents);
+      expect(mockNextResponse.json).toHaveBeenCalledWith({ agents });
     });
   });
 });

@@ -12,14 +12,27 @@ export async function GET(request: Request) {
     const priority = searchParams.get('priority');
     const story_id = searchParams.get('story_id');
     const blocked = searchParams.get('blocked');
+    const includeStatus = searchParams.get('include_status') !== 'false'; // default true
 
     if (phase) filters.phase = phase;
     if (priority) filters.priority = priority;
     if (story_id) filters.story_id = story_id;
     if (blocked !== null) filters.blocked = blocked === 'true';
 
-    const tasks = service.list(filters as any);
-    return NextResponse.json({ tasks });
+    // Use listWithStatus to include session status for each task
+    if (includeStatus) {
+      const tasks = await service.listWithStatus(filters as any);
+
+      // Also sync artifacts from storage for each task
+      for (const task of tasks) {
+        service.syncArtifactsFromStorage(task.id);
+      }
+
+      return NextResponse.json({ tasks });
+    } else {
+      const tasks = service.list(filters as any);
+      return NextResponse.json({ tasks });
+    }
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message ?? 'Failed to list tasks' },
@@ -44,7 +57,8 @@ export async function POST(request: Request) {
       description: body.description || '',
       priority: body.priority,
       blockers: body.blockers,
-      assigned_agents: body.assigned_agents,
+      phase_agents: body.phase_agents, // deprecated
+      phase_overrides: body.phase_overrides, // new
       story_id: body.story_id,
       parent_task: body.parent_task,
       created_by: body.created_by || 'human',

@@ -5,12 +5,19 @@ import type {
   Story,
   StoryStatus,
   Phase,
+  AssignablePhase,
   TaskArtifact,
 } from '../lib/yaml/schemas';
 
 // ---------------------------------------------------------------------------
 // Derived / Utility Types
 // ---------------------------------------------------------------------------
+
+export type SessionStatus = 'idle' | 'running' | 'completed' | 'failed';
+
+export interface TaskWithSession extends Task {
+  session_status: SessionStatus;
+}
 
 export interface TaskWithStatus extends Task {
   status:

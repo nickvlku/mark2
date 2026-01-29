@@ -2,7 +2,9 @@
 
 import { useState, useCallback } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import type { AgentDefinition } from '@/types';
+import type { AgentDefinition, AssignablePhase } from '@/types';
+import { MODELS_BY_CLI, CLI_TOOLS, type CLITool } from '@/lib/constants/models';
+import { ASSIGNABLE_PHASES } from '@/lib/yaml/schemas';
 
 interface EditAgentDialogProps {
   agent: AgentDefinition;
@@ -11,17 +13,35 @@ interface EditAgentDialogProps {
   onUpdate: (agent: AgentDefinition) => void;
 }
 
-const CLI_TOOLS = ['claude-code', 'codex-cli', 'gemini-cli', 'opencode'] as const;
+const PHASE_LABELS: Record<AssignablePhase, string> = {
+  design: 'Design',
+  coding: 'Coding',
+  testing: 'Testing',
+  code_review: 'Code Review',
+  manual_testing: 'Manual Testing',
+};
 
 export function EditAgentDialog({ agent, existingAgents, onClose, onUpdate }: EditAgentDialogProps) {
   const [formData, setFormData] = useState({
     name: agent.name,
-    cli_tool: agent.cli_tool as typeof CLI_TOOLS[number],
+    cli_tool: agent.cli_tool as CLITool,
     model: agent.model,
+    phase: agent.phase as AssignablePhase,
     role_prompt: agent.role_prompt,
     timeout_minutes: agent.timeout_minutes,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  const availableModels = MODELS_BY_CLI[formData.cli_tool];
+  
+  const handleCliToolChange = useCallback((cli_tool: CLITool) => {
+    const models = MODELS_BY_CLI[cli_tool];
+    setFormData(prev => ({
+      ...prev,
+      cli_tool,
+      model: models[0]?.id ?? '',
+    }));
+  }, []);
 
   const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {};
@@ -57,15 +77,7 @@ export function EditAgentDialog({ agent, existingAgents, onClose, onUpdate }: Ed
     }
   }, [formData, onUpdate, validateForm]);
 
-  const getModelPlaceholder = (cli_tool: string) => {
-    switch (cli_tool) {
-      case 'claude-code': return 'e.g., claude-sonnet-4-20250514';
-      case 'codex-cli': return 'e.g., gpt-4-turbo';
-      case 'gemini-cli': return 'e.g., gemini-pro';
-      case 'opencode': return 'e.g., deepseek-coder-v2';
-      default: return 'Enter model name';
-    }
-  };
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -118,7 +130,7 @@ export function EditAgentDialog({ agent, existingAgents, onClose, onUpdate }: Ed
                     name="cli_tool"
                     value={tool}
                     checked={formData.cli_tool === tool}
-                    onChange={(e) => setFormData(prev => ({ ...prev, cli_tool: e.target.value as typeof tool }))}
+                    onChange={(e) => handleCliToolChange(e.target.value as CLITool)}
                     className="sr-only"
                   />
                   <div className={`flex-1 rounded-lg border px-3 py-2 text-sm text-center cursor-pointer transition-colors ${
@@ -133,18 +145,43 @@ export function EditAgentDialog({ agent, existingAgents, onClose, onUpdate }: Ed
             </div>
           </div>
 
+          {/* Phase */}
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-2">
+              Phase
+            </label>
+            <select
+              value={formData.phase}
+              onChange={(e) => setFormData(prev => ({ ...prev, phase: e.target.value as AssignablePhase }))}
+              className="w-full rounded-lg border border-border bg-bg-primary px-3 py-2 text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent [&>option]:bg-gray-800 [&>option]:text-white"
+            >
+              {ASSIGNABLE_PHASES.map((phase) => (
+                <option key={phase} value={phase}>
+                  {PHASE_LABELS[phase]}
+                </option>
+              ))}
+            </select>
+            {errors.phase && (
+              <p className="mt-1 text-sm text-red-400">{errors.phase}</p>
+            )}
+          </div>
+
           {/* Model */}
           <div>
             <label className="block text-sm font-medium text-text-primary mb-2">
               Model
             </label>
-            <input
-              type="text"
+            <select
               value={formData.model}
               onChange={(e) => setFormData(prev => ({ ...prev, model: e.target.value }))}
-              className="w-full rounded-lg border border-border bg-bg-primary px-3 py-2 text-text-primary placeholder-text-secondary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-              placeholder={getModelPlaceholder(formData.cli_tool)}
-            />
+              className="w-full rounded-lg border border-border bg-bg-primary px-3 py-2 text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent [&>option]:bg-gray-800 [&>option]:text-white"
+            >
+              {availableModels.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.name}{model.description ? ` - ${model.description}` : ''}
+                </option>
+              ))}
+            </select>
             {errors.model && (
               <p className="mt-1 text-sm text-red-400">{errors.model}</p>
             )}

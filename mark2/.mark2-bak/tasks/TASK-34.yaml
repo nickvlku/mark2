@@ -1,0 +1,19 @@
+id: TASK-34
+title: API Test Task
+description: Created via API test
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P1
+artifacts: []
+ports: []
+worktrees: {}
+created_by: playwright
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-01-29T03:15:14.193Z
+updated_at: 2026-01-29T03:15:14.193Z
+phase_entered_at: 2026-01-29T03:15:14.193Z
+loop_count: 0

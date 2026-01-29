@@ -1,0 +1,17 @@
+id: TASK-1
+title: End token fix test
+description: Should stay in design phase
+phase: done
+assigned_agents: []
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: human
+merge_strategy: squash
+auto_advance: false
+created_at: 2026-01-28T03:46:41.211Z
+updated_at: 2026-01-28T03:47:13.228Z
+phase_entered_at: 2026-01-28T03:47:13.228Z
+loop_count: 0
