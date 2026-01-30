@@ -1,0 +1,29 @@
+id: TASK-1
+title: Create an NPM task that lets you see all active tmux sessions and then interactively pick one
+description: create a NPM task (npm run mark2 tmuxes) that show all tmux sessions and let you pick one using arrow keys (like a little tui)
+phase: design
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts:
+  - name: design
+    phase: design
+    path: design-design-1769816635481-ks6rty.md
+    mime_type: text/markdown
+    created_at: 2026-01-30T23:43:55.482Z
+  - name: design
+    phase: design
+    path: design-design-1769817019466-8kn338.md
+    mime_type: text/markdown
+    created_at: 2026-01-30T23:50:19.466Z
+ports: []
+worktrees: {}
+created_by: human
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-01-30T22:57:40.856Z
+updated_at: 2026-01-30T23:50:19.466Z
+phase_entered_at: 2026-01-30T22:57:45.483Z
+loop_count: 0
