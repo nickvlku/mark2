@@ -63,6 +63,7 @@ export class TaskService {
       updated_at: now,
       phase_entered_at: now,
       loop_count: 0,
+      archived: false,
     });
 
     // Write YAML (canonical store)
@@ -84,10 +85,14 @@ export class TaskService {
       parent_task: task.parent_task ?? null,
       created_by: task.created_by,
       merge_strategy: task.merge_strategy,
+      auto_advance: task.auto_advance,
+      auto_approve: task.auto_approve,
       created_at: task.created_at,
       updated_at: task.updated_at,
       phase_entered_at: task.phase_entered_at,
       loop_count: task.loop_count,
+      archived: task.archived,
+      archived_at: task.archived_at ?? null,
       phase_agents_json: JSON.stringify(task.phase_agents),
       phase_overrides_json: JSON.stringify(task.phase_overrides),
       blockers_json: JSON.stringify(task.blockers),
@@ -114,6 +119,7 @@ export class TaskService {
     priority?: string;
     story_id?: string;
     blocked?: boolean;
+    archived?: boolean;
   }): Task[] {
     const db = getDb(this.mark2Dir);
     const conditions: ReturnType<typeof eq>[] = [];
@@ -126,6 +132,14 @@ export class TaskService {
     }
     if (filters?.story_id) {
       conditions.push(eq(tasks.story_id, filters.story_id));
+    }
+
+    // Default to showing only non-archived tasks
+    const showArchived = filters?.archived ?? false;
+    if (showArchived) {
+      conditions.push(eq(tasks.archived, true));
+    } else {
+      conditions.push(eq(tasks.archived, false));
     }
 
     let rows;
@@ -184,6 +198,8 @@ export class TaskService {
         updated_at: task.updated_at,
         phase_entered_at: task.phase_entered_at,
         loop_count: task.loop_count,
+        archived: task.archived,
+        archived_at: task.archived_at ?? null,
         phase_agents_json: JSON.stringify(task.phase_agents),
         phase_overrides_json: JSON.stringify(task.phase_overrides),
         blockers_json: JSON.stringify(task.blockers),
@@ -198,6 +214,14 @@ export class TaskService {
   }
 
   delete(taskId: string): void {
+    const task = this.getById(taskId);
+    if (!task) {
+      throw new Error(`Task ${taskId} not found`);
+    }
+    if (!task.archived) {
+      throw new Error(`Task ${taskId} must be archived before deletion`);
+    }
+
     // Delete YAML files
     this.writer.deleteTask(taskId);
 
@@ -205,6 +229,31 @@ export class TaskService {
     const db = getDb(this.mark2Dir);
     db.delete(tasks).where(eq(tasks.id, taskId)).run();
     db.delete(activityEntries).where(eq(activityEntries.task_id, taskId)).run();
+  }
+
+  archive(taskId: string): Task {
+    const existing = this.getById(taskId);
+    if (!existing) {
+      throw new Error(`Task ${taskId} not found`);
+    }
+
+    const now = new Date().toISOString();
+    return this.update(taskId, {
+      archived: true,
+      archived_at: now,
+    });
+  }
+
+  restore(taskId: string): Task {
+    const existing = this.getById(taskId);
+    if (!existing) {
+      throw new Error(`Task ${taskId} not found`);
+    }
+
+    return this.update(taskId, {
+      archived: false,
+      archived_at: undefined,
+    });
   }
 
   addBlocker(taskId: string, blockerId: string): Task {
@@ -345,6 +394,7 @@ export class TaskService {
     priority?: string;
     story_id?: string;
     blocked?: boolean;
+    archived?: boolean;
   }): Promise<TaskWithSession[]> {
     const taskList = this.list(filters);
 
@@ -446,6 +496,8 @@ export class TaskService {
       updated_at: row.updated_at,
       phase_entered_at: row.phase_entered_at,
       loop_count: row.loop_count,
+      archived: row.archived,
+      archived_at: row.archived_at ?? undefined,
       phase_agents: JSON.parse(row.phase_agents_json),
       phase_overrides: JSON.parse(row.phase_overrides_json),
       blockers: JSON.parse(row.blockers_json),

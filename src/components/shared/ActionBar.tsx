@@ -9,6 +9,9 @@ interface ActionBarProps {
   task: Task;
   onPhaseAction: (action: { phase: Phase } | { restart: true }) => void;
   onToggleAutoApprove: (value: boolean) => void;
+  onArchive?: () => void;
+  onRestore?: () => void;
+  onDelete?: () => void;
 }
 
 interface PhaseButton {
@@ -47,6 +50,16 @@ const phaseActions: Record<Phase, PhaseButton[]> = {
     { label: 'Tests Failed', variant: 'secondary', target: { phase: 'fix_review' } },
     { label: 'Restart Phase', variant: 'danger', target: { restart: true } },
   ],
+  fix_review: [
+    { label: 'Fixes Complete', variant: 'success', target: { phase: 'final_testing' } },
+    { label: 'Need More Fixes', variant: 'secondary', target: { phase: 'coding' } },
+    { label: 'Restart Phase', variant: 'danger', target: { restart: true } },
+  ],
+  final_testing: [
+    { label: 'Tests Pass', variant: 'success', target: { phase: 'manual_testing' } },
+    { label: 'Tests Failed', variant: 'secondary', target: { phase: 'coding' } },
+    { label: 'Restart Phase', variant: 'danger', target: { restart: true } },
+  ],
   manual_testing: [
     { label: 'Approve & Merge', variant: 'success', target: { phase: 'done' } },
     { label: 'Request Revisions', variant: 'secondary', target: { phase: 'fix_review' } },
@@ -73,11 +86,11 @@ function isForwardTransition(btn: PhaseButton, currentPhase: Phase): boolean {
   return targetIdx > currentIdx;
 }
 
-export function ActionBar({ task, onPhaseAction, onToggleAutoApprove }: ActionBarProps) {
+export function ActionBar({ task, onPhaseAction, onToggleAutoApprove, onArchive, onRestore, onDelete }: ActionBarProps) {
   const [confirmButton, setConfirmButton] = useState<PhaseButton | null>(null);
   const [artifactContents, setArtifactContents] = useState<Record<string, string>>({});
   const [expandedArtifact, setExpandedArtifact] = useState<string | null>(null);
-  const actions = phaseActions[task.phase] ?? [];
+  const actions = task.archived ? [] : (phaseActions[task.phase] ?? []);
 
   const phaseArtifacts = task.artifacts.filter((a) => a.phase === task.phase);
 
@@ -145,16 +158,46 @@ export function ActionBar({ task, onPhaseAction, onToggleAutoApprove }: ActionBa
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Auto-approve toggle */}
-        <label className="flex items-center gap-2 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={task.auto_approve}
-            onChange={(e) => onToggleAutoApprove(e.target.checked)}
-            className="h-3.5 w-3.5 rounded border-border accent-accent cursor-pointer"
-          />
-          <span className="text-xs text-text-secondary">Auto-approve</span>
-        </label>
+        {/* Archive actions */}
+        {!task.archived && onArchive && (
+          <button
+            onClick={onArchive}
+            className="rounded-lg px-3 py-1.5 text-xs font-medium border border-border text-text-secondary hover:bg-bg-hover transition-colors"
+          >
+            Archive
+          </button>
+        )}
+
+        {task.archived && onRestore && (
+          <button
+            onClick={onRestore}
+            className="rounded-lg px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+          >
+            Restore
+          </button>
+        )}
+
+        {task.archived && onDelete && (
+          <button
+            onClick={onDelete}
+            className="rounded-lg px-3 py-1.5 text-xs font-medium bg-red-600 hover:bg-red-500 text-white transition-colors"
+          >
+            Delete
+          </button>
+        )}
+
+        {/* Auto-approve toggle - only show for non-archived tasks */}
+        {!task.archived && (
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={task.auto_approve}
+              onChange={(e) => onToggleAutoApprove(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-border accent-accent cursor-pointer"
+            />
+            <span className="text-xs text-text-secondary">Auto-approve</span>
+          </label>
+        )}
       </div>
 
       {/* Review dialog with artifacts */}
