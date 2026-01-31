@@ -370,7 +370,7 @@ describe('Zod Schemas', () => {
       const input = {
         name: 'design-agent',
         cli_tool: 'claude-code',
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-5',
         phase: 'design',
         role_prompt: 'You are a design agent.',
         timeout_minutes: 30,
