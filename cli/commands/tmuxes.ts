@@ -102,7 +102,8 @@ function parseSessionLine(line: string): TmuxSession | null {
   const windows = parseInt(windowsStr, 10);
   const attached = attachedStr === 'attached';
 
-  if (isNaN(windows)) {
+  // Validate window count is a positive number
+  if (isNaN(windows) || windows <= 0) {
     return null;
   }
 
@@ -122,6 +123,11 @@ function parseSessionLine(line: string): TmuxSession | null {
 function formatTimeAgo(timestamp: number): string {
   const now = Math.floor(Date.now() / 1000);
   const diffSeconds = now - timestamp;
+
+  // Handle future timestamps
+  if (diffSeconds < 0) {
+    return 'in the future';
+  }
 
   if (diffSeconds < SECONDS_PER_MINUTE) {
     return 'just now';

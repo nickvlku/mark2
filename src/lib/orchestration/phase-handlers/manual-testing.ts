@@ -1,10 +1,13 @@
 import fs from 'fs';
 import type { Task, AgentDefinition } from '../../yaml/schemas';
+import { CloneService } from '../../services/clone-service';
 import { allocatePortsForTask } from '../../utils/port-allocator';
-import { portAllocations } from '../../db/schema';
+import { getDb } from '../../db';
+import { activityEntries, portAllocations } from '../../db/schema';
+import { TmuxManager } from '../tmux-manager';
+import { PromptAssembler, type PromptContext } from '../prompt-assembler';
 import type { CLIAdapter } from '../../adapters/types';
-import { runAgentPhase } from './run-agent-phase';
-import type { PromptContext } from '../prompt-assembler';
+import type { AgentInvocationParams } from '../../../types';
 
 export interface ManualTestingResult {
   tmuxSession: string;
@@ -30,59 +33,100 @@ export async function handleManualTesting(
   basePort: number = 3000,
   portsPerTask: number = 10,
 ): Promise<ManualTestingResult> {
-  const result = await runAgentPhase<{ allocatedPorts: number[] }>(
-    task,
-    agent,
-    adapter,
-    mark2Dir,
+  const db = getDb(mark2Dir);
+  const now = new Date().toISOString();
+
+  // Allocate ports for this task
+  const allocatedPorts = allocatePortsForTask(task.id, basePort, portsPerTask);
+
+  // Record port allocation
+  db.insert(portAllocations)
+    .values({
+      task_id: task.id,
+      ports_json: JSON.stringify(allocatedPorts),
+      services_json: JSON.stringify({}),
+      allocated_at: now,
+    })
+    .onConflictDoUpdate({
+      target: portAllocations.task_id,
+      set: {
+        ports_json: JSON.stringify(allocatedPorts),
+        allocated_at: now,
+      },
+    })
+    .run();
+
+  // Get the clone path for this task
+  const cloneService = new CloneService(mark2Dir);
+  const clonePath = cloneService.getClonePath(task.id);
+
+  // Ensure clone exists
+  if (!cloneService.cloneExists(task.id)) {
+    await cloneService.createClone(task.id);
+  }
+
+  // Read the design document for context
+  let designDocument: string | undefined;
+  const designPath = `${clonePath}/design.md`;
+  try {
+    if (fs.existsSync(designPath)) {
+      designDocument = fs.readFileSync(designPath, 'utf-8');
+    }
+  } catch {
+    // Design doc may not exist
+  }
+
+  const promptContext: PromptContext = {
+    designDocument,
+  };
+
+  // Assemble the prompt
+  const assembler = new PromptAssembler(mark2Dir);
+  const prompt = assembler.assemble(task, agent, 'manual_testing', promptContext);
+
+  // Build invocation params
+  const params: AgentInvocationParams = {
+    prompt,
+    workingDirectory: clonePath,
+    agentName: agent.name,
+    model: agent.model,
+    taskId: task.id,
+    phase: 'manual_testing',
     apiBaseUrl,
     agentToken,
-    'manual_testing',
-    {
-    getPromptContext: (clonePath): PromptContext => {
-      let designDocument: string | undefined;
-      const designPath = `${clonePath}/design.md`;
-      try {
-        if (fs.existsSync(designPath)) {
-          designDocument = fs.readFileSync(designPath, 'utf-8');
-        }
-      } catch {
-        // Design doc may not exist
-      }
-      return { designDocument };
-    },
-    activityMessage: (ctx) => {
-      const ports = ctx.extra?.allocatedPorts ?? [];
-      return `Manual testing phase started. Ports allocated: ${ports.join(', ')}. Agent "${ctx.agent.name}" spawned.`;
-    },
-    activityMetadata: (ctx) => ({
-      agent: ctx.agent.name,
-      tmux_session: ctx.tmuxSession,
-      ports: ctx.extra?.allocatedPorts ?? [],
-    }),
-    preHook: async ({ taskId, now, db }) => {
-      const allocatedPorts = allocatePortsForTask(taskId, basePort, portsPerTask);
-      db.insert(portAllocations)
-        .values({
-          task_id: taskId,
-          ports_json: JSON.stringify(allocatedPorts),
-          services_json: JSON.stringify({}),
-          allocated_at: now,
-        })
-        .onConflictDoUpdate({
-          target: portAllocations.task_id,
-          set: {
-            ports_json: JSON.stringify(allocatedPorts),
-            allocated_at: now,
-          },
-        })
-        .run();
-      return { allocatedPorts };
-    },
-  });
-  return {
-    tmuxSession: result.tmuxSession,
-    allocatedPorts: result.allocatedPorts,
-    promptFile: result.promptFile,
+    timeoutMinutes: agent.timeout_minutes,
   };
+
+  const command = adapter.buildCommand(params);
+  const env = adapter.getEnvironment(params);
+  const promptFile = adapter.getPromptFilePath?.(params);
+
+  // Spawn the agent
+  const tmuxManager = new TmuxManager(mark2Dir);
+  const tmuxSession = await tmuxManager.spawnAgent({
+    taskId: task.id,
+    agentName: agent.name,
+    phase: 'manual_testing',
+    command,
+    workingDir: clonePath,
+    env,
+  });
+
+  // Log activity
+  db.insert(activityEntries)
+    .values({
+      task_id: task.id,
+      timestamp: now,
+      source: 'orchestration',
+      type: 'phase_change',
+      message: `Manual testing phase started. Ports allocated: ${allocatedPorts.join(', ')}. Agent "${agent.name}" spawned.`,
+      metadata_json: JSON.stringify({
+        agent: agent.name,
+        tmux_session: tmuxSession,
+        ports: allocatedPorts,
+      }),
+    })
+    .run();
+
+  return { tmuxSession, allocatedPorts, promptFile };
 }

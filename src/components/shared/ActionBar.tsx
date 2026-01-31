@@ -1,19 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import type { Phase, Task } from '@/types';
+import { useState } from 'react';
+import type { Phase, Task, TaskArtifact } from '@/types';
 import { Dialog } from './Dialog';
-import { ArtifactViewer } from './ArtifactViewer';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 interface ActionBarProps {
   task: Task;
-  onPhaseAction: (action: { phase: Phase; targetBranch?: string } | { restart: true }) => void;
+  onPhaseAction: (action: { phase: Phase } | { restart: true }) => void;
   onToggleAutoApprove: (value: boolean) => void;
 }
 
 interface PhaseButton {
   label: string;
-  variant: 'primary' | 'success' | 'danger' | 'secondary' | 'warning';
+  variant: 'primary' | 'success' | 'danger' | 'secondary';
   target: { phase: Phase } | { restart: true };
 }
 
@@ -34,22 +34,13 @@ const phaseActions: Record<Phase, PhaseButton[]> = {
     { label: 'Restart Phase', variant: 'danger', target: { restart: true } },
   ],
   code_review: [
-    { label: 'Approve Review', variant: 'success', target: { phase: 'final_testing' } },
-    { label: 'Request Fixes', variant: 'warning', target: { phase: 'fix_review' } },
-    { label: 'Restart Phase', variant: 'danger', target: { restart: true } },
-  ],
-  fix_review: [
-    { label: 'Fixes Complete', variant: 'success', target: { phase: 'code_review' } },
-    { label: 'Restart Phase', variant: 'danger', target: { restart: true } },
-  ],
-  final_testing: [
-    { label: 'Tests Passing', variant: 'success', target: { phase: 'manual_testing' } },
-    { label: 'Tests Failed', variant: 'warning', target: { phase: 'fix_review' } },
+    { label: 'Approve Review', variant: 'success', target: { phase: 'manual_testing' } },
+    { label: 'Request Fixes', variant: 'secondary', target: { phase: 'coding' } },
     { label: 'Restart Phase', variant: 'danger', target: { restart: true } },
   ],
   manual_testing: [
-    { label: 'Approve & Create PR', variant: 'success', target: { phase: 'done' } },
-    { label: 'Request Revisions', variant: 'warning', target: { phase: 'fix_review' } },
+    { label: 'Approve & Merge', variant: 'success', target: { phase: 'done' } },
+    { label: 'Request Revisions', variant: 'secondary', target: { phase: 'coding' } },
   ],
   done: [],
 };
@@ -58,7 +49,6 @@ const variantStyles: Record<string, string> = {
   primary: 'bg-indigo-600 hover:bg-indigo-500 text-white',
   success: 'bg-green-600 hover:bg-green-500 text-white',
   danger: 'bg-red-600 hover:bg-red-500 text-white',
-  warning: 'bg-amber-600 hover:bg-amber-500 text-white',
   secondary: 'border border-border text-text-secondary hover:bg-bg-hover',
 };
 
@@ -67,8 +57,8 @@ const variantStyles: Record<string, string> = {
  */
 function isForwardTransition(btn: PhaseButton, currentPhase: Phase): boolean {
   if ('restart' in btn.target) return false;
-  // "Request Fixes" and "Request Revisions" go backward — not forward
-  const phaseOrder: Phase[] = ['pending', 'design', 'coding', 'testing', 'code_review', 'fix_review', 'final_testing', 'manual_testing', 'done'];
+  // "Request Fixes" and "Request Revisions" go backward to coding — not forward
+  const phaseOrder: Phase[] = ['pending', 'design', 'coding', 'testing', 'code_review', 'manual_testing', 'done'];
   const currentIdx = phaseOrder.indexOf(currentPhase);
   const targetIdx = phaseOrder.indexOf(btn.target.phase);
   return targetIdx > currentIdx;
@@ -76,31 +66,34 @@ function isForwardTransition(btn: PhaseButton, currentPhase: Phase): boolean {
 
 export function ActionBar({ task, onPhaseAction, onToggleAutoApprove }: ActionBarProps) {
   const [confirmButton, setConfirmButton] = useState<PhaseButton | null>(null);
-  const [branches, setBranches] = useState<string[]>([]);
-  const [targetBranch, setTargetBranch] = useState<string>('main');
+  const [artifactContents, setArtifactContents] = useState<Record<string, string>>({});
+  const [expandedArtifact, setExpandedArtifact] = useState<string | null>(null);
   const actions = phaseActions[task.phase] ?? [];
 
-  // Fetch branches when in manual_testing phase
-  useEffect(() => {
-    if (task.phase === 'manual_testing') {
-      fetch('/api/branches')
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.branches) {
-            setBranches(data.branches);
-            // Default to main if available
-            if (data.branches.includes('main')) {
-              setTargetBranch('main');
-            } else if (data.branches.length > 0) {
-              setTargetBranch(data.branches[0]);
-            }
-          }
-        })
-        .catch(console.error);
-    }
-  }, [task.phase]);
-
   const phaseArtifacts = task.artifacts.filter((a) => a.phase === task.phase);
+
+  // Load artifact content when expanded in the review dialog
+  const loadArtifactContent = async (artifact: TaskArtifact) => {
+    if (artifactContents[artifact.path]) return;
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/artifacts?path=${encodeURIComponent(artifact.path)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setArtifactContents((prev) => ({ ...prev, [artifact.path]: data.content ?? '' }));
+      }
+    } catch {
+      setArtifactContents((prev) => ({ ...prev, [artifact.path]: 'Failed to load content.' }));
+    }
+  };
+
+  const toggleArtifact = (artifact: TaskArtifact) => {
+    if (expandedArtifact === artifact.path) {
+      setExpandedArtifact(null);
+    } else {
+      setExpandedArtifact(artifact.path);
+      loadArtifactContent(artifact);
+    }
+  };
 
   // Determine if this button needs artifact review
   const needsArtifactReview = (btn: PhaseButton): boolean => {
@@ -113,6 +106,7 @@ export function ActionBar({ task, onPhaseAction, onToggleAutoApprove }: ActionBa
     if (needsArtifactReview(btn)) {
       // Show review dialog with artifacts
       setConfirmButton(btn);
+      setExpandedArtifact(null);
     } else if (btn.variant === 'danger' || btn.variant === 'success') {
       // Show simple confirmation dialog
       setConfirmButton(btn);
@@ -122,65 +116,22 @@ export function ActionBar({ task, onPhaseAction, onToggleAutoApprove }: ActionBa
   };
 
   const isReviewDialog = confirmButton ? needsArtifactReview(confirmButton) : false;
+  const isMarkdown = (name: string) => name.endsWith('.md') || name.endsWith('.markdown');
 
   if (actions.length === 0) return null;
-
-  // Check if this is the PR button
-  const isPRButton = (btn: PhaseButton) =>
-    'phase' in btn.target && btn.target.phase === 'done';
 
   return (
     <>
       <div className="flex items-center gap-2 border-t border-border px-4 py-3">
-        {actions.map((btn) => {
-          // Special rendering for merge button with branch selector
-          if (isPRButton(btn) && branches.length > 0) {
-            return (
-              <div key={btn.label} className="flex items-center">
-                <button
-                  onClick={() => handleButtonClick(btn)}
-                  className={`rounded-l-lg px-4 py-2 text-sm font-medium transition-colors ${variantStyles[btn.variant]}`}
-                >
-                  Create PR → {targetBranch}
-                </button>
-                <div className="relative">
-                  <select
-                    value={targetBranch}
-                    onChange={(e) => setTargetBranch(e.target.value)}
-                    className={`h-full rounded-r-lg border-l border-white/20 px-2 py-2 text-sm font-medium cursor-pointer appearance-none pr-6 ${variantStyles[btn.variant]}`}
-                    style={{ backgroundImage: 'none' }}
-                  >
-                    {branches.map((branch) => (
-                      <option key={branch} value={branch} className="bg-bg-secondary text-text-primary">
-                        {branch}
-                      </option>
-                    ))}
-                  </select>
-                  <svg
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth={2}
-                    stroke="currentColor"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m19 9-7 7-7-7" />
-                  </svg>
-                </div>
-              </div>
-            );
-          }
-
-          // Standard button rendering
-          return (
-            <button
-              key={btn.label}
-              onClick={() => handleButtonClick(btn)}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${variantStyles[btn.variant]}`}
-            >
-              {btn.label}
-            </button>
-          );
-        })}
+        {actions.map((btn) => (
+          <button
+            key={btn.label}
+            onClick={() => handleButtonClick(btn)}
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${variantStyles[btn.variant]}`}
+          >
+            {btn.label}
+          </button>
+        ))}
 
         {/* Spacer */}
         <div className="flex-1" />
@@ -201,29 +152,55 @@ export function ActionBar({ task, onPhaseAction, onToggleAutoApprove }: ActionBa
       {isReviewDialog && (
         <Dialog
           open={!!confirmButton}
-          onClose={() => setConfirmButton(null)}
-          title={`Review & ${confirmButton ? (isPRButton(confirmButton) ? `Create PR → ${targetBranch}` : confirmButton.label) : ''}`}
+          onClose={() => { setConfirmButton(null); setExpandedArtifact(null); }}
+          title={`Review & ${confirmButton?.label}`}
           description={`Review the artifacts produced in the "${task.phase}" phase before proceeding.`}
-          confirmLabel={confirmButton ? (isPRButton(confirmButton) ? `Create PR → ${targetBranch}` : confirmButton.label) : 'Confirm'}
+          confirmLabel={confirmButton?.label ?? 'Confirm'}
           variant={confirmButton?.variant === 'danger' ? 'danger' : 'default'}
           wide
           onConfirm={() => {
-            if (confirmButton) {
-              if (isPRButton(confirmButton)) {
-                onPhaseAction({ phase: 'done', targetBranch });
-              } else {
-                onPhaseAction(confirmButton.target);
-              }
-            }
+            if (confirmButton) onPhaseAction(confirmButton.target);
           }}
         >
           <div className="max-h-80 overflow-y-auto space-y-2">
             {phaseArtifacts.map((artifact) => (
-              <ArtifactViewer
-                key={artifact.path}
-                artifact={artifact}
-                taskId={task.id}
-              />
+              <div key={artifact.path} className="rounded-lg border border-border">
+                <button
+                  onClick={() => toggleArtifact(artifact)}
+                  className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-bg-hover transition-colors rounded-lg"
+                >
+                  <svg className="h-4 w-4 text-text-secondary shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                  </svg>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium text-text-primary truncate block">{artifact.name}</span>
+                    <span className="text-[10px] text-text-secondary font-mono truncate block">{artifact.path}</span>
+                  </div>
+                  <svg
+                    className={`h-4 w-4 text-text-secondary transition-transform ${expandedArtifact === artifact.path ? 'rotate-180' : ''}`}
+                    fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+                {expandedArtifact === artifact.path && (
+                  <div className="border-t border-border px-3 py-3 max-h-60 overflow-y-auto">
+                    {artifactContents[artifact.path] ? (
+                      isMarkdown(artifact.name) ? (
+                        <MarkdownRenderer content={artifactContents[artifact.path]} />
+                      ) : (
+                        <pre className="rounded-lg bg-bg-primary p-3 text-xs text-text-secondary font-mono overflow-x-auto whitespace-pre-wrap">
+                          {artifactContents[artifact.path]}
+                        </pre>
+                      )
+                    ) : (
+                      <div className="flex items-center justify-center py-4 text-xs text-text-secondary">
+                        Loading...
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             ))}
 
             {phaseArtifacts.length === 0 && (
@@ -238,22 +215,12 @@ export function ActionBar({ task, onPhaseAction, onToggleAutoApprove }: ActionBa
         <Dialog
           open={!!confirmButton}
           onClose={() => setConfirmButton(null)}
-          title={`Confirm: ${confirmButton ? (isPRButton(confirmButton) ? `Create PR → ${targetBranch}` : confirmButton.label) : ''}`}
-          description={
-            confirmButton && isPRButton(confirmButton)
-              ? `This will create a PR for ${task.id} targeting the "${targetBranch}" branch.`
-              : `Are you sure you want to "${confirmButton?.label}" for ${task.id}?`
-          }
-          confirmLabel={confirmButton ? (isPRButton(confirmButton) ? `Create PR → ${targetBranch}` : confirmButton.label) : 'Confirm'}
+          title={`Confirm: ${confirmButton?.label}`}
+          description={`Are you sure you want to "${confirmButton?.label}" for ${task.id}?`}
+          confirmLabel={confirmButton?.label ?? 'Confirm'}
           variant={confirmButton?.variant === 'danger' ? 'danger' : 'default'}
           onConfirm={() => {
-            if (confirmButton) {
-              if (isPRButton(confirmButton)) {
-                onPhaseAction({ phase: 'done', targetBranch });
-              } else {
-                onPhaseAction(confirmButton.target);
-              }
-            }
+            if (confirmButton) onPhaseAction(confirmButton.target);
           }}
         />
       )}

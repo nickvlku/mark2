@@ -1,8 +1,12 @@
 import fs from 'fs';
 import type { Task, AgentDefinition } from '../../yaml/schemas';
+import { CloneService } from '../../services/clone-service';
+import { getDb } from '../../db';
+import { activityEntries } from '../../db/schema';
+import { TmuxManager } from '../tmux-manager';
+import { PromptAssembler, type PromptContext } from '../prompt-assembler';
 import type { CLIAdapter } from '../../adapters/types';
-import { runAgentPhase } from './run-agent-phase';
-import type { PromptContext } from '../prompt-assembler';
+import type { AgentInvocationParams } from '../../../types';
 
 export interface TestingResult {
   tmuxSession: string;
@@ -23,26 +27,79 @@ export async function handleTesting(
   apiBaseUrl: string,
   agentToken: string,
 ): Promise<TestingResult> {
-  const result = await runAgentPhase(task, agent, adapter, mark2Dir, apiBaseUrl, agentToken, 'testing', {
-    getPromptContext: (clonePath) => {
-      let designDocument: string | undefined;
-      const designPath = `${clonePath}/design.md`;
-      try {
-        if (fs.existsSync(designPath)) {
-          designDocument = fs.readFileSync(designPath, 'utf-8');
-        }
-      } catch {
-        // Design doc may not exist
-      }
-      const promptContext: PromptContext = { designDocument };
-      return promptContext;
-    },
-    activityMessage: (ctx) =>
-      `Testing phase started. Agent "${ctx.agent.name}" spawned in TMUX session "${ctx.tmuxSession}".`,
-    activityMetadata: (ctx) => ({
-      agent: ctx.agent.name,
-      tmux_session: ctx.tmuxSession,
-    }),
+  const db = getDb(mark2Dir);
+  const now = new Date().toISOString();
+
+  // Get the clone path for this task
+  const cloneService = new CloneService(mark2Dir);
+  const clonePath = cloneService.getClonePath(task.id);
+
+  // Ensure clone exists
+  if (!cloneService.cloneExists(task.id)) {
+    await cloneService.createClone(task.id);
+  }
+
+  // Try to read the design document for context
+  let designDocument: string | undefined;
+  const designPath = `${clonePath}/design.md`;
+  try {
+    if (fs.existsSync(designPath)) {
+      designDocument = fs.readFileSync(designPath, 'utf-8');
+    }
+  } catch {
+    // Design doc may not exist
+  }
+
+  const promptContext: PromptContext = {
+    designDocument,
+  };
+
+  // Assemble the prompt
+  const assembler = new PromptAssembler(mark2Dir);
+  const prompt = assembler.assemble(task, agent, 'testing', promptContext);
+
+  // Build invocation params
+  const params: AgentInvocationParams = {
+    prompt,
+    workingDirectory: clonePath,
+    agentName: agent.name,
+    model: agent.model,
+    taskId: task.id,
+    phase: 'testing',
+    apiBaseUrl,
+    agentToken,
+    timeoutMinutes: agent.timeout_minutes,
+  };
+
+  const command = adapter.buildCommand(params);
+  const env = adapter.getEnvironment(params);
+  const promptFile = adapter.getPromptFilePath?.(params);
+
+  // Spawn the agent
+  const tmuxManager = new TmuxManager(mark2Dir);
+  const tmuxSession = await tmuxManager.spawnAgent({
+    taskId: task.id,
+    agentName: agent.name,
+    phase: 'testing',
+    command,
+    workingDir: clonePath,
+    env,
   });
-  return { tmuxSession: result.tmuxSession, promptFile: result.promptFile };
+
+  // Log activity
+  db.insert(activityEntries)
+    .values({
+      task_id: task.id,
+      timestamp: now,
+      source: 'orchestration',
+      type: 'phase_change',
+      message: `Testing phase started. Agent "${agent.name}" spawned in TMUX session "${tmuxSession}".`,
+      metadata_json: JSON.stringify({
+        agent: agent.name,
+        tmux_session: tmuxSession,
+      }),
+    })
+    .run();
+
+  return { tmuxSession, promptFile };
 }

@@ -23,15 +23,10 @@ interface ParsedHunk {
   }>;
 }
 
-type FileStatus = 'modified' | 'added' | 'deleted' | 'renamed' | 'copied';
-
 interface ParsedFile {
   oldPath: string;
   newPath: string;
-  status: FileStatus;
-  similarity?: number; // For renames/copies
   hunks: ParsedHunk[];
-  isBinary?: boolean;
 }
 
 function parseDiff(diff: string): ParsedFile[] {
@@ -42,83 +37,21 @@ function parseDiff(diff: string): ParsedFile[] {
   let oldLineNum = 0;
   let newLineNum = 0;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
+  for (const line of lines) {
     if (line.startsWith('diff --git')) {
       if (currentFile) {
         if (currentHunk) currentFile.hunks.push(currentHunk);
         files.push(currentFile);
       }
-      // Extract paths from diff --git a/path b/path
-      const match = line.match(/^diff --git a\/(.+) b\/(.+)$/);
-      currentFile = {
-        oldPath: match ? match[1] : '',
-        newPath: match ? match[2] : '',
-        status: 'modified', // Default, will be updated based on subsequent lines
-        hunks: [],
-      };
+      currentFile = { oldPath: '', newPath: '', hunks: [] };
       currentHunk = null;
-    } else if (line.startsWith('new file mode')) {
-      if (currentFile) {
-        currentFile.status = 'added';
-      }
-    } else if (line.startsWith('deleted file mode')) {
-      if (currentFile) {
-        currentFile.status = 'deleted';
-      }
-    } else if (line.startsWith('similarity index')) {
-      if (currentFile) {
-        const match = line.match(/similarity index (\d+)%/);
-        if (match) {
-          currentFile.similarity = parseInt(match[1], 10);
-        }
-      }
-    } else if (line.startsWith('rename from')) {
-      if (currentFile) {
-        currentFile.status = 'renamed';
-        currentFile.oldPath = line.slice(12); // "rename from ".length
-      }
-    } else if (line.startsWith('rename to')) {
-      if (currentFile) {
-        currentFile.newPath = line.slice(10); // "rename to ".length
-      }
-    } else if (line.startsWith('copy from')) {
-      if (currentFile) {
-        currentFile.status = 'copied';
-        currentFile.oldPath = line.slice(10); // "copy from ".length
-      }
-    } else if (line.startsWith('copy to')) {
-      if (currentFile) {
-        currentFile.newPath = line.slice(8); // "copy to ".length
-      }
-    } else if (line.startsWith('Binary files')) {
-      if (currentFile) {
-        currentFile.isBinary = true;
-      }
     } else if (line.startsWith('--- ')) {
       if (currentFile) {
-        const path = line.slice(4);
-        if (path === '/dev/null') {
-          currentFile.status = 'added';
-        } else {
-          // Only set oldPath if not already set by rename/copy
-          if (!currentFile.oldPath || currentFile.status === 'modified') {
-            currentFile.oldPath = path.replace(/^a\//, '');
-          }
-        }
+        currentFile.oldPath = line.slice(4).replace(/^a\//, '');
       }
     } else if (line.startsWith('+++ ')) {
       if (currentFile) {
-        const path = line.slice(4);
-        if (path === '/dev/null') {
-          currentFile.status = 'deleted';
-        } else {
-          // Only set newPath if not already set by rename/copy
-          if (!currentFile.newPath || currentFile.status === 'modified') {
-            currentFile.newPath = path.replace(/^b\//, '');
-          }
-        }
+        currentFile.newPath = line.slice(4).replace(/^b\//, '');
       }
     } else if (line.startsWith('@@')) {
       if (currentFile && currentHunk) {
@@ -166,151 +99,100 @@ function parseDiff(diff: string): ParsedFile[] {
   return files;
 }
 
-function FileStatusBadge({ status, similarity }: { status: FileStatus; similarity?: number }) {
-  const config = {
-    added: { label: 'Added', className: 'bg-green-500/20 text-green-400' },
-    deleted: { label: 'Deleted', className: 'bg-red-500/20 text-red-400' },
-    renamed: { label: similarity ? `Renamed (${similarity}%)` : 'Renamed', className: 'bg-yellow-500/20 text-yellow-400' },
-    copied: { label: similarity ? `Copied (${similarity}%)` : 'Copied', className: 'bg-blue-500/20 text-blue-400' },
-    modified: { label: 'Modified', className: 'bg-purple-500/20 text-purple-400' },
-  };
-
-  const { label, className } = config[status];
-
-  return (
-    <span className={`px-2 py-0.5 text-[10px] rounded-full ${className}`}>
-      {label}
-    </span>
-  );
-}
-
-function getDisplayPath(file: ParsedFile): string {
-  if (file.status === 'renamed' || file.status === 'copied') {
-    return `${file.oldPath} → ${file.newPath}`;
-  }
-  if (file.status === 'deleted') {
-    return file.oldPath;
-  }
-  return file.newPath || file.oldPath;
-}
-
 function SplitView({ files }: { files: ParsedFile[] }) {
   return (
     <div className="flex flex-col gap-4">
       {files.map((file, fileIdx) => (
         <div key={fileIdx} className="border border-border rounded-lg overflow-hidden">
           {/* File header */}
-          <div className="bg-bg-secondary px-4 py-2 border-b border-border flex items-center gap-3">
-            <FileStatusBadge status={file.status} similarity={file.similarity} />
+          <div className="bg-bg-secondary px-4 py-2 border-b border-border">
             <span className="text-sm font-mono text-text-primary">
-              {getDisplayPath(file)}
+              {file.newPath || file.oldPath}
             </span>
           </div>
 
-          {/* Handle binary files */}
-          {file.isBinary ? (
-            <div className="px-4 py-8 text-center text-text-secondary">
-              <span className="text-sm">Binary file not shown</span>
-            </div>
-          ) : file.hunks.length === 0 ? (
-            /* Handle files with no content changes (pure renames, etc.) */
-            <div className="px-4 py-8 text-center text-text-secondary">
-              <span className="text-sm">
-                {file.status === 'renamed' && 'File renamed (no content changes)'}
-                {file.status === 'copied' && 'File copied (no content changes)'}
-                {file.status === 'deleted' && 'File deleted'}
-                {file.status === 'added' && 'Empty file added'}
-                {file.status === 'modified' && 'No changes detected'}
-              </span>
-            </div>
-          ) : (
-            /* Split panes */
-            <div className="flex">
-              {/* Left (old) - hide for new files */}
-              {file.status !== 'added' && (
-                <div className={`flex-1 ${file.status !== 'deleted' ? 'border-r border-border' : ''} bg-red-500/5`}>
-                  <div className="px-2 py-1 text-[10px] text-text-secondary border-b border-border bg-bg-secondary/50">
-                    {file.status === 'deleted' ? 'Deleted' : 'Original'}
-                  </div>
-                  <div className="font-mono text-xs">
-                    {file.hunks.map((hunk, hunkIdx) => (
-                      <div key={hunkIdx}>
-                        <div className="px-2 py-1 bg-bg-secondary/30 text-cyan-400 text-[10px]">
-                          {hunk.header}
+          {/* Split panes */}
+          <div className="flex">
+            {/* Left (old) */}
+            <div className="flex-1 border-r border-border bg-red-500/5">
+              <div className="px-2 py-1 text-[10px] text-text-secondary border-b border-border bg-bg-secondary/50">
+                Original
+              </div>
+              <div className="font-mono text-xs">
+                {file.hunks.map((hunk, hunkIdx) => (
+                  <div key={hunkIdx}>
+                    <div className="px-2 py-1 bg-bg-secondary/30 text-cyan-400 text-[10px]">
+                      {hunk.header}
+                    </div>
+                    {hunk.lines.map((line, lineIdx) => {
+                      if (line.type === 'add') {
+                        return (
+                          <div key={lineIdx} className="px-2 py-0.5 bg-green-500/5 text-transparent select-none">
+                            {'\u00A0'}
+                          </div>
+                        );
+                      }
+                      return (
+                        <div
+                          key={lineIdx}
+                          className={`px-2 py-0.5 flex ${
+                            line.type === 'remove'
+                              ? 'bg-red-500/20 text-red-300'
+                              : 'text-text-secondary'
+                          }`}
+                        >
+                          <span className="w-10 text-text-secondary/40 text-right pr-2 select-none shrink-0">
+                            {line.oldLineNum}
+                          </span>
+                          <span className="whitespace-pre overflow-x-auto">{line.content || '\u00A0'}</span>
                         </div>
-                        {hunk.lines.map((line, lineIdx) => {
-                          if (line.type === 'add') {
-                            return (
-                              <div key={lineIdx} className="px-2 py-0.5 bg-green-500/5 text-transparent select-none">
-                                {'\u00A0'}
-                              </div>
-                            );
-                          }
-                          return (
-                            <div
-                              key={lineIdx}
-                              className={`px-2 py-0.5 flex ${
-                                line.type === 'remove'
-                                  ? 'bg-red-500/20 text-red-300'
-                                  : 'text-text-secondary'
-                              }`}
-                            >
-                              <span className="w-10 text-text-secondary/40 text-right pr-2 select-none shrink-0">
-                                {line.oldLineNum}
-                              </span>
-                              <span className="whitespace-pre overflow-x-auto">{line.content || '\u00A0'}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
-                </div>
-              )}
+                ))}
+              </div>
+            </div>
 
-              {/* Right (new) - hide for deleted files */}
-              {file.status !== 'deleted' && (
-                <div className="flex-1 bg-green-500/5">
-                  <div className="px-2 py-1 text-[10px] text-text-secondary border-b border-border bg-bg-secondary/50">
-                    {file.status === 'added' ? 'Added' : 'Modified'}
-                  </div>
-                  <div className="font-mono text-xs">
-                    {file.hunks.map((hunk, hunkIdx) => (
-                      <div key={hunkIdx}>
-                        <div className="px-2 py-1 bg-bg-secondary/30 text-cyan-400 text-[10px]">
-                          {hunk.header}
+            {/* Right (new) */}
+            <div className="flex-1 bg-green-500/5">
+              <div className="px-2 py-1 text-[10px] text-text-secondary border-b border-border bg-bg-secondary/50">
+                Modified
+              </div>
+              <div className="font-mono text-xs">
+                {file.hunks.map((hunk, hunkIdx) => (
+                  <div key={hunkIdx}>
+                    <div className="px-2 py-1 bg-bg-secondary/30 text-cyan-400 text-[10px]">
+                      {hunk.header}
+                    </div>
+                    {hunk.lines.map((line, lineIdx) => {
+                      if (line.type === 'remove') {
+                        return (
+                          <div key={lineIdx} className="px-2 py-0.5 bg-red-500/5 text-transparent select-none">
+                            {'\u00A0'}
+                          </div>
+                        );
+                      }
+                      return (
+                        <div
+                          key={lineIdx}
+                          className={`px-2 py-0.5 flex ${
+                            line.type === 'add'
+                              ? 'bg-green-500/20 text-green-300'
+                              : 'text-text-secondary'
+                          }`}
+                        >
+                          <span className="w-10 text-text-secondary/40 text-right pr-2 select-none shrink-0">
+                            {line.newLineNum}
+                          </span>
+                          <span className="whitespace-pre overflow-x-auto">{line.content || '\u00A0'}</span>
                         </div>
-                        {hunk.lines.map((line, lineIdx) => {
-                          if (line.type === 'remove') {
-                            return (
-                              <div key={lineIdx} className="px-2 py-0.5 bg-red-500/5 text-transparent select-none">
-                                {'\u00A0'}
-                              </div>
-                            );
-                          }
-                          return (
-                            <div
-                              key={lineIdx}
-                              className={`px-2 py-0.5 flex ${
-                                line.type === 'add'
-                                  ? 'bg-green-500/20 text-green-300'
-                                  : 'text-text-secondary'
-                              }`}
-                            >
-                              <span className="w-10 text-text-secondary/40 text-right pr-2 select-none shrink-0">
-                                {line.newLineNum}
-                              </span>
-                              <span className="whitespace-pre overflow-x-auto">{line.content || '\u00A0'}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
-                </div>
-              )}
+                ))}
+              </div>
             </div>
-          )}
+          </div>
         </div>
       ))}
     </div>
@@ -330,18 +212,6 @@ function UnifiedView({ diff }: { diff: string }) {
           lineClass = 'text-cyan-400 bg-cyan-500/5';
         } else if (line.startsWith('diff ') || line.startsWith('index ')) {
           lineClass = 'text-text-secondary/50 font-bold bg-bg-secondary/50';
-        } else if (line.startsWith('new file mode')) {
-          lineClass = 'text-green-400 bg-green-500/5 font-bold';
-        } else if (line.startsWith('deleted file mode')) {
-          lineClass = 'text-red-400 bg-red-500/5 font-bold';
-        } else if (line.startsWith('rename from') || line.startsWith('rename to')) {
-          lineClass = 'text-yellow-400 bg-yellow-500/5 font-bold';
-        } else if (line.startsWith('copy from') || line.startsWith('copy to')) {
-          lineClass = 'text-blue-400 bg-blue-500/5 font-bold';
-        } else if (line.startsWith('similarity index')) {
-          lineClass = 'text-text-secondary/70 italic';
-        } else if (line.startsWith('Binary files')) {
-          lineClass = 'text-orange-400 bg-orange-500/5';
         }
         return (
           <div key={i} className={`${lineClass} px-4 py-0.5 whitespace-pre`}>
@@ -438,40 +308,17 @@ export function DiffModal({ diff, taskId, onClose }: DiffModalProps) {
               <div className="text-[10px] uppercase text-text-secondary px-2 py-1">
                 Changed Files
               </div>
-              {parsedFiles.map((file, idx) => {
-                const statusColor = {
-                  added: 'text-green-400',
-                  deleted: 'text-red-400',
-                  renamed: 'text-yellow-400',
-                  copied: 'text-blue-400',
-                  modified: 'text-purple-400',
-                }[file.status];
-                const statusLetter = {
-                  added: 'A',
-                  deleted: 'D',
-                  renamed: 'R',
-                  copied: 'C',
-                  modified: 'M',
-                }[file.status];
-                const displayName = file.status === 'deleted'
-                  ? file.oldPath
-                  : (file.newPath || file.oldPath || 'unknown');
-
-                return (
-                  <button
-                    key={idx}
-                    className="w-full text-left px-2 py-1.5 text-xs font-mono text-text-secondary hover:text-text-primary hover:bg-bg-hover rounded transition-colors flex items-center gap-2"
-                    onClick={() => {
-                      document.getElementById(`file-${idx}`)?.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                  >
-                    <span className={`w-4 text-center font-bold ${statusColor}`}>
-                      {statusLetter}
-                    </span>
-                    <span className="truncate">{displayName}</span>
-                  </button>
-                );
-              })}
+              {parsedFiles.map((file, idx) => (
+                <button
+                  key={idx}
+                  className="w-full text-left px-2 py-1.5 text-xs font-mono text-text-secondary hover:text-text-primary hover:bg-bg-hover rounded transition-colors truncate"
+                  onClick={() => {
+                    document.getElementById(`file-${idx}`)?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                >
+                  {file.newPath || file.oldPath || 'unknown'}
+                </button>
+              ))}
             </div>
           </div>
 
