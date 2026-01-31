@@ -184,6 +184,26 @@ export function initializeDatabase(mark2Dir?: string): void {
     // Column already exists
   }
 
+  // Add archived columns for task archiving feature
+  try {
+    sqliteInstance.exec(`ALTER TABLE tasks ADD COLUMN archived INTEGER NOT NULL DEFAULT 0`);
+  } catch {
+    // Column already exists
+  }
+
+  try {
+    sqliteInstance.exec(`ALTER TABLE tasks ADD COLUMN archived_at TEXT`);
+  } catch {
+    // Column already exists
+  }
+
+  // Add index for archived column
+  try {
+    sqliteInstance.exec(`CREATE INDEX IF NOT EXISTS idx_tasks_archived ON tasks(archived)`);
+  } catch {
+    // Index already exists
+  }
+
   // Initialize counters if not present
   const stmt = sqliteInstance.prepare('INSERT OR IGNORE INTO id_counters (entity_type, next_id) VALUES (?, ?)');
   stmt.run('task', 1);
