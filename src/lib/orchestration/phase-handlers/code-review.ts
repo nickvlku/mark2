@@ -65,13 +65,17 @@ export async function handleCodeReview(
     diff,
   };
 
-  // Assemble the prompt
+  // Assemble the prompts with split parts for CLI flags
   const assembler = new PromptAssembler(mark2Dir);
-  const prompt = assembler.assemble(task, agent, 'code_review', promptContext);
+  const prompts = assembler.buildAgentAndTaskPrompts(task, agent, 'code_review', promptContext);
 
-  // Build invocation params
+  // Build invocation params with split prompts
   const params: AgentInvocationParams = {
-    prompt,
+    prompt: prompts.taskPrompt,
+    orchestrationPrompt: prompts.orchestrationPrompt,
+    agentPrompt: prompts.agentPrompt,
+    taskPrompt: prompts.taskPrompt,
+    agentSlug: prompts.agentName,
     workingDirectory: clonePath,
     agentName: agent.name,
     model: agent.model,

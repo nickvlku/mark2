@@ -41,16 +41,20 @@ export async function handleDesign(
   const clonePath = cloneInfo.clonePath;
   const branchName = cloneInfo.branchName;
 
-  // Assemble the prompt (include any context from restart)
+  // Assemble the prompts (include any context from restart)
   const assembler = new PromptAssembler(mark2Dir);
   const promptContext: PromptContext | undefined = loopContext
     ? { humanComments: loopContext.humanComments, testFailures: loopContext.testFailures, reviewComments: loopContext.reviewComments }
     : undefined;
-  const prompt = assembler.assemble(task, agent, 'design', promptContext);
+  const prompts = assembler.buildAgentAndTaskPrompts(task, agent, 'design', promptContext);
 
-  // Build invocation params
+  // Build invocation params with split prompts for CLI flags
   const params: AgentInvocationParams = {
-    prompt,
+    prompt: prompts.taskPrompt, // fallback for adapters that don't use split prompts
+    orchestrationPrompt: prompts.orchestrationPrompt,
+    agentPrompt: prompts.agentPrompt,
+    taskPrompt: prompts.taskPrompt,
+    agentSlug: prompts.agentName,
     workingDirectory: clonePath,
     agentName: agent.name,
     model: agent.model,

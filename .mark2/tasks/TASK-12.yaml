@@ -1,0 +1,28 @@
+id: TASK-12
+title: Add the ability to delete tasks
+description: We should be able to delete tasks.  A deleted task should be archived not fully deleted (and we should have an archived tasks view)... archived tasks can be deleted from the archived view (most likely a filter using the top filter)
+phase: design
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P1
+artifacts:
+  - name: design-document
+    phase: design
+    path: design.md
+    created_at: 2026-01-31T19:22:34.908Z
+  - name: design
+    phase: design
+    path: design-design-1769888064916-46x7ev.md
+    mime_type: text/markdown
+    created_at: 2026-01-31T19:34:24.916Z
+ports: []
+worktrees: {}
+created_by: human
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-01-31T19:01:53.151Z
+updated_at: 2026-01-31T19:34:24.916Z
+phase_entered_at: 2026-01-31T19:01:57.929Z
+loop_count: 0

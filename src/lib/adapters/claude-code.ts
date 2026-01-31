@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import type { CLIAdapter } from './types';
@@ -10,10 +11,14 @@ import {
 /**
  * Adapter for Anthropic's Claude Code CLI.
  *
- * Runs Claude in interactive mode (no --print / -p) so that follow-up
- * comments can be sent to the session via tmux send-keys.  The prompt is
- * written to a file in the storage directory; the TmuxManager delivers it
- * via load-buffer after Claude has initialized.
+ * Uses Claude's native CLI flags for clean separation of concerns:
+ * - --append-system-prompt: Orchestration instructions (phase rules, MCP tools, etc.)
+ * - --agents: Defines the agent with role/personality prompt only
+ * - --agent: Selects the defined agent
+ * - --session-id: Tracks the session
+ * - First argument: Task description only
+ *
+ * End token detection via Claude Code Stop hook (no polling).
  */
 export class ClaudeCodeAdapter implements CLIAdapter {
   readonly toolId = 'claude-code' as const;
@@ -21,79 +26,154 @@ export class ClaudeCodeAdapter implements CLIAdapter {
   readonly supportsNaming = true;
 
   buildCommand(params: AgentInvocationParams): string {
-    // Get the project root from the working directory
-    // Working directory is typically .worktrees/{taskId}/{phase}
-    // Project root is 3 levels up
     const projectRoot = this.getProjectRoot(params.workingDirectory, params.taskId);
 
     // Ensure storage directories exist
     ensureTaskStorageExistsSync(projectRoot, params.taskId);
 
-    // Get storage paths
+    // Set up Claude Code Stop hook for end token detection
+    this.setupClaudeHooks(params.workingDirectory, projectRoot);
+
+    // Generate a session ID for tracking
+    const sessionId = crypto.randomUUID();
+
+    // Save prompts for debugging/review
     const storagePaths = getTaskStoragePaths(projectRoot, params.taskId);
+    fs.writeFileSync(path.join(storagePaths.prompts, `${params.phase}-orchestration.md`), params.orchestrationPrompt ?? '', 'utf-8');
+    fs.writeFileSync(path.join(storagePaths.prompts, `${params.phase}-agent.md`), params.agentPrompt ?? '', 'utf-8');
+    fs.writeFileSync(path.join(storagePaths.prompts, `${params.phase}-task.md`), params.taskPrompt ?? '', 'utf-8');
 
-    // Write prompt to storage directory (not worktree)
-    const promptFile = path.join(storagePaths.prompts, `${params.phase}.md`);
-    fs.writeFileSync(promptFile, params.prompt, 'utf-8');
+    // Build agent definition for --agents flag (personality/role only)
+    const agentSlug = params.agentSlug ?? `mark2-${params.phase}`;
+    const agentDef = {
+      [agentSlug]: {
+        description: `Mark2 ${params.phase} agent for ${params.taskId}`,
+        prompt: params.agentPrompt ?? '',
+      },
+    };
 
+    // The task prompt is what Claude actually works on (first argument)
+    const taskPrompt = params.taskPrompt ?? params.prompt;
+
+    // Build MCP server config for mark2 tools (pass clone dir for artifact storage)
+    const mcpConfig = this.buildMcpConfig(projectRoot, params.taskId, params.apiBaseUrl);
+
+    // Build command with native Claude CLI flags
     const parts: string[] = [
       'claude',
+      this.shellQuote(taskPrompt),
       '--dangerously-skip-permissions',
       '--model', this.shellQuote(params.model),
+      '--session-id', sessionId,
+      '--mcp-config', this.shellQuote(JSON.stringify(mcpConfig)),
     ];
 
-    // Add MCP server URL if provided
-    if (params.mcpServerUrl) {
-      parts.push('--mcp-server', this.shellQuote(params.mcpServerUrl));
+    // Add orchestration prompt via --append-system-prompt
+    if (params.orchestrationPrompt) {
+      parts.push('--append-system-prompt', this.shellQuote(params.orchestrationPrompt));
     }
+
+    // Add agent definition and selection
+    parts.push(
+      '--agents', this.shellQuote(JSON.stringify(agentDef)),
+      '--agent', agentSlug,
+    );
 
     return parts.join(' ');
   }
 
   /**
-   * Return the path where the prompt file was written.
-   * Called by the engine/tmux-manager to deliver the prompt after session start.
+   * Build MCP server configuration for mark2 tools.
+   * This makes mark2_save_artifact, mark2_signal_complete, etc. available to the agent.
    */
-  getPromptFilePath(params: AgentInvocationParams): string {
-    const projectRoot = this.getProjectRoot(params.workingDirectory, params.taskId);
-    const storagePaths = getTaskStoragePaths(projectRoot, params.taskId);
-    return path.join(storagePaths.prompts, `${params.phase}.md`);
+  private buildMcpConfig(projectRoot: string, taskId: string, apiBaseUrl: string): object {
+    const mark2Dir = path.join(projectRoot, '.mark2');
+    const mcpServerPath = path.join(projectRoot, 'src', 'lib', 'mcp', 'index.ts');
+
+    return {
+      mcpServers: {
+        mark2: {
+          command: 'npx',
+          args: ['tsx', mcpServerPath],
+          env: {
+            MARK2_DIR: mark2Dir,
+            MARK2_TASK_ID: taskId,
+            MARK2_PROJECT_ROOT: projectRoot,
+            MARK2_API_URL: apiBaseUrl,
+          },
+        },
+      },
+    };
+  }
+
+  /**
+   * Set up Claude Code hooks in the working directory.
+   * Creates .claude/settings.local.json with a Stop hook for end token detection.
+   */
+  private setupClaudeHooks(workingDirectory: string, projectRoot: string): void {
+    const claudeDir = path.join(workingDirectory, '.claude');
+    const settingsPath = path.join(claudeDir, 'settings.local.json');
+
+    // Path to the hook script (in the project's cli/hooks directory)
+    const hookScriptPath = path.join(projectRoot, 'cli', 'hooks', 'end-token-hook.ts');
+
+    if (!fs.existsSync(claudeDir)) {
+      fs.mkdirSync(claudeDir, { recursive: true });
+    }
+
+    const settings = {
+      hooks: {
+        Stop: [
+          {
+            hooks: [
+              {
+                type: 'command',
+                command: `npx tsx "${hookScriptPath}"`,
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8');
+  }
+
+  /**
+   * No longer used - prompt is passed directly via CLI argument.
+   * Kept for interface compatibility.
+   */
+  getPromptFilePath(_params: AgentInvocationParams): string | undefined {
+    return undefined;
   }
 
   getEnvironment(params: AgentInvocationParams): Record<string, string> {
     const projectRoot = this.getProjectRoot(params.workingDirectory, params.taskId);
     const storagePaths = getTaskStoragePaths(projectRoot, params.taskId);
 
-    const env: Record<string, string> = {
-      // Existing variables
+    return {
       MARK2_AGENT_TOKEN: params.agentToken,
       MARK2_API_URL: params.apiBaseUrl,
       MARK2_TASK_ID: params.taskId,
-
-      // New storage directories
       MARK2_STORAGE_DIR: storagePaths.root,
       MARK2_ARTIFACTS_DIR: storagePaths.artifacts,
       MARK2_PROMPTS_DIR: storagePaths.prompts,
       MARK2_SESSIONS_DIR: storagePaths.sessions,
     };
-
-    return env;
   }
 
-  /**
-   * Get the project root from a worktree path.
-   * Worktree paths are: {projectRoot}/.worktrees/{taskId}/{phase}
-   */
-  private getProjectRoot(workingDirectory: string, taskId: string): string {
-    // Find the .worktrees part in the path and go to its parent
+  private getProjectRoot(workingDirectory: string, _taskId: string): string {
+    const mark2Index = workingDirectory.indexOf('.mark2');
+    if (mark2Index !== -1) {
+      return workingDirectory.substring(0, mark2Index).replace(/\/$/, '');
+    }
+
     const worktreesIndex = workingDirectory.indexOf('.worktrees');
     if (worktreesIndex !== -1) {
       return workingDirectory.substring(0, worktreesIndex).replace(/\/$/, '');
     }
 
-    // Fallback: assume working directory is 3 levels deep from project root
-    // .worktrees/{taskId}/{phase} -> go up 3 levels
-    return path.resolve(workingDirectory, '..', '..', '..');
+    return workingDirectory;
   }
 
   private shellQuote(value: string): string {
