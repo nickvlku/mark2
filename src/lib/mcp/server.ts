@@ -7,6 +7,7 @@ import { YamlReader } from '../yaml/reader';
 import { TaskService } from '../services/task-service';
 import { ActivityService } from '../services/activity-service';
 import { ArtifactService } from '../services/artifact-service';
+import { PRService } from '../services/pr-service';
 import { getTaskStoragePathsFromMark2Dir } from '../utils/storage';
 
 // ---------------------------------------------------------------------------
@@ -571,6 +572,44 @@ export function createMcpServer(): McpServer {
           isError: true,
         };
       }
+    },
+  );
+
+  // ── mark2_create_pr ──────────────────────────────────────────────────
+
+  server.tool(
+    'mark2_create_pr',
+    'Create a GitHub PR for a completed task with full session context',
+    {
+      task_id: z.string().describe('The task ID (e.g. TASK-1)'),
+      target_branch: z.string().default('main').describe('Target branch for the PR'),
+    },
+    async ({ task_id, target_branch }) => {
+      const mark2Dir = getMark2Dir();
+      const prService = new PRService(mark2Dir);
+
+      const result = await prService.createPR(task_id, target_branch);
+
+      if (!result.success) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Failed to create PR: ${result.error}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: `PR created successfully!\nURL: ${result.url}${result.number ? `\nPR #${result.number}` : ''}`,
+          },
+        ],
+      };
     },
   );
 

@@ -1,6 +1,6 @@
 import path from 'path';
 import type { Task } from '../../yaml/schemas';
-import { removeWorktree, gitExec } from '../../utils/git';
+import { removeWorktree } from '../../utils/git';
 import { getDb } from '../../db';
 import {
   tasks,
@@ -9,10 +9,13 @@ import {
   worktreeRecords,
 } from '../../db/schema';
 import { eq, and } from 'drizzle-orm';
+import { PRService } from '../../services/pr-service';
 
 export interface DoneResult {
-  merged: boolean;
-  mergeError?: string;
+  prCreated: boolean;
+  prUrl?: string;
+  prNumber?: number;
+  prError?: string;
   unblockedTasks: string[];
   cleanedUp: boolean;
 }
@@ -20,7 +23,7 @@ export interface DoneResult {
 /**
  * Handle the done phase for a task.
  *
- * 1. Merge the worktree branch to target branch (default: main)
+ * 1. Create a GitHub PR for the task branch
  * 2. Cleanup the worktree
  * 3. Release allocated ports
  * 4. Find and unblock dependent tasks
@@ -34,7 +37,7 @@ export async function handleDone(
   const db = getDb(mark2Dir);
   const now = new Date().toISOString();
   const result: DoneResult = {
-    merged: false,
+    prCreated: false,
     unblockedTasks: [],
     cleanedUp: false,
   };
@@ -42,39 +45,42 @@ export async function handleDone(
   const branchName = `mark2/${task.id}/design`;
   const worktreePath = path.join(projectRoot, '.worktrees', task.id, 'design');
 
-  // Step 1: Merge to target branch
+  // Step 1: Create PR instead of local merge
   try {
-    const strategy = task.merge_strategy === 'squash' ? '--squash' : '--no-ff';
+    const prService = new PRService(mark2Dir);
+    const prResult = await prService.createPR(task.id, targetBranch);
 
-    // Checkout target branch and merge
-    await gitExec(`git checkout "${targetBranch}"`, projectRoot);
-    await gitExec(`git merge ${strategy} "${branchName}" -m "mark2: merge ${task.id} - ${task.title}"`, projectRoot);
+    if (prResult.success) {
+      result.prCreated = true;
+      result.prUrl = prResult.url;
+      result.prNumber = prResult.number;
+    } else {
+      result.prError = prResult.error;
 
-    if (task.merge_strategy === 'squash') {
-      await gitExec(`git commit -m "mark2: ${task.id} - ${task.title}"`, projectRoot);
+      // Log the PR creation failure
+      db.insert(activityEntries)
+        .values({
+          task_id: task.id,
+          timestamp: now,
+          source: 'orchestration',
+          type: 'error',
+          message: `PR creation failed: ${result.prError}`,
+        })
+        .run();
     }
-
-    result.merged = true;
   } catch (err: any) {
-    result.mergeError = err.message ?? 'Unknown merge error';
+    result.prError = err.message ?? 'Unknown PR creation error';
 
-    // Log the merge failure
+    // Log the error
     db.insert(activityEntries)
       .values({
         task_id: task.id,
         timestamp: now,
         source: 'orchestration',
         type: 'error',
-        message: `Merge to ${targetBranch} failed: ${result.mergeError}`,
+        message: `PR creation failed: ${result.prError}`,
       })
       .run();
-
-    // Abort the merge attempt
-    try {
-      await gitExec('git merge --abort', projectRoot);
-    } catch {
-      // May not be in a merge state
-    }
   }
 
   // Step 2: Cleanup worktree
@@ -139,16 +145,24 @@ export async function handleDone(
   }
 
   // Log completion
+  const prMessage = result.prCreated
+    ? ` PR created: ${result.prUrl}`
+    : result.prError
+      ? ` PR creation failed: ${result.prError}`
+      : '';
+
   db.insert(activityEntries)
     .values({
       task_id: task.id,
       timestamp: now,
       source: 'orchestration',
       type: 'phase_change',
-      message: `Task completed.${result.merged ? ` Changes merged to ${targetBranch}.` : ' Merge failed.'}${result.unblockedTasks.length > 0 ? ` Unblocked: ${result.unblockedTasks.join(', ')}.` : ''}`,
+      message: `Task completed.${prMessage}${result.unblockedTasks.length > 0 ? ` Unblocked: ${result.unblockedTasks.join(', ')}.` : ''}`,
       metadata_json: JSON.stringify({
-        merged: result.merged,
-        merge_error: result.mergeError,
+        pr_created: result.prCreated,
+        pr_url: result.prUrl,
+        pr_number: result.prNumber,
+        pr_error: result.prError,
         target_branch: targetBranch,
         unblocked_tasks: result.unblockedTasks,
         cleaned_up: result.cleanedUp,

@@ -211,3 +211,49 @@ entries:
     metadata:
       token: "[FIX_REVIEW_COMPLETED]"
       phase: manual_testing
+  - timestamp: 2026-01-31T18:15:11.720Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from manual_testing to done
+    metadata:
+      old_phase: manual_testing
+      new_phase: done
+  - timestamp: 2026-01-31T18:28:07.014Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from done to manual_testing
+    metadata:
+      old_phase: done
+      new_phase: manual_testing
+  - timestamp: 2026-01-31T18:28:15.935Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from manual_testing to done
+    metadata:
+      old_phase: manual_testing
+      new_phase: done
+  - timestamp: 2026-01-31T18:29:26.227Z
+    source: agent
+    type: note
+    message: "[MANUAL_TESTING_READY] Manual test plan created. No dev server or ports required for this CLI tool."
+  - timestamp: 2026-01-31T18:29:30.985Z
+    source: hook
+    type: phase_change
+    message: End token "[MANUAL_TESTING_READY]" detected via Claude Code hook
+    metadata:
+      token: "[MANUAL_TESTING_READY]"
+      phase: done
+  - timestamp: 2026-01-31T18:31:09.799Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from done to manual_testing
+    metadata:
+      old_phase: done
+      new_phase: manual_testing
+  - timestamp: 2026-01-31T18:31:23.068Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from manual_testing to done
+    metadata:
+      old_phase: manual_testing
+      new_phase: done
