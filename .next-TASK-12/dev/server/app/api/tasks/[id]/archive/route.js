@@ -1,0 +1,10 @@
+var R=require("../../../../../chunks/[turbopack]_runtime.js")("server/app/api/tasks/[id]/archive/route.js")
+R.c("server/chunks/[root-of-the-server]__df2be121._.js")
+R.c("server/chunks/node_modules_next_38d19a21._.js")
+R.c("server/chunks/node_modules_drizzle-orm_2d017f04._.js")
+R.c("server/chunks/node_modules_yaml_dist_49c13b35._.js")
+R.c("server/chunks/node_modules_zod_v4_da12b5b3._.js")
+R.c("server/chunks/[externals]_better-sqlite3_c8aedf15._.js")
+R.c("server/chunks/f42cb_TASK-12__next-internal_server_app_api_tasks_[id]_archive_route_actions_772a0475.js")
+R.m("[project]/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/.mark2/clones/TASK-12/src/app/api/tasks/[id]/archive/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)")
+module.exports=R.m("[project]/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/.mark2/clones/TASK-12/src/app/api/tasks/[id]/archive/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)").exports

@@ -13,6 +13,7 @@ import { TaskDetail } from '../detail/TaskDetail';
 import { CreateTaskDialog } from '../create/CreateTaskDialog';
 import { CreateStoryDialog } from '../create/CreateStoryDialog';
 import { PageHeader } from '../shared/PageHeader';
+import { Dialog } from '../shared/Dialog';
 
 const PHASES: Phase[] = [
   'pending',
@@ -33,6 +34,10 @@ export function Board() {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [showCreateTask, setShowCreateTask] = useState(false);
   const [showCreateStory, setShowCreateStory] = useState(false);
+
+  // Confirmation dialog states
+  const [confirmArchive, setConfirmArchive] = useState<Task | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Task | null>(null);
 
   const filters = {
     ...(selectedStoryId ? { story_id: selectedStoryId } : {}),
@@ -110,14 +115,10 @@ export function Board() {
     mutateTasks();
   }, [mutateTasks]);
 
-  const handleArchiveTask = useCallback(async (taskId: string) => {
-    try {
-      await fetch(`/api/tasks/${taskId}/archive`, { method: 'POST' });
-      mutateTasks();
-    } catch (error) {
-      console.error('Failed to archive task:', error);
-    }
-  }, [mutateTasks]);
+  const handleArchiveTask = useCallback((taskId: string) => {
+    const task = tasks.find((t: Task) => t.id === taskId);
+    if (task) setConfirmArchive(task);
+  }, [tasks]);
 
   const handleRestoreTask = useCallback(async (taskId: string) => {
     try {
@@ -128,16 +129,34 @@ export function Board() {
     }
   }, [mutateTasks]);
 
-  const handleDeleteTask = useCallback(async (taskId: string) => {
-    if (confirm('Permanently delete this task? This cannot be undone.')) {
-      try {
-        await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
-        mutateTasks();
-      } catch (error) {
-        console.error('Failed to delete task:', error);
-      }
+  const handleDeleteTask = useCallback((taskId: string) => {
+    const task = tasks.find((t: Task) => t.id === taskId);
+    if (task) setConfirmDelete(task);
+  }, [tasks]);
+
+  const confirmArchiveAction = useCallback(async () => {
+    if (!confirmArchive) return;
+    try {
+      await fetch(`/api/tasks/${confirmArchive.id}/archive`, { method: 'POST' });
+      mutateTasks();
+    } catch (error) {
+      console.error('Failed to archive task:', error);
+    } finally {
+      setConfirmArchive(null);
     }
-  }, [mutateTasks]);
+  }, [confirmArchive, mutateTasks]);
+
+  const confirmDeleteAction = useCallback(async () => {
+    if (!confirmDelete) return;
+    try {
+      await fetch(`/api/tasks/${confirmDelete.id}`, { method: 'DELETE' });
+      mutateTasks();
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+    } finally {
+      setConfirmDelete(null);
+    }
+  }, [confirmDelete, mutateTasks]);
 
   return (
     <div className="flex h-screen flex-col">
@@ -235,6 +254,27 @@ export function Board() {
           }}
         />
       )}
+
+      {/* Archive Confirmation Dialog */}
+      <Dialog
+        open={!!confirmArchive}
+        onClose={() => setConfirmArchive(null)}
+        title="Archive Task"
+        description={`Archive ${confirmArchive?.id}? It will be hidden from the active tasks view but can be restored later.`}
+        confirmLabel="Archive"
+        onConfirm={confirmArchiveAction}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        title="Delete Task Permanently"
+        description={`Permanently delete ${confirmDelete?.id}? This action cannot be undone and will remove all task data including history and artifacts.`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={confirmDeleteAction}
+      />
     </div>
   );
 }

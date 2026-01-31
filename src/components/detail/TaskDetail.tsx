@@ -5,6 +5,7 @@ import useSWR from 'swr';
 import type { Task, SessionStatus } from '@/types';
 import { Badge } from '../shared/Badge';
 import { ActionBar } from '../shared/ActionBar';
+import { Dialog } from '../shared/Dialog';
 import { PhaseTimeline } from './PhaseTimeline';
 import { ArtifactsTab } from './ArtifactsTab';
 import { ActivityTab } from './ActivityTab';
@@ -33,6 +34,10 @@ const tabs: { id: TabId; label: string }[] = [
 
 export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailProps) {
   const [activeTab, setActiveTab] = useState<TabId>('activity');
+
+  // Confirmation dialog states
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Fetch our own copy of the task so parent SWR revalidations don't
   // unmount/remount us and destroy child state (e.g. comment input).
@@ -95,15 +100,19 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
     }
   };
 
-  const handleArchive = async () => {
-    if (confirm(`Archive task ${task.id}? It will be hidden from the active tasks view.`)) {
-      try {
-        await fetch(`/api/tasks/${task.id}/archive`, { method: 'POST' });
-        onUpdate();
-        onClose();
-      } catch (error) {
-        console.error('Failed to archive task:', error);
-      }
+  const handleArchive = () => {
+    setShowArchiveConfirm(true);
+  };
+
+  const confirmArchive = async () => {
+    try {
+      await fetch(`/api/tasks/${task.id}/archive`, { method: 'POST' });
+      onUpdate();
+      onClose();
+    } catch (error) {
+      console.error('Failed to archive task:', error);
+    } finally {
+      setShowArchiveConfirm(false);
     }
   };
 
@@ -116,15 +125,19 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
     }
   };
 
-  const handleDelete = async () => {
-    if (confirm(`Permanently delete task ${task.id}? This cannot be undone.`)) {
-      try {
-        await fetch(`/api/tasks/${task.id}`, { method: 'DELETE' });
-        onUpdate();
-        onClose();
-      } catch (error) {
-        console.error('Failed to delete task:', error);
-      }
+  const handleDelete = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await fetch(`/api/tasks/${task.id}`, { method: 'DELETE' });
+      onUpdate();
+      onClose();
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+    } finally {
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -245,6 +258,27 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
           onDelete={handleDelete}
         />
       </div>
+
+      {/* Archive Confirmation Dialog */}
+      <Dialog
+        open={showArchiveConfirm}
+        onClose={() => setShowArchiveConfirm(false)}
+        title="Archive Task"
+        description={`Archive ${task.id}? It will be hidden from the active tasks view but can be restored later.`}
+        confirmLabel="Archive"
+        onConfirm={confirmArchive}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        title="Delete Task Permanently"
+        description={`Permanently delete ${task.id}? This action cannot be undone and will remove all task data including history and artifacts.`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }
