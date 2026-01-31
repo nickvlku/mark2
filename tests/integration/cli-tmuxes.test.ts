@@ -67,7 +67,7 @@ describe('tmuxes CLI Integration Tests', () => {
     it('should handle the case when tmux is not installed', async () => {
       const { execFileSync: mockExecFileSync } = await import('child_process');
       vi.mocked(mockExecFileSync).mockImplementation((command, args) => {
-        if (command === 'which' && args?.[0] === 'tmux') {
+        if (command === 'tmux' && args?.[0] === '-V') {
           throw new Error('command not found');
         }
         return '';
@@ -89,8 +89,8 @@ describe('tmuxes CLI Integration Tests', () => {
     it('should handle the case when no sessions exist', async () => {
       const { execFileSync: mockExecFileSync } = await import('child_process');
       vi.mocked(mockExecFileSync).mockImplementation((command, args) => {
-        if (command === 'which' && args?.[0] === 'tmux') {
-          return '/usr/bin/tmux';
+        if (command === 'tmux' && args?.[0] === '-V') {
+          return 'tmux 3.3a';
         }
         if (command === 'tmux' && args?.[0] === 'list-sessions') {
           throw new Error('no server running');
@@ -109,8 +109,8 @@ describe('tmuxes CLI Integration Tests', () => {
       const { select } = await import('@inquirer/prompts');
 
       vi.mocked(mockExecFileSync).mockImplementation((command, args) => {
-        if (command === 'which' && args?.[0] === 'tmux') {
-          return '/usr/bin/tmux';
+        if (command === 'tmux' && args?.[0] === '-V') {
+          return 'tmux 3.3a';
         }
         if (command === 'tmux' && args?.[0] === 'list-sessions') {
           return 'session1|3|1643723400|attached|80x24\nsession2|1|1643720000|detached|120x30';
@@ -157,8 +157,8 @@ describe('tmuxes CLI Integration Tests', () => {
       const { select } = await import('@inquirer/prompts');
 
       vi.mocked(mockExecFileSync).mockImplementation((command, args) => {
-        if (command === 'which' && args?.[0] === 'tmux') {
-          return '/usr/bin/tmux';
+        if (command === 'tmux' && args?.[0] === '-V') {
+          return 'tmux 3.3a';
         }
         if (command === 'tmux' && args?.[0] === 'list-sessions') {
           return 'session1|3|1643723400|attached|80x24';
@@ -179,8 +179,8 @@ describe('tmuxes CLI Integration Tests', () => {
       const { select } = await import('@inquirer/prompts');
 
       vi.mocked(mockExecFileSync).mockImplementation((command, args) => {
-        if (command === 'which' && args?.[0] === 'tmux') {
-          return '/usr/bin/tmux';
+        if (command === 'tmux' && args?.[0] === '-V') {
+          return 'tmux 3.3a';
         }
         if (command === 'tmux' && args?.[0] === 'list-sessions') {
           return 'session1|3|1643723400|attached|80x24';
@@ -225,8 +225,8 @@ background-jobs|2|1643725000|detached|100x30
 mark2-task-123|5|1643726000|attached|90x25`;
 
       vi.mocked(mockExecFileSync).mockImplementation((command, args) => {
-        if (command === 'which' && args?.[0] === 'tmux') {
-          return '/usr/bin/tmux';
+        if (command === 'tmux' && args?.[0] === '-V') {
+          return 'tmux 3.3a';
         }
         if (command === 'tmux' && args?.[0] === 'list-sessions') {
           return complexSessionData;

@@ -9,6 +9,16 @@ interface TmuxSession {
   size: string;
 }
 
+// Time constants
+const SECONDS_PER_MINUTE = 60;
+const SECONDS_PER_HOUR = 3600;
+const SECONDS_PER_DAY = 86400;
+
+// Display width constants
+const MAX_NAME_DISPLAY_WIDTH = 40;
+const NAME_TRUNCATION_THRESHOLD = 38;
+const NAME_TRUNCATION_LENGTH = 35;
+
 export async function tmuxesCommand(): Promise<void> {
   // Check if tmux is available
   if (!isTmuxAvailable()) {
@@ -47,7 +57,9 @@ export async function tmuxesCommand(): Promise<void> {
 
 function isTmuxAvailable(): boolean {
   try {
-    execFileSync('which', ['tmux'], { stdio: 'ignore' });
+    // Try to execute tmux directly instead of using 'which'
+    // This is more cross-platform compatible (works on Windows with WSL, etc.)
+    execFileSync('tmux', ['-V'], { stdio: 'ignore' });
     return true;
   } catch {
     return false;
@@ -111,16 +123,16 @@ function formatTimeAgo(timestamp: number): string {
   const now = Math.floor(Date.now() / 1000);
   const diffSeconds = now - timestamp;
 
-  if (diffSeconds < 60) {
+  if (diffSeconds < SECONDS_PER_MINUTE) {
     return 'just now';
-  } else if (diffSeconds < 3600) {
-    const minutes = Math.floor(diffSeconds / 60);
+  } else if (diffSeconds < SECONDS_PER_HOUR) {
+    const minutes = Math.floor(diffSeconds / SECONDS_PER_MINUTE);
     return `${minutes}m ago`;
-  } else if (diffSeconds < 86400) {
-    const hours = Math.floor(diffSeconds / 3600);
+  } else if (diffSeconds < SECONDS_PER_DAY) {
+    const hours = Math.floor(diffSeconds / SECONDS_PER_HOUR);
     return `${hours}h ago`;
   } else {
-    const days = Math.floor(diffSeconds / 86400);
+    const days = Math.floor(diffSeconds / SECONDS_PER_DAY);
     return `${days}d ago`;
   }
 }
@@ -128,15 +140,15 @@ function formatTimeAgo(timestamp: number): string {
 async function selectSession(sessions: TmuxSession[]): Promise<string | null> {
   // Find the longest session name for consistent formatting
   const maxNameLength = Math.max(...sessions.map(s => s.name.length));
-  const nameWidth = Math.min(maxNameLength + 2, 40); // Cap at 40 characters
+  const nameWidth = Math.min(maxNameLength + 2, MAX_NAME_DISPLAY_WIDTH);
 
   const choices = sessions.map((session) => {
     const attachedIndicator = session.attached ? ' (attached)' : '';
     const windowText = session.windows === 1 ? 'window' : 'windows';
 
-    // Truncate long session names
-    const displayName = session.name.length > 38
-      ? session.name.substring(0, 35) + '...'
+    // Truncate long session names consistently
+    const displayName = session.name.length > NAME_TRUNCATION_THRESHOLD
+      ? session.name.substring(0, NAME_TRUNCATION_LENGTH) + '...'
       : session.name;
 
     const label = `${displayName.padEnd(nameWidth)} [${session.windows} ${windowText}]${attachedIndicator.padEnd(12)} ${session.size.padEnd(10)} ${session.created}`;

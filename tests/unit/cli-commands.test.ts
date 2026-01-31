@@ -32,15 +32,15 @@ describe('CLI Commands - tmuxes', () => {
     it('should detect when tmux is available', () => {
       const mockExecFileSync = vi.mocked(execFileSync);
       mockExecFileSync.mockImplementation((command, args) => {
-        if (command === 'which' && args?.[0] === 'tmux') {
-          return '/usr/bin/tmux';
+        if (command === 'tmux' && args?.[0] === '-V') {
+          return 'tmux 3.3a';
         }
         return '';
       });
 
       // Test tmux availability logic
       try {
-        execFileSync('which', ['tmux'], { stdio: 'ignore' });
+        execFileSync('tmux', ['-V'], { stdio: 'ignore' });
         expect(true).toBe(true); // tmux is available
       } catch {
         expect(false).toBe(true); // Should not reach here in this test
@@ -50,7 +50,7 @@ describe('CLI Commands - tmuxes', () => {
     it('should detect when tmux is not available', () => {
       const mockExecFileSync = vi.mocked(execFileSync);
       mockExecFileSync.mockImplementation((command, args) => {
-        if (command === 'which' && args?.[0] === 'tmux') {
+        if (command === 'tmux' && args?.[0] === '-V') {
           throw new Error('command not found');
         }
         return '';
@@ -59,7 +59,7 @@ describe('CLI Commands - tmuxes', () => {
       // Test tmux availability logic
       let isAvailable = true;
       try {
-        execFileSync('which', ['tmux'], { stdio: 'ignore' });
+        execFileSync('tmux', ['-V'], { stdio: 'ignore' });
       } catch {
         isAvailable = false;
       }
@@ -157,19 +157,23 @@ mark2-session|5|1643725000|attached|100x25`;
       const now = Math.floor(Date.now() / 1000);
 
       // Helper function matching the one in tmuxes.ts
+      const SECONDS_PER_MINUTE = 60;
+      const SECONDS_PER_HOUR = 3600;
+      const SECONDS_PER_DAY = 86400;
+
       function formatTimeAgo(timestamp: number): string {
         const diffSeconds = now - timestamp;
 
-        if (diffSeconds < 60) {
+        if (diffSeconds < SECONDS_PER_MINUTE) {
           return 'just now';
-        } else if (diffSeconds < 3600) {
-          const minutes = Math.floor(diffSeconds / 60);
+        } else if (diffSeconds < SECONDS_PER_HOUR) {
+          const minutes = Math.floor(diffSeconds / SECONDS_PER_MINUTE);
           return `${minutes}m ago`;
-        } else if (diffSeconds < 86400) {
-          const hours = Math.floor(diffSeconds / 3600);
+        } else if (diffSeconds < SECONDS_PER_DAY) {
+          const hours = Math.floor(diffSeconds / SECONDS_PER_HOUR);
           return `${hours}h ago`;
         } else {
-          const days = Math.floor(diffSeconds / 86400);
+          const days = Math.floor(diffSeconds / SECONDS_PER_DAY);
           return `${days}d ago`;
         }
       }
@@ -210,16 +214,20 @@ mark2-session|5|1643725000|attached|100x25`;
         },
       ];
 
-      // Simulate the formatting logic from tmuxes.ts
+      // Simulate the formatting logic from tmuxes.ts with constants
+      const MAX_NAME_DISPLAY_WIDTH = 40;
+      const NAME_TRUNCATION_THRESHOLD = 38;
+      const NAME_TRUNCATION_LENGTH = 35;
+
       const maxNameLength = Math.max(...sessions.map(s => s.name.length));
-      const nameWidth = Math.min(maxNameLength + 2, 40);
+      const nameWidth = Math.min(maxNameLength + 2, MAX_NAME_DISPLAY_WIDTH);
 
       const choices = sessions.map((session) => {
         const attachedIndicator = session.attached ? ' (attached)' : '';
         const windowText = session.windows === 1 ? 'window' : 'windows';
 
-        const displayName = session.name.length > 38
-          ? session.name.substring(0, 35) + '...'
+        const displayName = session.name.length > NAME_TRUNCATION_THRESHOLD
+          ? session.name.substring(0, NAME_TRUNCATION_LENGTH) + '...'
           : session.name;
 
         const label = `${displayName.padEnd(nameWidth)} [${session.windows} ${windowText}]${attachedIndicator.padEnd(12)} ${session.size.padEnd(10)} ${session.created}`;
