@@ -68,6 +68,7 @@ export function Card({ task, onClick, onArchive, onRestore, onDelete }: CardProp
   return (
     <div
       ref={setNodeRef}
+      data-draggable="true"
       style={style}
       {...listeners}
       {...attributes}
