@@ -1,4 +1,4 @@
-import { execSync, spawn } from 'child_process';
+import { execSync, execFileSync, spawn } from 'child_process';
 import { select } from '@inquirer/prompts';
 
 interface TmuxSession {
@@ -47,7 +47,7 @@ export async function tmuxesCommand(): Promise<void> {
 
 function isTmuxAvailable(): boolean {
   try {
-    execSync('which tmux', { stdio: 'ignore' });
+    execFileSync('which', ['tmux'], { stdio: 'ignore' });
     return true;
   } catch {
     return false;
@@ -58,12 +58,15 @@ function getTmuxSessions(): TmuxSession[] {
   try {
     // Use tmux list-sessions with format to get detailed information
     // Use session_created as timestamp for more reliable parsing
-    const output = execSync(
-      "tmux list-sessions -F '#{session_name}|#{session_windows}|#{session_created}|#{?session_attached,attached,detached}|#{window_width}x#{window_height}' 2>/dev/null",
-      {
-        encoding: 'utf-8',
-      }
-    );
+    // Using execFileSync to avoid shell interpretation for security
+    const output = execFileSync('tmux', [
+      'list-sessions',
+      '-F',
+      '#{session_name}|#{session_windows}|#{session_created}|#{?session_attached,attached,detached}|#{window_width}x#{window_height}'
+    ], {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'] // Suppress stderr
+    });
 
     return output
       .split('\n')
@@ -157,6 +160,8 @@ async function attachToSession(sessionName: string): Promise<void> {
 
   // Use spawn to attach to the session interactively
   // This will take over the terminal until the user detaches
+  // Note: We intentionally don't use shell: true here to avoid shell injection risks
+  // The array form of arguments ensures sessionName is properly escaped
   const child = spawn('tmux', ['attach-session', '-t', sessionName], {
     stdio: 'inherit',
   });
