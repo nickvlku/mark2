@@ -1,6 +1,37 @@
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 import { initializeDatabase } from '../../src/lib/db';
+
+// Check if a command exists
+function commandExists(cmd: string): boolean {
+  try {
+    execSync(`which ${cmd}`, { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Check for required system dependencies
+function checkDependencies(): { missing: string[]; installHints: Record<string, string> } {
+  const dependencies = [
+    { name: 'tmux', hint: 'brew install tmux (macOS) or sudo pacman -S tmux (Arch) or sudo apt install tmux (Debian/Ubuntu)' },
+    { name: 'sqlite3', hint: 'brew install sqlite (macOS) or sudo pacman -S sqlite (Arch) or sudo apt install sqlite3 (Debian/Ubuntu)' },
+  ];
+
+  const missing: string[] = [];
+  const installHints: Record<string, string> = {};
+
+  for (const dep of dependencies) {
+    if (!commandExists(dep.name)) {
+      missing.push(dep.name);
+      installHints[dep.name] = dep.hint;
+    }
+  }
+
+  return { missing, installHints };
+}
 
 // Gitignore entries for Mark2 (derived/recreatable data)
 const GITIGNORE_ENTRIES = [
@@ -34,6 +65,22 @@ export async function initCommand(projectDir: string = process.cwd()): Promise<v
   console.log('│         Initializing Mark2              │');
   console.log('└─────────────────────────────────────────┘');
   console.log('');
+
+  // Check for required system dependencies
+  const { missing, installHints } = checkDependencies();
+  if (missing.length > 0) {
+    console.log('⚠️  Missing required dependencies:');
+    console.log('');
+    for (const dep of missing) {
+      console.log(`   ✗ ${dep} is not installed`);
+      console.log(`     Install: ${installHints[dep]}`);
+      console.log('');
+    }
+    console.log('Please install the missing dependencies and run `mark2 init` again.');
+    console.log('');
+    process.exit(1);
+  }
+
   console.log(`Project: ${projectName}`);
   console.log(`Location: ${projectDir}`);
   console.log('');

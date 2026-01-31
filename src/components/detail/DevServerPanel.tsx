@@ -20,6 +20,7 @@ interface ServerStatus {
 export function DevServerPanel({ task }: DevServerPanelProps) {
   const [isStarting, setIsStarting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
+  const [isOpeningIDE, setIsOpeningIDE] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCommandInput, setShowCommandInput] = useState(false);
   const [command, setCommand] = useState('npm run dev');
@@ -84,11 +85,44 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
     }
   };
 
+  const handleOpenIDE = async () => {
+    setIsOpeningIDE(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/open-ide`, {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        const result = await res.json();
+        setError(result.error || 'Failed to open IDE');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to open IDE');
+    } finally {
+      setIsOpeningIDE(false);
+    }
+  };
+
   const isRunning = data?.running ?? false;
 
   return (
     <div className="flex flex-col gap-2 px-4 py-2 border-t border-border bg-bg-primary/50">
       <div className="flex items-center gap-3">
+        {/* Open in IDE button */}
+        <button
+          onClick={handleOpenIDE}
+          disabled={isOpeningIDE}
+          className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 rounded transition-colors disabled:opacity-50"
+          title="Open clone folder in IDE"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
+          </svg>
+          {isOpeningIDE ? 'Opening...' : 'Open in IDE'}
+        </button>
+
+        <div className="w-px h-4 bg-border" />
+
         <div className="flex items-center gap-2">
           <span className="relative flex h-2 w-2">
             {isRunning && (

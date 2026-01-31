@@ -80,13 +80,18 @@ export async function handleManualTesting(
     designDocument,
   };
 
-  // Assemble the prompt
+  // Assemble the prompts (separated for Claude CLI flags)
   const assembler = new PromptAssembler(mark2Dir);
-  const prompt = assembler.assemble(task, agent, 'manual_testing', promptContext);
+  const promptParts = assembler.buildAgentAndTaskPrompts(task, agent, 'manual_testing', promptContext);
 
-  // Build invocation params
+  // Build invocation params with separated prompts
   const params: AgentInvocationParams = {
-    prompt,
+    prompt: promptParts.taskPrompt, // Legacy fallback
+    orchestrationPrompt: promptParts.orchestrationPrompt,
+    agentPrompt: promptParts.agentPrompt,
+    taskPrompt: promptParts.taskPrompt,
+    agentSlug: promptParts.agentName,
+    agentUuid: agent.uuid,
     workingDirectory: clonePath,
     agentName: agent.name,
     model: agent.model,

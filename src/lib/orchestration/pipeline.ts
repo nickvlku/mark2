@@ -8,6 +8,8 @@ export const PHASE_ORDER: Phase[] = [
   'coding',
   'testing',
   'code_review',
+  'fix_review',
+  'final_testing',
   'manual_testing',
   'done',
 ];
@@ -19,7 +21,9 @@ export const END_TOKENS: Record<Phase, string[]> = {
   design: ['[DESIGN_COMPLETED]'],
   coding: ['[CODING_COMPLETED]'],
   testing: ['[TESTING_PASSED]', '[TESTING_FAILED]'],
-  code_review: ['[REVIEW_COMPLETED]'],
+  code_review: ['[REVIEW_COMPLETED]', '[REVIEW_NEEDS_FIXES]'],
+  fix_review: ['[FIX_REVIEW_COMPLETED]'],
+  final_testing: ['[FINAL_TESTING_PASSED]', '[FINAL_TESTING_FAILED]'],
   manual_testing: ['[MANUAL_TESTING_READY]'],
   done: ['[TASK_COMPLETED]'],
 };

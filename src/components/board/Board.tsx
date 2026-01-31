@@ -19,6 +19,8 @@ const PHASES: Phase[] = [
   'coding',
   'testing',
   'code_review',
+  'fix_review',
+  'final_testing',
   'manual_testing',
   'done',
 ];

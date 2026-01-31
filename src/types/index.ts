@@ -63,6 +63,17 @@ export interface AgentInvocationParams {
   apiBaseUrl: string;
   agentToken: string;
   timeoutMinutes: number;
+  // Split prompts for Claude CLI flags
+  /** Orchestration instructions for --append-system-prompt */
+  orchestrationPrompt?: string;
+  /** Agent personality/role for --agents flag */
+  agentPrompt?: string;
+  /** Task description for first CLI argument */
+  taskPrompt?: string;
+  /** Agent slug for --agent flag */
+  agentSlug?: string;
+  /** Agent UUID for direct reference */
+  agentUuid?: string;
 }
 
 export interface MergeResult {

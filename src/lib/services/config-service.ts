@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import YAML from 'yaml';
 import { YamlReader } from '../yaml/reader';
 import { YamlWriter } from '../yaml/writer';
@@ -44,7 +45,23 @@ export class ConfigService {
       }
       throw new Error(`Failed to read roles: ${error?.error ?? 'unknown error'}`);
     }
-    return data.roles;
+
+    // Auto-generate UUIDs for roles that don't have them
+    let needsUpdate = false;
+    const roles = data.roles.map(role => {
+      if (!role.uuid) {
+        needsUpdate = true;
+        return { ...role, uuid: crypto.randomUUID() };
+      }
+      return role;
+    });
+
+    // Persist the generated UUIDs
+    if (needsUpdate) {
+      this.updateRoles(roles);
+    }
+
+    return roles;
   }
 
   updateRoles(roles: Role[]): Role[] {
@@ -74,7 +91,22 @@ export class ConfigService {
       const parsed = YAML.parse(content);
       const result = AgentsFileSchema.safeParse(parsed);
       if (result.success) {
-        return result.data.agents;
+        // Auto-generate UUIDs for agents that don't have them
+        let needsUpdate = false;
+        const agents = result.data.agents.map(agent => {
+          if (!agent.uuid) {
+            needsUpdate = true;
+            return { ...agent, uuid: crypto.randomUUID() };
+          }
+          return agent;
+        });
+
+        // Persist the generated UUIDs
+        if (needsUpdate) {
+          this.updateAgents(agents);
+        }
+
+        return agents;
       }
       throw new Error(`Invalid agents.yaml: ${result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
     } catch (e: any) {

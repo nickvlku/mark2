@@ -24,6 +24,8 @@ const PHASE_LABELS: Record<AssignablePhase, string> = {
   coding: 'Coding',
   testing: 'Testing',
   code_review: 'Code Review',
+  fix_review: 'Fix Review',
+  final_testing: 'Final Testing',
   manual_testing: 'Manual Testing',
 };
 

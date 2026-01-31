@@ -21,9 +21,8 @@ import {
   findTransitionByTrigger,
   isValidTransition,
 } from './pipeline';
-import { EndTokenWatcher, type EndTokenMatch } from './end-token-watcher';
 import { TmuxManager } from './tmux-manager';
-import { sessionName as buildSessionName, sendPromptFile } from '../utils/tmux';
+import { sessionName as buildSessionName } from '../utils/tmux';
 import { TerminalStream } from '../ws/terminal-stream';
 
 import { handlePending } from './phase-handlers/pending';
@@ -31,6 +30,8 @@ import { handleDesign } from './phase-handlers/design';
 import { handleCoding } from './phase-handlers/coding';
 import { handleTesting } from './phase-handlers/testing';
 import { handleCodeReview } from './phase-handlers/code-review';
+import { handleFixReview } from './phase-handlers/fix-review';
+import { handleFinalTesting } from './phase-handlers/final-testing';
 import { handleManualTesting } from './phase-handlers/manual-testing';
 import { handleDone } from './phase-handlers/done';
 import { ArtifactService } from '../services/artifact-service';
@@ -53,7 +54,6 @@ export interface EngineConfig {
 let instance: OrchestrationEngine | null = null;
 
 export class OrchestrationEngine {
-  private watcher: EndTokenWatcher;
   private tmuxManager: TmuxManager;
   private terminalStream: TerminalStream;
   private adapters: Map<string, CLIAdapter>;
@@ -63,7 +63,6 @@ export class OrchestrationEngine {
 
   private constructor(config: EngineConfig) {
     this.config = config;
-    this.watcher = new EndTokenWatcher();
     this.tmuxManager = new TmuxManager(config.mark2Dir);
     this.terminalStream = TerminalStream.getInstance();
     this.reader = new YamlReader(config.mark2Dir);
@@ -116,9 +115,17 @@ export class OrchestrationEngine {
   ): Promise<void> {
     const db = getDb(this.config.mark2Dir);
     const now = new Date().toISOString();
+    const tmuxName = buildSessionName(taskId, agentName, phase);
+
+    // Idempotency check: verify the task is still in the expected phase
+    // This prevents duplicate processing if both hook and watcher fire
+    const currentTask = this.getTask(taskId);
+    if (currentTask && currentTask.phase !== phase) {
+      console.log(`[engine] Ignoring end token "${token}" for ${taskId} - task already transitioned from ${phase} to ${currentTask.phase}`);
+      return;
+    }
 
     // Mark the current session as completed and stop streaming
-    const tmuxName = buildSessionName(taskId, agentName, phase);
     this.tmuxManager.markCompleted(tmuxName);
     this.terminalStream.stop(taskId);
 
@@ -127,9 +134,9 @@ export class OrchestrationEngine {
       .values({
         task_id: taskId,
         timestamp: now,
-        source: 'orchestration',
+        source: agentName,
         type: 'note',
-        message: `End token detected: ${token} (phase: ${phase}, agent: ${agentName})`,
+        message: `End token detected: ${token}`,
         metadata_json: JSON.stringify({ token, phase, agent: agentName }),
       })
       .run();
@@ -154,9 +161,9 @@ export class OrchestrationEngine {
         .values({
           task_id: taskId,
           timestamp: now,
-          source: 'orchestration',
+          source: agentName,
           type: 'note',
-          message: `Auto-advance disabled for task. End token "${token}" detected but no transition will occur.`,
+          message: `Auto-advance disabled — no transition`,
           metadata_json: JSON.stringify({ token, phase, agent: agentName, auto_advance: false }),
         })
         .run();
@@ -172,9 +179,9 @@ export class OrchestrationEngine {
             .values({
               task_id: taskId,
               timestamp: now,
-              source: 'orchestration',
-              type: 'note',
-              message: `Code diff captured and saved as artifact (${diff.split('\n').length} lines)`,
+              source: agentName,
+              type: 'artifact',
+              message: `Code diff saved (${diff.split('\n').length} lines)`,
             })
             .run();
         }
@@ -188,9 +195,9 @@ export class OrchestrationEngine {
         .values({
           task_id: taskId,
           timestamp: now,
-          source: 'orchestration',
-          type: 'note',
-          message: `Phase "${phase}" complete — awaiting human approval. End token "${token}" detected but auto-approve is off.`,
+          source: agentName,
+          type: 'phase_change',
+          message: `Phase complete — awaiting approval`,
           metadata_json: JSON.stringify({ token, phase, agent: agentName, auto_approve: false }),
         })
         .run();
@@ -215,7 +222,7 @@ export class OrchestrationEngine {
     const nextPhase = transition.to;
 
     // Handle special loop-back cases
-    let loopContext: { testFailures?: string; reviewComments?: string } | undefined;
+    let loopContext: { testFailures?: string; reviewComments?: string; isReReview?: boolean } | undefined;
 
     if (token === '[TESTING_FAILED]' && nextPhase === 'coding') {
       // Capture test failure output from the TMUX session
@@ -225,7 +232,7 @@ export class OrchestrationEngine {
     }
 
     if (token === '[REVIEW_COMPLETED]:autofix' && nextPhase === 'coding') {
-      // Read review comments from the review.md artifact
+      // Read review comments from the review.md artifact (legacy flow)
       // Try storage location first (new structure), then fallback to worktree (legacy)
       const storagePath = resolveArtifactPath(this.config.projectRoot, taskId, 'review.md');
       const worktreePath = path.join(
@@ -247,6 +254,27 @@ export class OrchestrationEngine {
       }
     }
 
+    // New flow: code_review -> fix_review (review found issues)
+    if (token === '[REVIEW_NEEDS_FIXES]' && nextPhase === 'fix_review') {
+      const artifactService = new ArtifactService(this.config.mark2Dir);
+      const { content } = artifactService.getMostRecentContent(taskId, 'review');
+      if (content) {
+        loopContext = { reviewComments: content };
+      }
+    }
+
+    // New flow: final_testing -> fix_review (tests failed after review approval)
+    if (token === '[FINAL_TESTING_FAILED]' && nextPhase === 'fix_review') {
+      const { capturePane } = await import('../utils/tmux');
+      const output = await capturePane(tmuxName, 200);
+      loopContext = { testFailures: output };
+    }
+
+    // New flow: fix_review -> code_review (re-review after fixes)
+    if (token === '[FIX_REVIEW_COMPLETED]' && nextPhase === 'code_review') {
+      loopContext = { isReReview: true };
+    }
+
     // Update task phase
     this.updateTaskPhase(taskId, nextPhase);
 
@@ -265,6 +293,7 @@ export class OrchestrationEngine {
       testFailures?: string;
       reviewComments?: string;
       humanComments?: string;
+      isReReview?: boolean;
     },
   ): Promise<void> {
     const task = this.getTask(taskId);
@@ -334,6 +363,24 @@ export class OrchestrationEngine {
         break;
       }
 
+      case 'fix_review': {
+        const result = await handleFixReview(
+          task, agent, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken, loopContext,
+        );
+        tmuxSession = result.tmuxSession;
+        promptFile = result.promptFile;
+        break;
+      }
+
+      case 'final_testing': {
+        const result = await handleFinalTesting(
+          task, agent, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken,
+        );
+        tmuxSession = result.tmuxSession;
+        promptFile = result.promptFile;
+        break;
+      }
+
       case 'manual_testing': {
         const result = await handleManualTesting(
           task, agent, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken,
@@ -350,22 +397,10 @@ export class OrchestrationEngine {
       }
     }
 
-    // Set up end token watcher and terminal streaming for the spawned session
+    // Start terminal streaming for the spawned session
+    // End token detection is handled by Claude Code's Stop hook (no polling needed)
     if (tmuxSession) {
       this.terminalStream.start(taskId, tmuxSession);
-
-      await this.watcher.watch(tmuxSession, phase, async (match: EndTokenMatch) => {
-        await this.processEndToken(taskId, agent.name, phase, match.token);
-      });
-
-      // Deliver prompt file if the adapter uses interactive mode (e.g. Claude Code).
-      // This must happen after the CLI tool has fully initialized in the tmux session.
-      if (promptFile) {
-        console.log(`[engine] Scheduling prompt delivery to ${tmuxSession}: ${promptFile}`);
-        sendPromptFile(tmuxSession, promptFile, 5000)
-          .then(() => console.log(`[engine] Prompt file delivered to ${tmuxSession}`))
-          .catch((err) => console.error(`[engine] Failed to deliver prompt to ${tmuxSession}:`, err));
-      }
     }
   }
 
@@ -380,8 +415,7 @@ export class OrchestrationEngine {
     // Mark session as failed
     this.tmuxManager.markFailed(tmuxName);
 
-    // Stop the watcher and terminal stream
-    this.watcher.stop(tmuxName);
+    // Stop terminal stream
     this.terminalStream.stop(taskId);
 
     // Log the crash
@@ -389,9 +423,9 @@ export class OrchestrationEngine {
       .values({
         task_id: taskId,
         timestamp: now,
-        source: 'orchestration',
+        source: agentName,
         type: 'error',
-        message: `Agent "${agentName}" crashed during phase "${phase}". TMUX session "${tmuxName}" is no longer alive.`,
+        message: `Agent crashed — TMUX session no longer alive`,
         metadata_json: JSON.stringify({
           agent: agentName,
           phase,
@@ -428,21 +462,13 @@ export class OrchestrationEngine {
         .run();
     }
 
-    // Re-attach watchers for sessions still running
+    // Re-attach terminal streaming for sessions still running
+    // End token detection is handled by Claude Code's Stop hook
     const activeSessions = this.tmuxManager.getActiveSessions();
     let reattached = 0;
 
     for (const session of activeSessions) {
-      const phase = session.phase as Phase;
       this.terminalStream.start(session.task_id, session.tmux_session);
-      await this.watcher.watch(session.tmux_session, phase, async (match: EndTokenMatch) => {
-        await this.processEndToken(
-          session.task_id,
-          session.agent_name,
-          phase,
-          match.token,
-        );
-      });
       reattached++;
     }
 
@@ -461,10 +487,9 @@ export class OrchestrationEngine {
   }
 
   /**
-   * Gracefully shut down all watchers and sessions.
+   * Gracefully shut down terminal streams.
    */
   shutdown(): void {
-    this.watcher.stopAll();
     this.terminalStream.stopAll();
   }
 
@@ -472,7 +497,7 @@ export class OrchestrationEngine {
    * Cleanup all mark2 sessions (used for hard reset).
    */
   async cleanupAll(): Promise<number> {
-    this.watcher.stopAll();
+    this.terminalStream.stopAll();
     return this.tmuxManager.cleanup();
   }
 
@@ -730,16 +755,19 @@ export class OrchestrationEngine {
     // Update YAML
     const { data: task } = this.reader.readTask(taskId);
     if (task) {
+      // Increment loop count when looping back for fixes
+      const shouldIncrementLoop =
+        // Legacy: coding from testing/code_review
+        (newPhase === 'coding' && (task.phase === 'testing' || task.phase === 'code_review')) ||
+        // New: fix_review from code_review or final_testing
+        (newPhase === 'fix_review' && (task.phase === 'code_review' || task.phase === 'final_testing'));
+
       const updatedTask: Task = {
         ...task,
         phase: newPhase,
         phase_entered_at: now,
         updated_at: now,
-        loop_count: newPhase === 'coding' && task.phase === 'testing'
-          ? task.loop_count + 1
-          : newPhase === 'coding' && task.phase === 'code_review'
-            ? task.loop_count + 1
-            : task.loop_count,
+        loop_count: shouldIncrementLoop ? task.loop_count + 1 : task.loop_count,
       };
       this.writer.writeTask(updatedTask);
     }
@@ -749,9 +777,12 @@ export class OrchestrationEngine {
     const taskRow = db.select().from(tasks).where(eq(tasks.id, taskId)).get();
     if (taskRow) {
       const currentLoopCount = taskRow.loop_count ?? 0;
+      // Increment loop count when looping back for fixes
       const shouldIncrementLoop =
-        newPhase === 'coding' &&
-        (taskRow.phase === 'testing' || taskRow.phase === 'code_review');
+        // Legacy: coding from testing/code_review
+        (newPhase === 'coding' && (taskRow.phase === 'testing' || taskRow.phase === 'code_review')) ||
+        // New: fix_review from code_review or final_testing
+        (newPhase === 'fix_review' && (taskRow.phase === 'code_review' || taskRow.phase === 'final_testing'));
 
       db.update(tasks)
         .set({

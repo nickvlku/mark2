@@ -12,6 +12,8 @@ const PHASES: { id: AssignablePhase; label: string }[] = [
   { id: 'coding', label: 'Coding' },
   { id: 'testing', label: 'Testing' },
   { id: 'code_review', label: 'Code Review' },
+  { id: 'fix_review', label: 'Fix Review' },
+  { id: 'final_testing', label: 'Final Testing' },
   { id: 'manual_testing', label: 'Manual Testing' },
 ];
 

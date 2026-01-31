@@ -90,4 +90,43 @@ export class ArtifactService {
     const content = fs.readFileSync(fullPath, 'utf-8');
     return { content, exists: true };
   }
+
+  /**
+   * Get the most recent artifact matching a name pattern.
+   * Useful for finding artifacts like "design-document" regardless of timestamp.
+   */
+  getMostRecentByName(taskId: string, namePattern: string): TaskArtifact | null {
+    const artifacts = this.getForTask(taskId);
+    const matching = artifacts.filter((a) => a.name.includes(namePattern));
+    if (matching.length === 0) return null;
+
+    // Sort by created_at descending and return most recent
+    matching.sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return dateB - dateA;
+    });
+
+    return matching[0];
+  }
+
+  /**
+   * Read the content of the most recent artifact matching a name pattern.
+   */
+  getMostRecentContent(taskId: string, namePattern: string): { content: string; artifact: TaskArtifact | null } {
+    const artifact = this.getMostRecentByName(taskId, namePattern);
+    if (!artifact) {
+      return { content: '', artifact: null };
+    }
+
+    // Build full path to the artifact file
+    const storagePath = path.join(this.mark2Dir, 'storage', taskId, 'artifacts', artifact.path);
+
+    if (!fs.existsSync(storagePath)) {
+      return { content: '', artifact };
+    }
+
+    const content = fs.readFileSync(storagePath, 'utf-8');
+    return { content, artifact };
+  }
 }

@@ -1,6 +1,6 @@
-import fs from 'fs';
 import type { Task, AgentDefinition } from '../../yaml/schemas';
 import { CloneService } from '../../services/clone-service';
+import { ArtifactService } from '../../services/artifact-service';
 import { getDb } from '../../db';
 import { activityEntries } from '../../db/schema';
 import { TmuxManager } from '../tmux-manager';
@@ -45,15 +45,12 @@ export async function handleCoding(
     await cloneService.createClone(task.id);
   }
 
-  // Try to read the design document if it exists
+  // Read the design document from artifacts storage
   let designDocument: string | undefined;
-  const designPath = `${clonePath}/design.md`;
-  try {
-    if (fs.existsSync(designPath)) {
-      designDocument = fs.readFileSync(designPath, 'utf-8');
-    }
-  } catch {
-    // Design doc may not exist yet
+  const artifactService = new ArtifactService(mark2Dir);
+  const { content: designContent } = artifactService.getMostRecentContent(task.id, 'design');
+  if (designContent) {
+    designDocument = designContent;
   }
 
   // Build prompt context
@@ -65,13 +62,18 @@ export async function handleCoding(
     loopCount: task.loop_count > 0 ? task.loop_count : undefined,
   };
 
-  // Assemble the prompt
+  // Assemble the prompts (separated for Claude CLI flags)
   const assembler = new PromptAssembler(mark2Dir);
-  const prompt = assembler.assemble(task, agent, 'coding', promptContext);
+  const promptParts = assembler.buildAgentAndTaskPrompts(task, agent, 'coding', promptContext);
 
-  // Build invocation params
+  // Build invocation params with separated prompts
   const params: AgentInvocationParams = {
-    prompt,
+    prompt: promptParts.taskPrompt, // Legacy fallback
+    orchestrationPrompt: promptParts.orchestrationPrompt,
+    agentPrompt: promptParts.agentPrompt,
+    taskPrompt: promptParts.taskPrompt,
+    agentSlug: promptParts.agentName,
+    agentUuid: agent.uuid,
     workingDirectory: clonePath,
     agentName: agent.name,
     model: agent.model,

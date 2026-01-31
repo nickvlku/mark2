@@ -22,6 +22,7 @@ export function TerminalTab({ task }: TerminalTabProps) {
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
   const [openingTerminal, setOpeningTerminal] = useState(false);
+  const [openingFolder, setOpeningFolder] = useState(false);
 
   const { lastMessage, isConnected } = useWebSocket(task.id);
 
@@ -181,6 +182,37 @@ export function TerminalTab({ task }: TerminalTabProps) {
     }
   };
 
+  // ── Open folder in native terminal ──────────────────────────────────────
+  const handleOpenFolder = async () => {
+    setOpeningFolder(true);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/terminal`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        terminalRef.current?.writeln(
+          `\r\n\x1b[31mFailed to open folder: ${data.error}\x1b[0m`,
+        );
+        if (data.clone_path) {
+          terminalRef.current?.writeln(
+            `\x1b[33mClone path: ${data.clone_path}\x1b[0m`,
+          );
+        }
+      } else {
+        terminalRef.current?.writeln(
+          `\r\n\x1b[32mOpened folder: ${data.clone_path}\x1b[0m`,
+        );
+      }
+    } catch {
+      terminalRef.current?.writeln(
+        '\r\n\x1b[31mFailed to open folder\x1b[0m',
+      );
+    } finally {
+      setOpeningFolder(false);
+    }
+  };
+
   // ── Connection status indicator ───────────────────────────────────────
   const statusColor = isConnected ? 'bg-green-500' : 'bg-red-500';
   const statusText = isConnected ? 'Connected' : 'Disconnected';
@@ -225,6 +257,16 @@ export function TerminalTab({ task }: TerminalTabProps) {
               className="text-[10px] text-text-secondary/70 hover:text-text-primary px-2 py-0.5 rounded border border-border/30 hover:border-border/60 transition-colors disabled:opacity-50"
             >
               {openingTerminal ? 'Opening...' : 'Open in Terminal'}
+            </button>
+
+            {/* Open folder button */}
+            <button
+              onClick={handleOpenFolder}
+              disabled={openingFolder}
+              className="text-[10px] text-text-secondary/70 hover:text-text-primary px-2 py-0.5 rounded border border-border/30 hover:border-border/60 transition-colors disabled:opacity-50"
+              title="Open working directory in a new terminal"
+            >
+              {openingFolder ? 'Opening...' : 'Open Folder'}
             </button>
           </div>
         </div>

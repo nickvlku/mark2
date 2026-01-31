@@ -1,4 +1,3 @@
-import fs from 'fs';
 import type { Task, AgentDefinition } from '../../yaml/schemas';
 import { CloneService } from '../../services/clone-service';
 import { getDb } from '../../db';
@@ -40,38 +39,24 @@ export async function handleCodeReview(
     await cloneService.createClone(task.id);
   }
 
-  // Get the diff for review using CloneService
-  let diff = '';
-  try {
-    const result = await cloneService.getDiff(task.id);
-    diff = result.diff || '(No changes)';
-  } catch {
-    diff = '(Unable to generate diff)';
-  }
-
-  // Read the design document for context
-  let designDocument: string | undefined;
-  const designPath = `${clonePath}/design.md`;
-  try {
-    if (fs.existsSync(designPath)) {
-      designDocument = fs.readFileSync(designPath, 'utf-8');
-    }
-  } catch {
-    // Design doc may not exist
-  }
-
+  // Note: We don't embed large artifacts (diff, design doc) in the prompt
+  // The agent will fetch them via MCP tools to avoid shell escaping issues
   const promptContext: PromptContext = {
-    designDocument,
-    diff,
+    // Agent fetches design document and diff via MCP tools
   };
 
-  // Assemble the prompt
+  // Assemble the prompts (separated for Claude CLI flags)
   const assembler = new PromptAssembler(mark2Dir);
-  const prompt = assembler.assemble(task, agent, 'code_review', promptContext);
+  const promptParts = assembler.buildAgentAndTaskPrompts(task, agent, 'code_review', promptContext);
 
-  // Build invocation params
+  // Build invocation params with separated prompts
   const params: AgentInvocationParams = {
-    prompt,
+    prompt: promptParts.taskPrompt, // Legacy fallback
+    orchestrationPrompt: promptParts.orchestrationPrompt,
+    agentPrompt: promptParts.agentPrompt,
+    taskPrompt: promptParts.taskPrompt,
+    agentSlug: promptParts.agentName,
+    agentUuid: agent.uuid,
     workingDirectory: clonePath,
     agentName: agent.name,
     model: agent.model,
@@ -108,7 +93,6 @@ export async function handleCodeReview(
       metadata_json: JSON.stringify({
         agent: agent.name,
         tmux_session: tmuxSession,
-        diff_length: diff.length,
       }),
     })
     .run();

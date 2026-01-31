@@ -16,6 +16,8 @@ const PHASE_LABELS: Record<AssignablePhase, string> = {
   coding: 'Coding',
   testing: 'Testing',
   code_review: 'Code Review',
+  fix_review: 'Fix Review',
+  final_testing: 'Final Testing',
   manual_testing: 'Manual Testing',
 };
 
@@ -24,6 +26,8 @@ const PHASE_DESCRIPTIONS: Record<AssignablePhase, string> = {
   coding: 'Agent that implements the code changes',
   testing: 'Agent that writes and runs tests',
   code_review: 'Agent that reviews the code for issues',
+  fix_review: 'Agent that fixes issues identified in code review',
+  final_testing: 'Agent that runs final test suite after code review approval',
   manual_testing: 'Agent that performs manual testing verification',
 };
 
@@ -41,15 +45,17 @@ export function AgentsTab({ task, onUpdate }: AgentsTabProps) {
       coding: [],
       testing: [],
       code_review: [],
+      fix_review: [],
+      final_testing: [],
       manual_testing: [],
     };
-    
+
     for (const agent of agents) {
       if (agent.phase && grouped[agent.phase as AssignablePhase]) {
         grouped[agent.phase as AssignablePhase].push(agent);
       }
     }
-    
+
     return grouped;
   }, [agents]);
 

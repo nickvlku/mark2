@@ -17,6 +17,8 @@ const PHASE_LABELS: Record<AssignablePhase, string> = {
   coding: 'Coding',
   testing: 'Testing',
   code_review: 'Code Review',
+  fix_review: 'Fix Review',
+  final_testing: 'Final Testing',
   manual_testing: 'Manual Testing',
 };
 
@@ -25,6 +27,8 @@ const PHASE_DESCRIPTIONS: Record<AssignablePhase, string> = {
   coding: 'Override role, CLI tool, or model for the coding phase',
   testing: 'Override role, CLI tool, or model for the testing phase',
   code_review: 'Override role, CLI tool, or model for the code review phase',
+  fix_review: 'Override role, CLI tool, or model for fixing review issues',
+  final_testing: 'Override role, CLI tool, or model for the final testing phase',
   manual_testing: 'Override role, CLI tool, or model for the manual testing phase',
 };
 

@@ -8,15 +8,17 @@ export const Phase = z.enum([
   'coding',
   'testing',
   'code_review',
+  'fix_review',
+  'final_testing',
   'manual_testing',
   'done',
 ]);
 export type Phase = z.infer<typeof Phase>;
 
 // Phases that can have agents assigned to them
-export const AssignablePhase = z.enum(['design', 'coding', 'testing', 'code_review', 'manual_testing']);
+export const AssignablePhase = z.enum(['design', 'coding', 'testing', 'code_review', 'fix_review', 'final_testing', 'manual_testing']);
 export type AssignablePhase = z.infer<typeof AssignablePhase>;
-export const ASSIGNABLE_PHASES: AssignablePhase[] = ['design', 'coding', 'testing', 'code_review', 'manual_testing'];
+export const ASSIGNABLE_PHASES: AssignablePhase[] = ['design', 'coding', 'testing', 'code_review', 'fix_review', 'final_testing', 'manual_testing'];
 
 export const Priority = z.enum(['P0', 'P1', 'P2', 'P3']);
 export type Priority = z.infer<typeof Priority>;
@@ -37,6 +39,7 @@ export type CLITool = z.infer<typeof CLIToolEnum>;
 
 export const AgentDefinitionSchema = z.object({
   name: z.string().regex(/^[a-z][a-z0-9-]*$/, 'Agent names must be lowercase alphanumeric with hyphens, starting with a letter'),
+  uuid: z.string().uuid().optional(),
   cli_tool: CLIToolEnum,
   model: z.string().min(1, 'Model cannot be empty'),
   phase: AssignablePhase,
@@ -49,6 +52,7 @@ export type AgentDefinition = z.infer<typeof AgentDefinitionSchema>;
 
 export const RoleSchema = z.object({
   name: z.string().regex(/^[a-z][a-z0-9-]*$/, 'Role names must be lowercase alphanumeric with hyphens, starting with a letter'),
+  uuid: z.string().uuid().optional(),
   description: z.string().optional(),
   role_prompt: z.string().min(1, 'Role prompt cannot be empty'),
   suggested_phases: z.array(AssignablePhase).default([]),
@@ -86,6 +90,7 @@ export type TaskPhaseOverride = z.infer<typeof TaskPhaseOverrideSchema>;
 
 export interface ResolvedAgent {
   roleName: string;
+  uuid?: string;
   role_prompt: string;
   cli_tool: CLITool;
   model: string;
@@ -198,6 +203,7 @@ export const ConfigSchema = z.object({
   max_loop_count: z.number().int().default(5),
   server_port: z.number().int().default(3100),
   merge_strategy: MergeStrategy.default('squash'),
+  ide_commands: z.array(z.string()).default(['code', 'cursor', 'windsurf']),
 });
 export type Config = z.infer<typeof ConfigSchema>;
 

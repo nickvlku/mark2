@@ -16,6 +16,8 @@ const phaseLabels: Record<Phase, string> = {
   coding: 'Coding',
   testing: 'Testing',
   code_review: 'Code Review',
+  fix_review: 'Fix Review',
+  final_testing: 'Final Testing',
   manual_testing: 'Manual Testing',
   done: 'Done',
 };
@@ -26,6 +28,8 @@ const phaseColors: Record<Phase, string> = {
   coding: 'bg-blue-500',
   testing: 'bg-amber-500',
   code_review: 'bg-cyan-500',
+  fix_review: 'bg-rose-500',
+  final_testing: 'bg-emerald-500',
   manual_testing: 'bg-orange-500',
   done: 'bg-green-500',
 };

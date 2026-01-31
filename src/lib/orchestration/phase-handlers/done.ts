@@ -20,7 +20,7 @@ export interface DoneResult {
 /**
  * Handle the done phase for a task.
  *
- * 1. Merge the worktree branch to main
+ * 1. Merge the worktree branch to target branch (default: main)
  * 2. Cleanup the worktree
  * 3. Release allocated ports
  * 4. Find and unblock dependent tasks
@@ -29,6 +29,7 @@ export async function handleDone(
   task: Task,
   projectRoot: string,
   mark2Dir: string,
+  targetBranch: string = 'main',
 ): Promise<DoneResult> {
   const db = getDb(mark2Dir);
   const now = new Date().toISOString();
@@ -41,12 +42,12 @@ export async function handleDone(
   const branchName = `mark2/${task.id}/design`;
   const worktreePath = path.join(projectRoot, '.worktrees', task.id, 'design');
 
-  // Step 1: Merge to main
+  // Step 1: Merge to target branch
   try {
     const strategy = task.merge_strategy === 'squash' ? '--squash' : '--no-ff';
 
-    // Checkout main and merge
-    await gitExec('git checkout main', projectRoot);
+    // Checkout target branch and merge
+    await gitExec(`git checkout "${targetBranch}"`, projectRoot);
     await gitExec(`git merge ${strategy} "${branchName}" -m "mark2: merge ${task.id} - ${task.title}"`, projectRoot);
 
     if (task.merge_strategy === 'squash') {
@@ -64,7 +65,7 @@ export async function handleDone(
         timestamp: now,
         source: 'orchestration',
         type: 'error',
-        message: `Merge to main failed: ${result.mergeError}`,
+        message: `Merge to ${targetBranch} failed: ${result.mergeError}`,
       })
       .run();
 
@@ -144,10 +145,11 @@ export async function handleDone(
       timestamp: now,
       source: 'orchestration',
       type: 'phase_change',
-      message: `Task completed.${result.merged ? ' Changes merged to main.' : ' Merge failed.'}${result.unblockedTasks.length > 0 ? ` Unblocked: ${result.unblockedTasks.join(', ')}.` : ''}`,
+      message: `Task completed.${result.merged ? ` Changes merged to ${targetBranch}.` : ' Merge failed.'}${result.unblockedTasks.length > 0 ? ` Unblocked: ${result.unblockedTasks.join(', ')}.` : ''}`,
       metadata_json: JSON.stringify({
         merged: result.merged,
         merge_error: result.mergeError,
+        target_branch: targetBranch,
         unblocked_tasks: result.unblockedTasks,
         cleaned_up: result.cleanedUp,
       }),

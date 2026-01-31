@@ -41,16 +41,21 @@ export async function handleDesign(
   const clonePath = cloneInfo.clonePath;
   const branchName = cloneInfo.branchName;
 
-  // Assemble the prompt (include any context from restart)
+  // Assemble the prompts (include any context from restart)
   const assembler = new PromptAssembler(mark2Dir);
   const promptContext: PromptContext | undefined = loopContext
     ? { humanComments: loopContext.humanComments, testFailures: loopContext.testFailures, reviewComments: loopContext.reviewComments }
     : undefined;
-  const prompt = assembler.assemble(task, agent, 'design', promptContext);
+  const promptParts = assembler.buildAgentAndTaskPrompts(task, agent, 'design', promptContext);
 
-  // Build invocation params
+  // Build invocation params with separated prompts
   const params: AgentInvocationParams = {
-    prompt,
+    prompt: promptParts.taskPrompt, // Legacy fallback
+    orchestrationPrompt: promptParts.orchestrationPrompt,
+    agentPrompt: promptParts.agentPrompt,
+    taskPrompt: promptParts.taskPrompt,
+    agentSlug: promptParts.agentName,
+    agentUuid: agent.uuid,
     workingDirectory: clonePath,
     agentName: agent.name,
     model: agent.model,
