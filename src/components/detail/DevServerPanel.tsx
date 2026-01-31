@@ -21,6 +21,7 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
   const [isStarting, setIsStarting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
   const [isOpeningIDE, setIsOpeningIDE] = useState(false);
+  const [isOpeningFolder, setIsOpeningFolder] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCommandInput, setShowCommandInput] = useState(false);
   const [command, setCommand] = useState('npm run dev');
@@ -103,6 +104,24 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
     }
   };
 
+  const handleOpenFolder = async () => {
+    setIsOpeningFolder(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/terminal`, {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        const result = await res.json();
+        setError(result.error || 'Failed to open folder');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to open folder');
+    } finally {
+      setIsOpeningFolder(false);
+    }
+  };
+
   const isRunning = data?.running ?? false;
 
   return (
@@ -119,6 +138,19 @@ export function DevServerPanel({ task }: DevServerPanelProps) {
             <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
           </svg>
           {isOpeningIDE ? 'Opening...' : 'Open in IDE'}
+        </button>
+
+        {/* Open in Shell button */}
+        <button
+          onClick={handleOpenFolder}
+          disabled={isOpeningFolder}
+          className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-purple-400 hover:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 rounded transition-colors disabled:opacity-50"
+          title="Open clone folder in terminal"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
+          </svg>
+          {isOpeningFolder ? 'Opening...' : 'Open in Shell'}
         </button>
 
         <div className="w-px h-4 bg-border" />
