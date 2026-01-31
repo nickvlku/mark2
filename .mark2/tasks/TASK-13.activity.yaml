@@ -88,3 +88,14 @@ entries:
     metadata:
       old_phase: manual_testing
       new_phase: done
+  - timestamp: 2026-01-31T22:55:28.386Z
+    source: agent
+    type: note
+    message: "[ready] Manual testing environment ready. Dev server running on port 3113. Test plan saved."
+  - timestamp: 2026-01-31T22:55:34.718Z
+    source: hook
+    type: phase_change
+    message: End token "[MANUAL_TESTING_READY]" detected via Claude Code hook
+    metadata:
+      token: "[MANUAL_TESTING_READY]"
+      phase: done
