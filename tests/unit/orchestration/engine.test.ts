@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { OrchestrationEngine, type EngineConfig } from '@/lib/orchestration/engine';
-import type { Task, AgentDefinition } from '@/lib/yaml/schemas';
+import type { Task } from '@/lib/yaml/schemas';
 import { TmuxManager } from '@/lib/orchestration/tmux-manager';
 import { YamlReader } from '@/lib/yaml/reader';
 import { YamlWriter } from '@/lib/yaml/writer';
@@ -16,11 +16,9 @@ vi.mock('@/lib/db', () => ({
 
 vi.mock('@/lib/orchestration/tmux-manager', () => ({
   TmuxManager: class {
-    markFailed = vi.fn();
-    markCompleted = vi.fn();
     reconcile = vi.fn().mockResolvedValue([]);
     getActiveSessions = vi.fn().mockReturnValue([]);
-    cleanup = vi.fn().mockResolvedValue(0);
+    cleanupSessions = vi.fn().mockResolvedValue(0);
     createSession = vi.fn().mockResolvedValue({ name: 'test-session' });
     register = vi.fn();
   },
@@ -49,7 +47,6 @@ vi.mock('@/lib/yaml/reader', () => ({
       },
     });
     readConfig = vi.fn().mockReturnValue({ data: null });
-    readAgents = vi.fn().mockReturnValue({ data: { agents: [] } });
   },
 }));
 vi.mock('@/lib/yaml/writer', () => ({

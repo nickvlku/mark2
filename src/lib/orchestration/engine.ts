@@ -564,13 +564,11 @@ export class OrchestrationEngine {
   }
 
   /**
-   * Resolve which agent configuration to use for a given task and phase.
-   * 
-   * Resolution order:
-   * 1. Check if config has new format phase_defaults (role + cli_tool + model)
-   *    - If yes, use roles.yaml to get role_prompt, apply task-level overrides
-   * 2. Fall back to legacy format (default_agent pointing to agents.yaml)
-   * 3. Fall back to first agent in agents.yaml for the phase
+   * Resolve which role configuration to use for a given task and phase.
+   *
+   * Requires the new phase_defaults format with role, cli_tool, and model.
+   * Uses roles.yaml to get role_prompt, applies task-level overrides.
+   * Legacy agents.yaml is no longer supported.
    */
   private resolveAgent(task: Task, phase: Phase): RoleConfig {
     const configResult = this.reader.readConfig();
@@ -608,7 +606,7 @@ export class OrchestrationEngine {
 
     if (!rolesFile || rolesFile.roles.length === 0) {
       throw new Error(
-        'No roles defined. Create .mark2/roles.yaml with at least one role, or use legacy agents.yaml format.',
+        'No roles defined. Create .mark2/roles.yaml with at least one role.',
       );
     }
 

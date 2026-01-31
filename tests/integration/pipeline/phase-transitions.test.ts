@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import YAML from 'yaml';
-import type { Task, AgentsFile } from '@/lib/yaml/schemas';
+import type { Task } from '@/lib/yaml/schemas';
 import { eq } from 'drizzle-orm';
 
 // Create a temporary directory for testing
@@ -10,60 +10,12 @@ const TEST_PROJECT_ROOT = '/tmp/mark2-phase-transition-test';
 const TEST_MARK2_DIR = path.join(TEST_PROJECT_ROOT, '.mark2');
 const TEST_TASK_ID = 'TASK-1';
 
-// Test agents data
-const TEST_AGENTS: AgentsFile = {
-  agents: [
-    {
-      name: 'test-designer',
-      cli_tool: 'claude-code',
-      model: 'claude-3-sonnet',
-      phase: 'design',
-      role_prompt: 'You are a test designer agent',
-      timeout_minutes: 30,
-    },
-    {
-      name: 'test-coder',
-      cli_tool: 'claude-code',
-      model: 'claude-3-sonnet',
-      phase: 'coding',
-      role_prompt: 'You are a test coder agent',
-      timeout_minutes: 45,
-    },
-    {
-      name: 'test-tester',
-      cli_tool: 'claude-code',
-      model: 'claude-3-sonnet',
-      phase: 'testing',
-      role_prompt: 'You are a test tester agent',
-      timeout_minutes: 30,
-    },
-    {
-      name: 'test-reviewer',
-      cli_tool: 'claude-code',
-      model: 'claude-3-sonnet',
-      phase: 'code_review',
-      role_prompt: 'You are a test reviewer agent',
-      timeout_minutes: 20,
-    },
-    {
-      name: 'test-manual',
-      cli_tool: 'claude-code',
-      model: 'claude-3-sonnet',
-      phase: 'manual_testing',
-      role_prompt: 'You are a test manual tester agent',
-      timeout_minutes: 30,
-    },
-  ],
-};
-
 // Use vi.hoisted to create mocks that are available during vi.mock hoisting
 const mockTmuxManager = vi.hoisted(() => ({
   spawnAgent: vi.fn().mockResolvedValue('mock-session'),
-  markCompleted: vi.fn(),
-  markFailed: vi.fn(),
   reconcile: vi.fn().mockResolvedValue([]),
   getActiveSessions: vi.fn().mockReturnValue([]),
-  cleanup: vi.fn().mockResolvedValue(0),
+  cleanupSessions: vi.fn().mockResolvedValue(0),
   register: vi.fn(),
   createSession: vi.fn().mockResolvedValue({ name: 'mock-session' }),
 }));
@@ -101,11 +53,9 @@ const mockTmuxUtils = vi.hoisted(() => ({
 vi.mock('@/lib/orchestration/tmux-manager', () => ({
   TmuxManager: class {
     spawnAgent = mockTmuxManager.spawnAgent;
-    markCompleted = mockTmuxManager.markCompleted;
-    markFailed = mockTmuxManager.markFailed;
     reconcile = mockTmuxManager.reconcile;
     getActiveSessions = mockTmuxManager.getActiveSessions;
-    cleanup = mockTmuxManager.cleanup;
+    cleanupSessions = mockTmuxManager.cleanupSessions;
     register = mockTmuxManager.register;
     createSession = mockTmuxManager.createSession;
   },
@@ -214,7 +164,7 @@ describe('Phase Transitions Integration', () => {
     mockTmuxUtils.capturePane.mockResolvedValue('');
     mockTmuxManager.reconcile.mockResolvedValue([]);
     mockTmuxManager.getActiveSessions.mockReturnValue([]);
-    mockTmuxManager.cleanup.mockResolvedValue(0);
+    mockTmuxManager.cleanupSessions.mockResolvedValue(0);
 
     // Clean up from previous tests
     OrchestrationEngine.resetInstance();
@@ -238,62 +188,13 @@ describe('Phase Transitions Integration', () => {
     yamlWriter = new YamlWriter(TEST_MARK2_DIR);
     yamlReader = new YamlReader(TEST_MARK2_DIR);
 
-    // Create test agents file
-    const agentsFile: AgentsFile = {
-      agents: [
-        {
-          name: 'test-designer',
-          cli_tool: 'claude-code',
-          model: 'claude-3-sonnet',
-          phase: 'design',
-          role_prompt: 'You are a test designer agent',
-          timeout_minutes: 30,
-        },
-        {
-          name: 'test-coder',
-          cli_tool: 'claude-code',
-          model: 'claude-3-sonnet',
-          phase: 'coding',
-          role_prompt: 'You are a test coder agent',
-          timeout_minutes: 45,
-        },
-        {
-          name: 'test-tester',
-          cli_tool: 'claude-code',
-          model: 'claude-3-sonnet',
-          phase: 'testing',
-          role_prompt: 'You are a test tester agent',
-          timeout_minutes: 30,
-        },
-        {
-          name: 'test-reviewer',
-          cli_tool: 'claude-code',
-          model: 'claude-3-sonnet',
-          phase: 'code_review',
-          role_prompt: 'You are a test reviewer agent',
-          timeout_minutes: 20,
-        },
-        {
-          name: 'test-manual',
-          cli_tool: 'claude-code',
-          model: 'claude-3-sonnet',
-          phase: 'manual_testing',
-          role_prompt: 'You are a test manual tester agent',
-          timeout_minutes: 30,
-        },
-      ],
-    };
-    const agentsPath = path.join(TEST_MARK2_DIR, 'agents.yaml');
-    const YAML = await import('yaml');
-    fs.writeFileSync(agentsPath, YAML.stringify(agentsFile));
-
     // Create test task
     const testTask: Task = {
       id: TEST_TASK_ID,
       title: 'Phase Transition Test Task',
       description: 'A test task for phase transitions',
       phase: 'pending',
-      phase_agents: { coding: 'test-coder' },
+      phase_agents: {},
       phase_overrides: {},
       blockers: [],
       priority: 'P2',
@@ -325,23 +226,19 @@ describe('Phase Transitions Integration', () => {
       updated_at: testTask.updated_at,
       phase_entered_at: testTask.phase_entered_at,
       loop_count: testTask.loop_count,
-      phase_agents_json: JSON.stringify(testTask.phase_agents),
       phase_overrides_json: JSON.stringify(testTask.phase_overrides),
     }).run();
 
     engine = OrchestrationEngine.getInstance(config);
 
-    // Spy on resolveAgent to return test agents based on phase
-    // Returns ResolvedAgent format now
+    // Spy on resolveAgent to return test role config based on phase
     vi.spyOn(engine as any, 'resolveAgent').mockImplementation((_task: unknown, phase: unknown) => {
-      const agents = TEST_AGENTS.agents;
-      const agent = agents.find(a => a.phase === phase) || agents[0];
       return {
-        roleName: agent.name,
-        role_prompt: agent.role_prompt,
-        cli_tool: agent.cli_tool,
-        model: agent.model,
-        timeout_minutes: agent.timeout_minutes,
+        roleName: `test-${phase}`,
+        role_prompt: `You are a test ${phase} agent`,
+        cli_tool: 'claude-code',
+        model: 'claude-3-sonnet',
+        timeout_minutes: 30,
       };
     });
   });
