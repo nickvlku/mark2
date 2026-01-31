@@ -85,29 +85,26 @@ export async function POST(
 
 /**
  * Find the active tmux session for a task and send the comment as input.
+ * Updated for roles system - no database tracking, just check tmux sessions.
  */
 async function forwardCommentToSession(taskId: string, message: string): Promise<void> {
-  const db = getDb();
-  const rows = db
-    .select({ tmux_session: schema.agentSessions.tmux_session })
-    .from(schema.agentSessions)
-    .where(
-      and(
-        eq(schema.agentSessions.task_id, taskId),
-        eq(schema.agentSessions.status, 'running'),
-      ),
-    )
-    .orderBy(desc(schema.agentSessions.started_at))
-    .limit(1)
-    .all();
+  // Find tmux sessions for this task (simplified without database tracking)
+  const { listMark2Sessions } = await import('@/lib/utils/tmux');
+  const allSessions = await listMark2Sessions();
 
-  const session = rows[0];
-  if (!session) return;
+  // Look for sessions that include this task ID
+  const taskSessions = allSessions.filter(session => session.includes(taskId));
 
-  const alive = await isSessionAlive(session.tmux_session);
-  if (!alive) return;
+  if (taskSessions.length === 0) return;
 
-  // Send the comment as typed input to the tmux session
-  const prefixed = `[Human Comment] ${message}`;
-  await sendCommand(session.tmux_session, prefixed);
+  // Try to find the most recent active session (just use the first one found)
+  for (const sessionName of taskSessions) {
+    const alive = await isSessionAlive(sessionName);
+    if (alive) {
+      // Send the comment as typed input to the tmux session
+      const prefixed = `[Human Comment] ${message}`;
+      await sendCommand(sessionName, prefixed);
+      return; // Only send to first active session found
+    }
+  }
 }

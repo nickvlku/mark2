@@ -5,7 +5,7 @@ import { TopNavigation } from './TopNavigation';
 
 interface PageHeaderProps {
   title: string;
-  currentPage: 'board' | 'agents' | 'roles';
+  currentPage: 'board' | 'roles';
   actions?: ReactNode;
   additionalElements?: ReactNode;
 }

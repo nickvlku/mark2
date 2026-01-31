@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 interface TopNavigationProps {
-  currentPage: 'board' | 'agents' | 'roles';
+  currentPage: 'board' | 'roles';
 }
 
 export function TopNavigation({ currentPage }: TopNavigationProps) {
@@ -12,7 +12,6 @@ export function TopNavigation({ currentPage }: TopNavigationProps) {
   
   // Determine active page based on pathname as fallback
   const isBoard = currentPage === 'board' || pathname === '/';
-  const isAgents = currentPage === 'agents' || pathname === '/agents';
   const isRoles = currentPage === 'roles' || pathname === '/roles';
 
   return (
@@ -37,17 +36,6 @@ export function TopNavigation({ currentPage }: TopNavigationProps) {
         }`}
       >
         Roles
-      </Link>
-      <span className="text-text-secondary">•</span>
-      <Link 
-        href="/agents" 
-        className={`text-sm transition-colors ${
-          isAgents
-            ? 'text-text-primary font-medium'
-            : 'text-text-secondary hover:text-text-primary'
-        }`}
-      >
-        Agents (Legacy)
       </Link>
     </nav>
   );

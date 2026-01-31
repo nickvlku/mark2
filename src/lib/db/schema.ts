@@ -25,9 +25,7 @@ export const tasks = sqliteTable(
     phase_entered_at: text('phase_entered_at').notNull(),
     loop_count: integer('loop_count').notNull().default(0),
     // JSON text columns for array/object fields
-    // Deprecated: use phase_overrides_json instead
-    phase_agents_json: text('phase_agents_json').notNull().default('{}'),
-    // New: phase-specific overrides for role, cli_tool, model
+    // Phase-specific overrides for role, cli_tool, model
     phase_overrides_json: text('phase_overrides_json').notNull().default('{}'),
     blockers_json: text('blockers_json').notNull().default('[]'),
     artifacts_json: text('artifacts_json').notNull().default('[]'),
@@ -85,7 +83,6 @@ export const worktreeRecords = sqliteTable(
   {
     id: integer('id').primaryKey({ autoIncrement: true }),
     task_id: text('task_id').notNull(),
-    agent_name: text('agent_name').notNull(),
     worktree_path: text('worktree_path').notNull(),
     branch_name: text('branch_name').notNull(),
     created_at: text('created_at').notNull(),
@@ -97,26 +94,6 @@ export const worktreeRecords = sqliteTable(
   ],
 );
 
-// ── Agent Sessions ──────────────────────────────────────────────────────────
-export const agentSessions = sqliteTable(
-  'agent_sessions',
-  {
-    id: integer('id').primaryKey({ autoIncrement: true }),
-    task_id: text('task_id').notNull(),
-    agent_name: text('agent_name').notNull(),
-    phase: text('phase').notNull(),
-    tmux_session: text('tmux_session').notNull(),
-    pid: integer('pid'),
-    started_at: text('started_at').notNull(),
-    ended_at: text('ended_at'),
-    exit_code: integer('exit_code'),
-    status: text('status').notNull().default('running'),
-  },
-  (table) => [
-    index('idx_sessions_task_id').on(table.task_id),
-    index('idx_sessions_status').on(table.status),
-  ],
-);
 
 // ── ID Counters ─────────────────────────────────────────────────────────────
 export const idCounters = sqliteTable('id_counters', {

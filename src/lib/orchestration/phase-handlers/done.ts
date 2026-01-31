@@ -1,5 +1,6 @@
 import path from 'path';
 import type { Task } from '../../yaml/schemas';
+import type { RoleConfig } from './run-phase';
 import { removeWorktree } from '../../utils/git';
 import { getDb } from '../../db';
 import {

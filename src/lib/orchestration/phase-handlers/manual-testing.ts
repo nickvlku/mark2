@@ -1,5 +1,6 @@
 import fs from 'fs';
-import type { Task, AgentDefinition } from '../../yaml/schemas';
+import type { Task } from '../../yaml/schemas';
+import type { RoleConfig } from './run-phase';
 import { CloneService } from '../../services/clone-service';
 import { allocatePortsForTask } from '../../utils/port-allocator';
 import { getDb } from '../../db';
@@ -24,7 +25,7 @@ export interface ManualTestingResult {
  */
 export async function handleManualTesting(
   task: Task,
-  agent: AgentDefinition,
+  role: RoleConfig,
   adapter: CLIAdapter,
   _projectRoot: string,
   mark2Dir: string,
@@ -82,7 +83,7 @@ export async function handleManualTesting(
 
   // Assemble the prompts with split parts for CLI flags
   const assembler = new PromptAssembler(mark2Dir);
-  const prompts = assembler.buildAgentAndTaskPrompts(task, agent, 'manual_testing', promptContext);
+  const prompts = assembler.buildAgentAndTaskPrompts(task, role, 'manual_testing', promptContext);
 
   // Build invocation params with split prompts
   const params: AgentInvocationParams = {
@@ -92,13 +93,13 @@ export async function handleManualTesting(
     taskPrompt: prompts.taskPrompt,
     agentSlug: prompts.agentName,
     workingDirectory: clonePath,
-    agentName: agent.name,
-    model: agent.model,
+    agentName: role.name,
+    model: role.model,
     taskId: task.id,
     phase: 'manual_testing',
     apiBaseUrl,
     agentToken,
-    timeoutMinutes: agent.timeout_minutes,
+    timeoutMinutes: role.timeout_minutes,
   };
 
   const command = adapter.buildCommand(params);
@@ -109,7 +110,7 @@ export async function handleManualTesting(
   const tmuxManager = new TmuxManager(mark2Dir);
   const tmuxSession = await tmuxManager.spawnAgent({
     taskId: task.id,
-    agentName: agent.name,
+    agentName: role.name,
     phase: 'manual_testing',
     command,
     workingDir: clonePath,
@@ -123,9 +124,9 @@ export async function handleManualTesting(
       timestamp: now,
       source: 'orchestration',
       type: 'phase_change',
-      message: `Manual testing phase started. Ports allocated: ${allocatedPorts.join(', ')}. Agent "${agent.name}" spawned.`,
+      message: `Manual testing phase started. Ports allocated: ${allocatedPorts.join(', ')}. Role "${role.name}" spawned.`,
       metadata_json: JSON.stringify({
-        agent: agent.name,
+        role: role.name,
         tmux_session: tmuxSession,
         ports: allocatedPorts,
       }),

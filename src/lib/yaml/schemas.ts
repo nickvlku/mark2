@@ -15,7 +15,7 @@ export const Phase = z.enum([
 ]);
 export type Phase = z.infer<typeof Phase>;
 
-// Phases that can have agents assigned to them
+// Phases that can have roles assigned to them
 export const AssignablePhase = z.enum(['design', 'coding', 'testing', 'code_review', 'fix_review', 'final_testing', 'manual_testing']);
 export type AssignablePhase = z.infer<typeof AssignablePhase>;
 export const ASSIGNABLE_PHASES: AssignablePhase[] = ['design', 'coding', 'testing', 'code_review', 'fix_review', 'final_testing', 'manual_testing'];
@@ -35,18 +35,6 @@ export type ReviewSeverity = z.infer<typeof ReviewSeverity>;
 export const CLIToolEnum = z.enum(['claude-code', 'codex-cli', 'gemini-cli', 'opencode']);
 export type CLITool = z.infer<typeof CLIToolEnum>;
 
-// ── Agent Definition (deprecated, kept for backwards compatibility) ────
-
-export const AgentDefinitionSchema = z.object({
-  name: z.string().regex(/^[a-z][a-z0-9-]*$/, 'Agent names must be lowercase alphanumeric with hyphens, starting with a letter'),
-  uuid: z.string().uuid().optional(),
-  cli_tool: CLIToolEnum,
-  model: z.string().min(1, 'Model cannot be empty'),
-  phase: AssignablePhase,
-  role_prompt: z.string().min(1, 'Role prompt cannot be empty'),
-  timeout_minutes: z.number().int().positive().default(60),
-}).strict();
-export type AgentDefinition = z.infer<typeof AgentDefinitionSchema>;
 
 // ── Role Definition (new decoupled model) ──────────────────────────────
 
@@ -86,16 +74,6 @@ export const TaskPhaseOverrideSchema = z.object({
 }).strict();
 export type TaskPhaseOverride = z.infer<typeof TaskPhaseOverrideSchema>;
 
-// ── Resolved Agent (computed at runtime, not persisted) ────────────────
-
-export interface ResolvedAgent {
-  roleName: string;
-  uuid?: string;
-  role_prompt: string;
-  cli_tool: CLITool;
-  model: string;
-  timeout_minutes: number;
-}
 
 // ── Task Artifact ──────────────────────────────────────────────────────
 
@@ -207,12 +185,6 @@ export const ConfigSchema = z.object({
 });
 export type Config = z.infer<typeof ConfigSchema>;
 
-// ── Agents File (deprecated) ───────────────────────────────────────────
-
-export const AgentsFileSchema = z.object({
-  agents: z.array(AgentDefinitionSchema).default([]),
-}).strict();
-export type AgentsFile = z.infer<typeof AgentsFileSchema>;
 
 // ── Type aliases for import convenience ────────────────────────────────
 

@@ -1,5 +1,5 @@
 import { getDb } from '../db';
-import { tasks, activityEntries, agentSessions } from '../db/schema';
+import { tasks, activityEntries } from '../db/schema';
 import { YamlReader } from '../yaml/reader';
 import { YamlWriter } from '../yaml/writer';
 import { TaskSchema, Phase } from '../yaml/schemas';
@@ -88,7 +88,6 @@ export class TaskService {
       updated_at: task.updated_at,
       phase_entered_at: task.phase_entered_at,
       loop_count: task.loop_count,
-      phase_agents_json: JSON.stringify(task.phase_agents),
       phase_overrides_json: JSON.stringify(task.phase_overrides),
       blockers_json: JSON.stringify(task.blockers),
       artifacts_json: JSON.stringify(task.artifacts),
@@ -184,7 +183,6 @@ export class TaskService {
         updated_at: task.updated_at,
         phase_entered_at: task.phase_entered_at,
         loop_count: task.loop_count,
-        phase_agents_json: JSON.stringify(task.phase_agents),
         phase_overrides_json: JSON.stringify(task.phase_overrides),
         blockers_json: JSON.stringify(task.blockers),
         artifacts_json: JSON.stringify(task.artifacts),
@@ -290,47 +288,27 @@ export class TaskService {
 
   /**
    * Get the current session status for a task.
-   * Checks the agent_sessions table. DB status takes precedence over tmux state
-   * because the session may still be alive even after the agent completed.
+   * Simplified for roles system - checks for any active tmux sessions for the task.
    */
   async getSessionStatus(taskId: string): Promise<SessionStatus> {
-    const db = getDb(this.mark2Dir);
+    // Without agent session tracking, we simplify to just check if any tmux sessions exist for this task
+    // This is less precise but sufficient for the roles system
+    const { listMark2Sessions } = await import('../utils/tmux');
+    const allSessions = await listMark2Sessions();
 
-    // Get most recent session for this task
-    const row = db
-      .select({
-        tmux_session: agentSessions.tmux_session,
-        status: agentSessions.status,
-      })
-      .from(agentSessions)
-      .where(eq(agentSessions.task_id, taskId))
-      .orderBy(desc(agentSessions.started_at))
-      .limit(1)
-      .get();
+    // Check if any sessions match this task ID pattern
+    const taskSessions = allSessions.filter(session => session.includes(taskId));
 
-    if (!row) {
-      return 'idle';
-    }
-
-    // DB status takes precedence
-    if (row.status === 'completed') {
-      return 'completed';
-    }
-    if (row.status === 'failed') {
-      return 'failed';
-    }
-
-    // For 'running' status, verify the tmux session is actually alive
-    if (row.status === 'running') {
-      try {
-        const alive = await isSessionAlive(row.tmux_session);
-        if (alive) {
-          return 'running';
+    if (taskSessions.length > 0) {
+      // Check if any are actually alive
+      for (const session of taskSessions) {
+        try {
+          if (await isSessionAlive(session)) {
+            return 'running';
+          }
+        } catch {
+          // Session not alive, continue checking
         }
-        // Tmux died but DB still says running - it crashed
-        return 'failed';
-      } catch {
-        return 'failed';
       }
     }
 
@@ -446,7 +424,7 @@ export class TaskService {
       updated_at: row.updated_at,
       phase_entered_at: row.phase_entered_at,
       loop_count: row.loop_count,
-      phase_agents: JSON.parse(row.phase_agents_json),
+      phase_agents: {}, // Legacy field - always empty for roles system
       phase_overrides: JSON.parse(row.phase_overrides_json),
       blockers: JSON.parse(row.blockers_json),
       artifacts: JSON.parse(row.artifacts_json),

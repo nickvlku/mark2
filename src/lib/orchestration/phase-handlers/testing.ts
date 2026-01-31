@@ -1,5 +1,6 @@
 import fs from 'fs';
-import type { Task, AgentDefinition } from '../../yaml/schemas';
+import type { Task } from '../../yaml/schemas';
+import type { RoleConfig } from './run-phase';
 import { CloneService } from '../../services/clone-service';
 import { getDb } from '../../db';
 import { activityEntries } from '../../db/schema';
@@ -16,11 +17,11 @@ export interface TestingResult {
 /**
  * Handle the testing phase for a task.
  *
- * Assembles the testing prompt and spawns the testing agent.
+ * Assembles the testing prompt and spawns the testing role.
  */
 export async function handleTesting(
   task: Task,
-  agent: AgentDefinition,
+  role: RoleConfig,
   adapter: CLIAdapter,
   _projectRoot: string,
   mark2Dir: string,
@@ -56,7 +57,7 @@ export async function handleTesting(
 
   // Assemble the prompts with split parts for CLI flags
   const assembler = new PromptAssembler(mark2Dir);
-  const prompts = assembler.buildAgentAndTaskPrompts(task, agent, 'testing', promptContext);
+  const prompts = assembler.buildAgentAndTaskPrompts(task, role, 'testing', promptContext);
 
   // Build invocation params with split prompts
   const params: AgentInvocationParams = {
@@ -66,13 +67,13 @@ export async function handleTesting(
     taskPrompt: prompts.taskPrompt,
     agentSlug: prompts.agentName,
     workingDirectory: clonePath,
-    agentName: agent.name,
-    model: agent.model,
+    agentName: role.name,
+    model: role.model,
     taskId: task.id,
     phase: 'testing',
     apiBaseUrl,
     agentToken,
-    timeoutMinutes: agent.timeout_minutes,
+    timeoutMinutes: role.timeout_minutes,
   };
 
   const command = adapter.buildCommand(params);
@@ -83,7 +84,7 @@ export async function handleTesting(
   const tmuxManager = new TmuxManager(mark2Dir);
   const tmuxSession = await tmuxManager.spawnAgent({
     taskId: task.id,
-    agentName: agent.name,
+    agentName: role.name,
     phase: 'testing',
     command,
     workingDir: clonePath,
@@ -97,9 +98,9 @@ export async function handleTesting(
       timestamp: now,
       source: 'orchestration',
       type: 'phase_change',
-      message: `Testing phase started. Agent "${agent.name}" spawned in TMUX session "${tmuxSession}".`,
+      message: `Testing phase started. Role "${role.name}" spawned in TMUX session "${tmuxSession}".`,
       metadata_json: JSON.stringify({
-        agent: agent.name,
+        role: role.name,
         tmux_session: tmuxSession,
       }),
     })

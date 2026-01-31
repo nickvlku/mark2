@@ -1,6 +1,6 @@
-import type { Task, AgentDefinition } from '../../yaml/schemas';
+import type { Task } from '../../yaml/schemas';
 import type { CLIAdapter } from '../../adapters/types';
-import { runAgentPhase } from './run-agent-phase';
+import { runPhase, type RoleConfig } from './run-phase';
 import type { PromptContext } from '../prompt-assembler';
 
 export interface FixReviewResult {
@@ -16,7 +16,7 @@ export interface FixReviewResult {
  */
 export async function handleFixReview(
   task: Task,
-  agent: AgentDefinition,
+  role: RoleConfig,
   adapter: CLIAdapter,
   _projectRoot: string,
   mark2Dir: string,
@@ -27,7 +27,7 @@ export async function handleFixReview(
     testFailures?: string;
   },
 ): Promise<FixReviewResult> {
-  const result = await runAgentPhase(task, agent, adapter, mark2Dir, apiBaseUrl, agentToken, 'fix_review', {
+  const result = await runPhase(task, role, adapter, mark2Dir, apiBaseUrl, agentToken, 'fix_review', {
     phaseContext: loopContext,
     getPromptContext: (_clonePath, task) => {
       const promptContext: PromptContext = {
@@ -38,12 +38,12 @@ export async function handleFixReview(
     activityMessage: () =>
       `Fix review phase started. Agent will fetch review feedback and test results via MCP tools.`,
     activityMetadata: (ctx) => ({
-      agent: ctx.agent.name,
+      role: ctx.role.name,
       tmux_session: ctx.tmuxSession,
       phase: 'fix_review',
       loop_count: ctx.task.loop_count,
     }),
-    activitySource: (ctx) => ctx.agent.name,
+    activitySource: (ctx) => ctx.role.name,
   });
   return { tmuxSession: result.tmuxSession, promptFile: result.promptFile };
 }
