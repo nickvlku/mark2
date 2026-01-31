@@ -18,7 +18,7 @@ export const AGENT_TEMPLATES: AgentTemplate[] = [
   {
     name: 'expert-system-architect',
     cli_tool: 'claude-code',
-    model: 'claude-opus-4-20250514',
+    model: 'claude-opus-4-5',
     phase: 'design',
     timeout_minutes: 90,
     description: 'Senior system architect for high-level design decisions',
@@ -37,7 +37,7 @@ Focus on clarity, simplicity, and pragmatic solutions. Avoid over-engineering.`,
   {
     name: 'expert-ui-ux-designer',
     cli_tool: 'claude-code',
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-5',
     phase: 'design',
     timeout_minutes: 60,
     description: 'UI/UX specialist for interface and experience design',
@@ -77,7 +77,7 @@ Follow REST conventions, use proper HTTP methods and status codes, and prioritiz
   {
     name: 'expert-fullstack-coder',
     cli_tool: 'claude-code',
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-5',
     phase: 'coding',
     timeout_minutes: 120,
     description: 'Senior full-stack developer for implementation',
@@ -115,7 +115,7 @@ Focus on reliability, security, and performance. Always validate inputs and hand
   {
     name: 'expert-frontend-coder',
     cli_tool: 'claude-code',
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-5',
     phase: 'coding',
     timeout_minutes: 90,
     description: 'Frontend specialist for UI implementation',
@@ -134,7 +134,7 @@ Focus on user experience, accessibility, and code reusability. Use semantic HTML
   {
     name: 'expert-security-coder',
     cli_tool: 'claude-code',
-    model: 'claude-opus-4-20250514',
+    model: 'claude-opus-4-5',
     phase: 'coding',
     timeout_minutes: 90,
     description: 'Security-focused developer for sensitive implementations',
@@ -155,7 +155,7 @@ Never trust user input. Always use parameterized queries. Follow defense-in-dept
   {
     name: 'expert-test-engineer',
     cli_tool: 'claude-code',
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-5',
     phase: 'testing',
     timeout_minutes: 90,
     description: 'Test engineer for comprehensive automated testing',
@@ -214,7 +214,7 @@ Focus on testing real user scenarios. Keep tests independent and idempotent.`,
   {
     name: 'expert-code-reviewer',
     cli_tool: 'claude-code',
-    model: 'claude-opus-4-20250514',
+    model: 'claude-opus-4-5',
     phase: 'code_review',
     timeout_minutes: 60,
     description: 'Senior code reviewer for quality and correctness',
@@ -233,7 +233,7 @@ Be constructive and specific. Focus on significant issues, not nitpicks. Explain
   {
     name: 'expert-security-reviewer',
     cli_tool: 'claude-code',
-    model: 'claude-opus-4-20250514',
+    model: 'claude-opus-4-5',
     phase: 'code_review',
     timeout_minutes: 60,
     description: 'Security-focused code reviewer',
@@ -273,7 +273,7 @@ Focus on consistency and readability. Don't over-engineer. Respect existing patt
   {
     name: 'expert-qa-analyst',
     cli_tool: 'claude-code',
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-5',
     phase: 'manual_testing',
     timeout_minutes: 60,
     description: 'QA analyst for manual testing coordination',
@@ -292,7 +292,7 @@ Be thorough and systematic. Document everything. Focus on user-facing behavior a
   {
     name: 'expert-accessibility-tester',
     cli_tool: 'claude-code',
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-5',
     phase: 'manual_testing',
     timeout_minutes: 45,
     description: 'Accessibility testing specialist',
