@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { Task, Phase } from '@/types';
 import { useTasks } from '@/hooks/useTasks';
 import { useStories } from '@/hooks/useStories';
+import { useBoardPan } from '@/hooks/useBoardPan';
 import { Column } from './Column';
 import { StoryFilter } from './StoryFilter';
 import { ArchiveFilter } from './ArchiveFilter';
@@ -54,6 +55,14 @@ export function Board() {
       activationConstraint: { distance: 8 },
     }),
   );
+
+  // Pan and keyboard navigation
+  const boardContainerRef = useRef<HTMLDivElement>(null);
+  const { isPanning, panHandlers } = useBoardPan({
+    containerRef: boardContainerRef,
+    ignoreSelector: '[data-draggable="true"]',
+    scrollAmount: 320,
+  });
 
   const tasksByPhase = useCallback(
     (phase: Phase) => tasks.filter((t: Task) => t.phase === phase),
@@ -197,7 +206,13 @@ export function Board() {
       />
 
       {/* Board Columns */}
-      <div className="flex flex-1 gap-3 overflow-x-auto px-4 py-4">
+      <div
+        ref={boardContainerRef}
+        {...panHandlers}
+        className={`flex flex-1 gap-3 overflow-x-auto px-4 py-4 ${
+          isPanning ? 'cursor-grabbing select-none' : 'cursor-grab'
+        }`}
+      >
         <DndContext
           sensors={sensors}
           onDragStart={handleDragStart}
