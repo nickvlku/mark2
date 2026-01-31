@@ -1,5 +1,6 @@
 import fs from 'fs';
-import type { Task, AgentDefinition } from '../../yaml/schemas';
+import type { Task } from '../../yaml/schemas';
+import type { RoleConfig } from './run-phase';
 import { CloneService } from '../../services/clone-service';
 import { allocatePortsForTask } from '../../utils/port-allocator';
 import { getDb } from '../../db';
@@ -24,7 +25,7 @@ export interface ManualTestingResult {
  */
 export async function handleManualTesting(
   task: Task,
-  agent: AgentDefinition,
+  agent: RoleConfig,
   adapter: CLIAdapter,
   _projectRoot: string,
   mark2Dir: string,

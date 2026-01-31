@@ -1,4 +1,5 @@
-import type { Task, AgentDefinition } from '../../yaml/schemas';
+import type { Task } from '../../yaml/schemas';
+import type { RoleConfig } from './run-phase';
 import { CloneService } from '../../services/clone-service';
 import { getDb } from '../../db';
 import { activityEntries } from '../../db/schema';
@@ -24,7 +25,7 @@ export interface DesignResult {
  */
 export async function handleDesign(
   task: Task,
-  agent: AgentDefinition,
+  agent: RoleConfig,
   adapter: CLIAdapter,
   _projectRoot: string,
   mark2Dir: string,

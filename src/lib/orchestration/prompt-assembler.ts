@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import type { Task, AgentDefinition, Phase } from '../yaml/schemas';
+import type { Task, Phase } from '../yaml/schemas';
+import type { RoleConfig } from './phase-handlers/run-phase';
 import { END_TOKENS } from './pipeline';
 import { getTaskStoragePathsFromMark2Dir } from '../utils/storage';
 
@@ -207,7 +208,7 @@ export class PromptAssembler {
    */
   buildAgentAndTaskPrompts(
     task: Task,
-    agent: AgentDefinition,
+    agent: RoleConfig,
     phase: Phase,
     context?: PromptContext,
   ): AgentPromptParts {
@@ -252,7 +253,7 @@ export class PromptAssembler {
    * Legacy: Assemble the full prompt (for adapters that don't support separate flags).
    * Combines all parts into a single prompt string.
    */
-  assemble(task: Task, agent: AgentDefinition, phase: Phase, context?: PromptContext): string {
+  assemble(task: Task, agent: RoleConfig, phase: Phase, context?: PromptContext): string {
     const parts = this.buildAgentAndTaskPrompts(task, agent, phase, context);
     return `${parts.agentPrompt}\n\n---\n\n${parts.orchestrationPrompt}\n\n---\n\n${parts.taskPrompt}`;
   }
