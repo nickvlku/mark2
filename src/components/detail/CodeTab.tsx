@@ -21,7 +21,7 @@ export function CodeTab({ task }: CodeTabProps) {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/worktrees/${task.id}/diff`);
+        const res = await fetch(`/api/tasks/${task.id}/git`);
         if (!res.ok) {
           setError(`Failed to load diff (${res.status})`);
           return;

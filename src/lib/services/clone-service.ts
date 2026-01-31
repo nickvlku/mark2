@@ -321,7 +321,8 @@ export class CloneService {
   }
 
   /**
-   * Get the diff of uncommitted changes in the clone.
+   * Get the diff of all changes on the task branch (committed + uncommitted).
+   * This shows everything that would be merged back to main.
    */
   async getDiff(taskId: string): Promise<{ diff: string; error?: string }> {
     const clonePath = this.getClonePath(taskId);
@@ -331,8 +332,14 @@ export class CloneService {
     }
 
     try {
-      // Get both staged and unstaged changes
-      const { stdout: diff } = await exec(`git -C "${clonePath}" diff HEAD`);
+      // Get the merge base (where this branch diverged from origin/HEAD)
+      const { stdout: mergeBase } = await exec(
+        `git -C "${clonePath}" merge-base origin/HEAD HEAD`
+      );
+      const base = mergeBase.trim();
+
+      // Get diff from merge base to current working tree (includes uncommitted changes)
+      const { stdout: diff } = await exec(`git -C "${clonePath}" diff ${base}`);
       return { diff };
     } catch (error: any) {
       return { diff: '', error: error.message };

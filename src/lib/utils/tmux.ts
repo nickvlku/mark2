@@ -12,7 +12,10 @@ export async function createSession(name: string, workingDir: string): Promise<v
 }
 
 export async function sendCommand(name: string, command: string): Promise<void> {
-  await exec(`tmux send-keys -t "${name}" ${JSON.stringify(command)} Enter`);
+  // Use single quotes to prevent shell expansion of $(), backticks, etc.
+  // Escape any single quotes within the command by ending the quote, adding escaped quote, starting new quote
+  const escaped = command.replace(/'/g, "'\\''");
+  await exec(`tmux send-keys -t "${name}" '${escaped}' Enter`);
 }
 
 export async function capturePane(name: string, lines: number = 50): Promise<string> {

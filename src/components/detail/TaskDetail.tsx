@@ -73,7 +73,7 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
     }
   };
 
-  const handlePhaseAction = async (action: { phase: string } | { restart: true }) => {
+  const handlePhaseAction = async (action: { phase: string; targetBranch?: string } | { restart: true }) => {
     try {
       if ('restart' in action) {
         await fetch(`/api/tasks/${task.id}/phase/restart`, {
@@ -83,7 +83,10 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
         await fetch(`/api/tasks/${task.id}/phase`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phase: action.phase }),
+          body: JSON.stringify({
+            phase: action.phase,
+            ...(action.targetBranch && { target_branch: action.targetBranch }),
+          }),
         });
       }
       onUpdate();

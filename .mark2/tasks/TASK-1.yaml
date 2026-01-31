@@ -1,7 +1,7 @@
 id: TASK-1
 title: Create an NPM task that lets you see all active tmux sessions and then interactively pick one
 description: create a NPM task (npm run mark2 tmuxes) that show all tmux sessions and let you pick one using arrow keys (like a little tui)
-phase: design
+phase: manual_testing
 phase_agents: {}
 phase_overrides: {}
 blockers: []
@@ -17,6 +17,56 @@ artifacts:
     path: design-design-1769817019466-8kn338.md
     mime_type: text/markdown
     created_at: 2026-01-30T23:50:19.466Z
+  - name: test-results
+    phase: testing
+    path: testing-test-results-1769830269844-98juta.md
+    mime_type: text/markdown
+    created_at: 2026-01-31T03:31:09.845Z
+  - name: review
+    phase: code_review
+    path: code_review-review-1769831049550-r95w9y.md
+    mime_type: text/markdown
+    created_at: 2026-01-31T03:44:09.550Z
+  - name: fix-review-summary
+    phase: fix_review
+    path: fix_review-fix-review-summary-1769872338912-grnbzk.md
+    mime_type: text/markdown
+    created_at: 2026-01-31T15:12:18.912Z
+  - name: review
+    phase: code_review
+    path: code_review-review-1769872548140-lhhx9f.md
+    mime_type: text/markdown
+    created_at: 2026-01-31T15:15:48.140Z
+  - name: fix_review_changes
+    phase: fix_review
+    path: fix_review-fix_review_changes-1769872903776-8zcgu1.md
+    mime_type: text/markdown
+    created_at: 2026-01-31T15:21:43.776Z
+  - name: review
+    phase: code_review
+    path: code_review-review-1769873008143-d6xbnw.md
+    mime_type: text/markdown
+    created_at: 2026-01-31T15:23:28.144Z
+  - name: review
+    phase: code_review
+    path: code_review-review-1769873419337-ljjhin.md
+    mime_type: text/markdown
+    created_at: 2026-01-31T15:30:19.338Z
+  - name: final-test-results
+    phase: final_testing
+    path: final_testing-final-test-results-1769873611104-tv6r4e.md
+    mime_type: text/markdown
+    created_at: 2026-01-31T15:33:31.104Z
+  - name: test-plan
+    phase: manual_testing
+    path: manual_testing-test-plan-1769873723239-9bvf31.md
+    mime_type: text/markdown
+    created_at: 2026-01-31T15:35:23.239Z
+  - name: test-plan
+    phase: manual_testing
+    path: manual_testing-test-plan-1769873931847-nwgst4.md
+    mime_type: text/markdown
+    created_at: 2026-01-31T15:38:51.847Z
 ports: []
 worktrees: {}
 created_by: human
@@ -24,6 +74,6 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-01-30T22:57:40.856Z
-updated_at: 2026-01-30T23:50:19.466Z
-phase_entered_at: 2026-01-30T22:57:45.483Z
+updated_at: 2026-01-31T15:38:51.847Z
+phase_entered_at: 2026-01-31T15:37:44.482Z
 loop_count: 0

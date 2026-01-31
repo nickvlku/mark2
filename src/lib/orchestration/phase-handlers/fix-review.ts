@@ -1,6 +1,5 @@
 import type { Task, AgentDefinition } from '../../yaml/schemas';
 import { CloneService } from '../../services/clone-service';
-import { ArtifactService } from '../../services/artifact-service';
 import { getDb } from '../../db';
 import { activityEntries } from '../../db/schema';
 import { TmuxManager } from '../tmux-manager';
@@ -44,31 +43,12 @@ export async function handleFixReview(
     await cloneService.createClone(task.id);
   }
 
-  // Read the most recent design document from artifacts
-  const artifactService = new ArtifactService(mark2Dir);
-  const { content: designDocument } = artifactService.getMostRecentContent(task.id, 'design');
-
-  // If no review comments in loopContext, try to get from artifacts
-  let reviewComments = loopContext?.reviewComments;
-  if (!reviewComments) {
-    const { content } = artifactService.getMostRecentContent(task.id, 'review');
-    reviewComments = content || undefined;
-  }
-
-  // If coming from final_testing failure, get test failures
-  let testFailures = loopContext?.testFailures;
-  if (!testFailures) {
-    const { content } = artifactService.getMostRecentContent(task.id, 'test');
-    // Only include if this looks like a failure (check for failure indicators)
-    if (content && (content.includes('FAIL') || content.includes('Error') || content.includes('failed'))) {
-      testFailures = content;
-    }
-  }
+  // Note: We don't embed review comments or test failures in the prompt
+  // The agent will fetch them via MCP tools to avoid shell escaping issues with large content
 
   const promptContext: PromptContext = {
-    designDocument: designDocument || undefined,
-    reviewComments,
-    testFailures,
+    // Don't include designDocument, reviewComments, or testFailures inline
+    // Agent will use mark2_list_artifacts and mark2_get_artifact to fetch them
     loopCount: task.loop_count > 0 ? task.loop_count : undefined,
   };
 
@@ -110,21 +90,17 @@ export async function handleFixReview(
   });
 
   // Log activity
-  const hasReviewComments = !!reviewComments;
-  const hasTestFailures = !!testFailures;
   db.insert(activityEntries)
     .values({
       task_id: task.id,
       timestamp: now,
       source: agent.name,
       type: 'phase_change',
-      message: `Fix review phase started to address ${hasTestFailures ? 'test failures' : 'code review feedback'}`,
+      message: `Fix review phase started. Agent will fetch review feedback and test results via MCP tools.`,
       metadata_json: JSON.stringify({
         agent: agent.name,
         tmux_session: tmuxSession,
         phase: 'fix_review',
-        has_review_comments: hasReviewComments,
-        has_test_failures: hasTestFailures,
         loop_count: task.loop_count,
       }),
     })

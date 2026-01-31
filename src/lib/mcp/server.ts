@@ -201,11 +201,11 @@ export function createMcpServer(): McpServer {
     },
   );
 
-  // ── mark2_get_design ─────────────────────────────────────────────────
+  // ── mark2_list_artifacts ─────────────────────────────────────────────
 
   server.tool(
-    'mark2_get_design',
-    'Agent reads the design document for a task',
+    'mark2_list_artifacts',
+    'List all artifacts for a task, sorted chronologically (oldest first)',
     {
       task_id: z.string().describe('The task ID'),
     },
@@ -213,8 +213,128 @@ export function createMcpServer(): McpServer {
       const mark2Dir = getMark2Dir();
       const artifactService = new ArtifactService(mark2Dir);
 
-      const designArtifacts = artifactService.getForTask(task_id, 'design');
-      if (designArtifacts.length === 0) {
+      try {
+        const artifacts = artifactService.getForTask(task_id);
+
+        // Sort chronologically (oldest first)
+        const sorted = [...artifacts].sort((a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+
+        if (sorted.length === 0) {
+          return {
+            content: [{ type: 'text' as const, text: `No artifacts found for ${task_id}` }],
+          };
+        }
+
+        const list = sorted.map((a, i) =>
+          `${i + 1}. [${a.phase}] ${a.name} - ${a.path} (${new Date(a.created_at).toISOString()})`
+        ).join('\n');
+
+        return {
+          content: [{ type: 'text' as const, text: `Artifacts for ${task_id}:\n\n${list}` }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${error}` }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // ── mark2_get_artifact ──────────────────────────────────────────────
+
+  server.tool(
+    'mark2_get_artifact',
+    'Get the content of a specific artifact by its path',
+    {
+      task_id: z.string().describe('The task ID'),
+      artifact_path: z.string().describe('The artifact path (from mark2_list_artifacts)'),
+    },
+    async ({ task_id, artifact_path }) => {
+      const mark2Dir = getMark2Dir();
+      const storagePath = path.join(mark2Dir, 'storage', task_id, 'artifacts', artifact_path);
+
+      if (!fs.existsSync(storagePath)) {
+        return {
+          content: [{ type: 'text' as const, text: `Artifact not found: ${artifact_path}` }],
+          isError: true,
+        };
+      }
+
+      const content = fs.readFileSync(storagePath, 'utf-8');
+      return {
+        content: [{ type: 'text' as const, text: content }],
+      };
+    },
+  );
+
+  // ── mark2_get_latest_artifact ───────────────────────────────────────
+
+  server.tool(
+    'mark2_get_latest_artifact',
+    'Get the content of the MOST RECENT artifact matching a name pattern. Use this to get the latest review, test results, etc.',
+    {
+      task_id: z.string().describe('The task ID'),
+      name_pattern: z.string().describe('Pattern to match artifact name (e.g. "review", "test", "design")'),
+    },
+    async ({ task_id, name_pattern }) => {
+      const mark2Dir = getMark2Dir();
+      const artifactService = new ArtifactService(mark2Dir);
+
+      const { content, artifact } = artifactService.getMostRecentContent(task_id, name_pattern);
+
+      if (!artifact) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `No artifact matching "${name_pattern}" found for ${task_id}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      if (!content) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Artifact found but file missing: ${artifact.path}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: `[${artifact.phase}] ${artifact.name} (${artifact.created_at}):\n\n${content}`,
+          },
+        ],
+      };
+    },
+  );
+
+  // ── mark2_get_design ─────────────────────────────────────────────────
+
+  server.tool(
+    'mark2_get_design',
+    'Agent reads the design document for a task (shortcut for mark2_get_latest_artifact with "design")',
+    {
+      task_id: z.string().describe('The task ID'),
+    },
+    async ({ task_id }) => {
+      const mark2Dir = getMark2Dir();
+      const artifactService = new ArtifactService(mark2Dir);
+
+      const { content, artifact } = artifactService.getMostRecentContent(task_id, 'design');
+
+      if (!artifact) {
         return {
           content: [
             {
@@ -226,15 +346,12 @@ export function createMcpServer(): McpServer {
         };
       }
 
-      const firstDesign = designArtifacts[0];
-      const { content, exists } = artifactService.getContent(firstDesign.path);
-
-      if (!exists) {
+      if (!content) {
         return {
           content: [
             {
               type: 'text' as const,
-              text: `Design artifact registered but file not found: ${firstDesign.path}`,
+              text: `Design artifact registered but file not found: ${artifact.path}`,
             },
           ],
           isError: true,

@@ -121,6 +121,13 @@ When done, signal: mark2_signal_complete(task_id, token: "[DESIGN_COMPLETED]")`,
 3. Write clean, well-documented code
 4. Ensure the code compiles/builds without errors
 5. Commit your changes: mark2_git_commit(task_id, message: "...")
+6. Save a coding summary artifact documenting your work:
+   - Technical details of the implementation
+   - Architecture diagrams (mermaid) if the changes are complex
+   - List of all files created/modified with brief descriptions of changes
+   - Any deviations from the design document and why
+   - Known limitations or TODOs
+   Example: mark2_save_artifact(task_id, filename: "coding-summary.md", content: "...")
 
 When done, signal: mark2_signal_complete(task_id, token: "[CODING_COMPLETED]")`,
 
@@ -134,19 +141,21 @@ If all tests pass: mark2_signal_complete(task_id, token: "[TESTING_PASSED]")
 If any tests fail: mark2_signal_complete(task_id, token: "[TESTING_FAILED]")`,
 
   code_review: `You are in the CODE REVIEW phase. Your job is to:
-1. Review all changes made since the branch diverged from main
-2. Check for correctness, security issues, performance problems, and style violations
-3. Classify issues by severity: P0 (must fix), P1 (should fix), P2 (nice to fix)
-4. Save your review: mark2_save_artifact(task_id, filename: "review.md", content: "...")
+1. Get the diff: run \`git diff $(git merge-base origin/HEAD HEAD)\` to see all changes
+2. Get context: use mark2_get_latest_artifact(task_id, "design") to read the design document
+3. Review all changes for correctness, security issues, performance problems, and style violations
+4. Classify issues by severity: P0 (must fix), P1 (should fix), P2 (nice to fix)
+5. Save your review: mark2_save_artifact(task_id, filename: "review.md", content: "...")
 
 If no fixes needed: mark2_signal_complete(task_id, token: "[REVIEW_COMPLETED]")
 If fixes are required: mark2_signal_complete(task_id, token: "[REVIEW_NEEDS_FIXES]")`,
 
   fix_review: `You are in the FIX REVIEW phase. Your job is to:
-1. Read the code review comments and issues identified
-2. Address all P0 and P1 issues from the review
-3. Make the necessary code changes
-4. Commit your fixes: mark2_git_commit(task_id, message: "fix: address code review feedback")
+1. Get the MOST RECENT review feedback: use mark2_get_latest_artifact(task_id, "review") - this automatically returns only the latest review, ignoring older ones that were already addressed
+2. If tests failed, also get test results: mark2_get_latest_artifact(task_id, "test")
+3. Address all P0 and P1 issues from the review
+4. Make the necessary code changes
+5. Commit your fixes: mark2_git_commit(task_id, message: "fix: address code review feedback")
 
 When done, signal: mark2_signal_complete(task_id, token: "[FIX_REVIEW_COMPLETED]")`,
 
@@ -272,7 +281,7 @@ export class PromptAssembler {
     let orchestrationInstructions: string[];
 
     // Only include artifact instructions for phases that produce artifacts
-    const artifactPhases: Phase[] = ['design', 'testing', 'code_review', 'manual_testing'];
+    const artifactPhases: Phase[] = ['design', 'coding', 'testing', 'code_review', 'manual_testing'];
     const includeArtifacts = artifactPhases.includes(phase);
 
     // Include git instructions for coding phase
@@ -338,48 +347,16 @@ export class PromptAssembler {
       parts.push('', '## Design Document', context.designDocument);
     }
 
-    // Include diff for code review
-    if (context?.diff && phase === 'code_review') {
-      parts.push('', '## Code Diff (changes to review)', '```diff', context.diff, '```');
-    }
+    // Note: For code_review and fix_review phases, the agent fetches large artifacts
+    // (diff, review comments, test failures) via MCP tools to avoid shell escaping issues
 
-    // Include loop-back context
-    if (context?.testFailures) {
-      parts.push(
-        '',
-        '## Previous Test Failures',
-        'The following tests failed in the previous testing phase. You must fix these issues:',
-        '',
-        context.testFailures,
-      );
-    }
-
-    if (context?.reviewComments) {
-      parts.push(
-        '',
-        '## Code Review Feedback',
-        'The following issues were found during code review. You must address these:',
-        '',
-        context.reviewComments,
-      );
-    }
-
-    if (context?.humanComments) {
-      parts.push(
-        '',
-        '## Human Tester Comments',
-        'A human tester provided the following feedback:',
-        '',
-        context.humanComments,
-      );
-    }
-
+    // Include loop count info (small, safe to include inline)
     if (context?.loopCount && context.loopCount > 0) {
       parts.push(
         '',
         `## Loop Information`,
         `This is loop iteration #${context.loopCount}. Previous attempts did not fully resolve all issues.`,
-        'Please carefully review the feedback above and ensure all issues are addressed this time.',
+        'Please carefully review the artifacts and feedback to ensure all issues are addressed this time.',
       );
     }
 

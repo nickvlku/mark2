@@ -34,3 +34,25 @@ export async function getDiff(worktreePath: string): Promise<string> {
 export async function gitAdd(filePath: string, cwd: string): Promise<void> {
   await gitExec(`git add "${filePath}"`, cwd);
 }
+
+export async function getBranches(cwd: string): Promise<{ branches: string[]; current: string }> {
+  // Get all local branches
+  const { stdout } = await gitExec('git branch --format="%(refname:short)"', cwd);
+  const branches = stdout
+    .split('\n')
+    .map((b) => b.trim())
+    .filter((b) => b.length > 0 && !b.startsWith('mark2/')); // Exclude mark2 task branches
+
+  // Get current branch
+  const { stdout: currentStdout } = await gitExec('git rev-parse --abbrev-ref HEAD', cwd);
+  const current = currentStdout.trim();
+
+  // Sort with main/master first
+  branches.sort((a, b) => {
+    if (a === 'main' || a === 'master') return -1;
+    if (b === 'main' || b === 'master') return 1;
+    return a.localeCompare(b);
+  });
+
+  return { branches, current };
+}

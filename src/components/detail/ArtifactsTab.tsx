@@ -1,6 +1,6 @@
 'use client';
 
-import type { Task, TaskArtifact, Phase } from '@/types';
+import type { Task } from '@/types';
 import { Badge } from '../shared/Badge';
 import { ArtifactViewer } from '../shared/ArtifactViewer';
 
@@ -8,20 +8,10 @@ interface ArtifactsTabProps {
   task: Task;
 }
 
-const phaseOrder: Phase[] = [
-  'pending', 'design', 'coding', 'testing', 'code_review', 'fix_review', 'final_testing', 'manual_testing', 'done',
-];
-
 export function ArtifactsTab({ task }: ArtifactsTabProps) {
-  const groupedArtifacts = phaseOrder.reduce(
-    (acc, phase) => {
-      const phaseArtifacts = task.artifacts.filter((a) => a.phase === phase);
-      if (phaseArtifacts.length > 0) {
-        acc[phase] = phaseArtifacts;
-      }
-      return acc;
-    },
-    {} as Record<string, TaskArtifact[]>,
+  // Sort artifacts chronologically (oldest first)
+  const sortedArtifacts = [...task.artifacts].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
 
   if (task.artifacts.length === 0) {
@@ -36,25 +26,23 @@ export function ArtifactsTab({ task }: ArtifactsTabProps) {
   }
 
   return (
-    <div className="flex flex-col p-4 h-full overflow-hidden">
-      {Object.entries(groupedArtifacts).map(([phase, artifacts], groupIndex, groupArr) => (
-        <div key={phase} className={`flex flex-col ${groupIndex < groupArr.length - 1 ? 'mb-4' : 'flex-1 min-h-0'}`}>
-          <div className="flex items-center gap-2 mb-2 shrink-0">
-            <Badge variant="phase" value={phase} />
+    <div className="flex flex-col gap-2 p-4 h-full overflow-auto">
+      {sortedArtifacts.map((artifact, index) => (
+        <div key={artifact.path} className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <Badge variant="phase" value={artifact.phase} />
             <span className="text-xs text-text-secondary">
-              {artifacts.length} artifact{artifacts.length > 1 ? 's' : ''}
+              {artifact.name}
+            </span>
+            <span className="text-xs text-text-secondary/50">
+              {new Date(artifact.created_at).toLocaleTimeString()}
             </span>
           </div>
-          <div className={`flex flex-col gap-2 ${groupIndex === groupArr.length - 1 ? 'flex-1 min-h-0' : ''}`}>
-            {artifacts.map((artifact, artifactIndex, artifactArr) => (
-              <ArtifactViewer
-                key={artifact.path}
-                artifact={artifact}
-                taskId={task.id}
-                fillHeight={groupIndex === groupArr.length - 1 && artifactIndex === artifactArr.length - 1}
-              />
-            ))}
-          </div>
+          <ArtifactViewer
+            artifact={artifact}
+            taskId={task.id}
+            fillHeight={index === sortedArtifacts.length - 1}
+          />
         </div>
       ))}
     </div>

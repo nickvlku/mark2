@@ -4,6 +4,7 @@ import { TaskService } from '@/lib/services/task-service';
 import { ArtifactService } from '@/lib/services/artifact-service';
 import { ActivityService } from '@/lib/services/activity-service';
 import { OrchestrationEngine } from '@/lib/orchestration/engine';
+import { handleDone } from '@/lib/orchestration/phase-handlers/done';
 import type { Phase } from '@/lib/yaml/schemas';
 import type { PhaseContext } from '@/types';
 
@@ -96,10 +97,26 @@ async function handlePhaseTransition(
     const newPhase = body.phase as Phase;
     const previousPhase = task.phase;
 
-    if (newPhase !== 'pending' && newPhase !== 'done') {
+    const projectRoot = process.cwd();
+    const mark2Dir = path.join(projectRoot, '.mark2');
+
+    if (newPhase === 'done') {
+      // Handle done phase: merge to target branch
+      const targetBranch = body.target_branch ?? 'main';
+      const updatedTask = taskService.getById(id);
+      if (updatedTask) {
+        try {
+          const result = await handleDone(updatedTask, projectRoot, mark2Dir, targetBranch);
+          return NextResponse.json({ task: updatedTask, merge_result: result });
+        } catch (err: any) {
+          return NextResponse.json(
+            { task: updatedTask, error: err.message ?? 'Merge failed' },
+            { status: 500 },
+          );
+        }
+      }
+    } else if (newPhase !== 'pending') {
       try {
-        const projectRoot = process.cwd();
-        const mark2Dir = path.join(projectRoot, '.mark2');
         const engine = OrchestrationEngine.getInstance({
           projectRoot,
           mark2Dir,

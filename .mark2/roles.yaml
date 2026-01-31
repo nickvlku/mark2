@@ -1,5 +1,6 @@
 roles:
   - name: expert-system-architect
+    uuid: 5291ff02-1512-4d6b-bbd3-1765771ed324
     description: Senior system architect for high-level design decisions
     role_prompt: |-
       You are an expert system architect with deep experience in distributed systems, microservices, and scalable architecture patterns.
@@ -17,6 +18,7 @@ roles:
       - design
     timeout_minutes: 90
   - name: expert-ui-ux-designer
+    uuid: c432b0bf-aa39-4061-8a42-0a377e0089e1
     description: UI/UX specialist for interface and experience design
     role_prompt: |-
       You are an expert UI/UX designer with strong skills in user-centered design, accessibility, and modern frontend patterns.
@@ -34,6 +36,7 @@ roles:
       - design
     timeout_minutes: 60
   - name: expert-api-designer
+    uuid: 12c76e98-edeb-469c-a920-c8d1ed9dff2b
     description: API design specialist for REST, GraphQL, and system interfaces
     role_prompt: |-
       You are an expert API designer with extensive experience in RESTful services, GraphQL, and system integration patterns.
@@ -51,6 +54,7 @@ roles:
       - design
     timeout_minutes: 60
   - name: expert-fullstack-coder
+    uuid: 782fdb30-f26b-4746-94f9-3aa7d18177c8
     description: Senior full-stack developer for implementation
     role_prompt: |-
       You are an expert full-stack developer with deep knowledge of TypeScript, React, Node.js, and modern web development practices.
@@ -68,6 +72,7 @@ roles:
       - coding
     timeout_minutes: 120
   - name: expert-backend-coder
+    uuid: ac433686-5876-42ef-b397-a20a90c15d62
     description: Backend specialist for server-side implementation
     role_prompt: |-
       You are an expert backend developer specializing in server-side development, databases, and API implementation.
@@ -85,6 +90,7 @@ roles:
       - coding
     timeout_minutes: 120
   - name: expert-frontend-coder
+    uuid: 502b96c2-d9b0-4914-861b-456b1c266b74
     description: Frontend specialist for UI implementation
     role_prompt: |-
       You are an expert frontend developer specializing in React, TypeScript, and modern CSS.
@@ -102,6 +108,7 @@ roles:
       - coding
     timeout_minutes: 90
   - name: expert-security-coder
+    uuid: f6cc23df-a6c3-4bb8-ade5-19d5257b19cd
     description: Security-focused developer for sensitive implementations
     role_prompt: |-
       You are an expert security-focused developer with deep knowledge of secure coding practices and common vulnerabilities.
@@ -119,6 +126,7 @@ roles:
       - coding
     timeout_minutes: 90
   - name: expert-test-engineer
+    uuid: 74472cd9-f157-4546-81fb-72d424d22cae
     description: Test engineer for comprehensive automated testing
     role_prompt: |-
       You are an expert test engineer with deep knowledge of testing strategies, frameworks, and best practices.
@@ -136,6 +144,7 @@ roles:
       - testing
     timeout_minutes: 90
   - name: expert-performance-tester
+    uuid: 896a8a7f-b089-45d8-b950-07af1938d1e0
     description: Performance testing specialist
     role_prompt: |-
       You are an expert performance test engineer specializing in load testing, benchmarking, and performance analysis.
@@ -153,6 +162,7 @@ roles:
       - testing
     timeout_minutes: 60
   - name: expert-e2e-tester
+    uuid: f87aff73-3dda-4f08-b599-4bdfc7e1f97f
     description: End-to-end testing specialist
     role_prompt: |-
       You are an expert in end-to-end testing with Playwright, Cypress, or similar tools.
@@ -170,6 +180,7 @@ roles:
       - testing
     timeout_minutes: 60
   - name: expert-code-reviewer
+    uuid: 03138f2f-39c3-47a4-8f24-c70f938c0a9a
     description: Senior code reviewer for quality and correctness
     role_prompt: |-
       You are an expert code reviewer with years of experience maintaining high-quality codebases.
@@ -187,6 +198,7 @@ roles:
       - code_review
     timeout_minutes: 60
   - name: expert-security-reviewer
+    uuid: 2ede14eb-87d5-4c2e-97c3-53389d5045ad
     description: Security-focused code reviewer
     role_prompt: |-
       You are an expert security code reviewer specializing in identifying vulnerabilities and security risks.
@@ -204,6 +216,7 @@ roles:
       - code_review
     timeout_minutes: 60
   - name: expert-style-reviewer
+    uuid: 56dbd370-2a1a-41b3-b6c1-ffb84abd6e79
     description: Code style and consistency reviewer
     role_prompt: |-
       You are an expert in code style, conventions, and best practices.
@@ -221,6 +234,7 @@ roles:
       - code_review
     timeout_minutes: 30
   - name: expert-qa-analyst
+    uuid: 98919434-209f-4ef2-a476-769f6aaf1d02
     description: QA analyst for manual testing coordination
     role_prompt: |-
       You are an expert QA analyst who coordinates manual testing activities.
@@ -238,6 +252,7 @@ roles:
       - manual_testing
     timeout_minutes: 60
   - name: expert-accessibility-tester
+    uuid: 2b6105fb-1144-4596-96bd-6bdcbfbe3da7
     description: Accessibility testing specialist
     role_prompt: |-
       You are an expert accessibility tester ensuring applications are usable by everyone.

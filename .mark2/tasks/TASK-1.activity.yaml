@@ -29,3 +29,185 @@ entries:
     metadata:
       token: "[DESIGN_COMPLETED]"
       phase: design
+  - timestamp: 2026-01-31T03:07:05.457Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from design to coding
+    metadata:
+      old_phase: design
+      new_phase: coding
+  - timestamp: 2026-01-31T03:09:44.875Z
+    source: hook
+    type: phase_change
+    message: End token "[CODING_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[CODING_COMPLETED]"
+      phase: coding
+  - timestamp: 2026-01-31T03:26:49.377Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from coding to testing
+    metadata:
+      old_phase: coding
+      new_phase: testing
+  - timestamp: 2026-01-31T03:31:14.240Z
+    source: hook
+    type: phase_change
+    message: End token "[TESTING_PASSED]" detected via Claude Code hook
+    metadata:
+      token: "[TESTING_PASSED]"
+      phase: testing
+  - timestamp: 2026-01-31T03:31:28.642Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from testing to code_review
+    metadata:
+      old_phase: testing
+      new_phase: code_review
+  - timestamp: 2026-01-31T03:44:18.023Z
+    source: hook
+    type: phase_change
+    message: End token "[REVIEW_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[REVIEW_COMPLETED]"
+      phase: code_review
+  - timestamp: 2026-01-31T15:04:01.683Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from code_review to fix_review
+    metadata:
+      old_phase: code_review
+      new_phase: fix_review
+  - timestamp: 2026-01-31T15:12:26.445Z
+    source: hook
+    type: phase_change
+    message: End token "[FIX_REVIEW_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[FIX_REVIEW_COMPLETED]"
+      phase: fix_review
+  - timestamp: 2026-01-31T15:14:25.523Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from fix_review to code_review
+    metadata:
+      old_phase: fix_review
+      new_phase: code_review
+  - timestamp: 2026-01-31T15:16:03.589Z
+    source: hook
+    type: phase_change
+    message: End token "[REVIEW_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[REVIEW_COMPLETED]"
+      phase: code_review
+  - timestamp: 2026-01-31T15:18:11.161Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from code_review to fix_review
+    metadata:
+      old_phase: code_review
+      new_phase: fix_review
+  - timestamp: 2026-01-31T15:21:55.619Z
+    source: hook
+    type: phase_change
+    message: End token "[FIX_REVIEW_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[FIX_REVIEW_COMPLETED]"
+      phase: fix_review
+  - timestamp: 2026-01-31T15:22:32.507Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from fix_review to code_review
+    metadata:
+      old_phase: fix_review
+      new_phase: code_review
+  - timestamp: 2026-01-31T15:23:39.320Z
+    source: hook
+    type: phase_change
+    message: End token "[REVIEW_NEEDS_FIXES]" detected via Claude Code hook
+    metadata:
+      token: "[REVIEW_NEEDS_FIXES]"
+      phase: code_review
+  - timestamp: 2026-01-31T15:25:19.341Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from code_review to fix_review
+    metadata:
+      old_phase: code_review
+      new_phase: fix_review
+  - timestamp: 2026-01-31T15:28:40.457Z
+    source: hook
+    type: phase_change
+    message: End token "[FIX_REVIEW_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[FIX_REVIEW_COMPLETED]"
+      phase: fix_review
+  - timestamp: 2026-01-31T15:29:02.618Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from fix_review to code_review
+    metadata:
+      old_phase: fix_review
+      new_phase: code_review
+  - timestamp: 2026-01-31T15:30:36.821Z
+    source: hook
+    type: phase_change
+    message: End token "[REVIEW_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[REVIEW_COMPLETED]"
+      phase: code_review
+  - timestamp: 2026-01-31T15:31:24.134Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from code_review to final_testing
+    metadata:
+      old_phase: code_review
+      new_phase: final_testing
+  - timestamp: 2026-01-31T15:33:36.332Z
+    source: hook
+    type: phase_change
+    message: End token "[FINAL_TESTING_PASSED]" detected via Claude Code hook
+    metadata:
+      token: "[FINAL_TESTING_PASSED]"
+      phase: final_testing
+  - timestamp: 2026-01-31T15:33:46.663Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from final_testing to manual_testing
+    metadata:
+      old_phase: final_testing
+      new_phase: manual_testing
+  - timestamp: 2026-01-31T15:35:39.432Z
+    source: hook
+    type: phase_change
+    message: End token "[MANUAL_TESTING_READY]" detected via Claude Code hook
+    metadata:
+      token: "[MANUAL_TESTING_READY]"
+      phase: manual_testing
+  - timestamp: 2026-01-31T15:37:35.845Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from manual_testing to fix_review
+    metadata:
+      old_phase: manual_testing
+      new_phase: fix_review
+  - timestamp: 2026-01-31T15:37:37.917Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from fix_review to fix_review
+    metadata:
+      old_phase: fix_review
+      new_phase: fix_review
+  - timestamp: 2026-01-31T15:37:44.482Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from fix_review to manual_testing
+    metadata:
+      old_phase: fix_review
+      new_phase: manual_testing
+  - timestamp: 2026-01-31T15:40:13.933Z
+    source: hook
+    type: phase_change
+    message: End token "[FIX_REVIEW_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[FIX_REVIEW_COMPLETED]"
+      phase: manual_testing

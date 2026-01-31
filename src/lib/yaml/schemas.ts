@@ -203,6 +203,7 @@ export const ConfigSchema = z.object({
   max_loop_count: z.number().int().default(5),
   server_port: z.number().int().default(3100),
   merge_strategy: MergeStrategy.default('squash'),
+  ide_commands: z.array(z.string()).default(['code', 'cursor', 'windsurf']),
 });
 export type Config = z.infer<typeof ConfigSchema>;
 
