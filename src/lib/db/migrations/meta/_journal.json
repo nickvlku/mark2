@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1769572224891,
+      "tag": "0000_wealthy_lilith",
+      "breakpoints": true
+    }
+  ]
+}
