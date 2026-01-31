@@ -1,7 +1,7 @@
 id: TASK-13
 title: Remove the Agents (legacy) page and code
 description: We have replaced agents with roles and now the agents codebase is basically a dead end.  We should remove "Agents (Legacy)" from the nav and delete anything related to the agents objects (pre roles version)
-phase: coding
+phase: done
 phase_agents: {}
 phase_overrides: {}
 blockers: []
@@ -17,6 +17,21 @@ artifacts:
     path: design-design-updated-1769897618498-4i9kef.md
     mime_type: text/markdown
     created_at: 2026-01-31T22:13:38.498Z
+  - name: coding-summary
+    phase: coding
+    path: coding-coding-summary-1769899318806-jrgw3f.md
+    mime_type: text/markdown
+    created_at: 2026-01-31T22:41:58.806Z
+  - name: test-results
+    phase: testing
+    path: testing-test-results-1769899693186-n9ypgj.md
+    mime_type: text/markdown
+    created_at: 2026-01-31T22:48:13.186Z
+  - name: review
+    phase: code_review
+    path: code_review-review-1769899824081-cfxsww.md
+    mime_type: text/markdown
+    created_at: 2026-01-31T22:50:24.081Z
 ports: []
 worktrees: {}
 created_by: human
@@ -24,6 +39,6 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-01-31T21:51:35.637Z
-updated_at: 2026-01-31T22:18:35.514Z
-phase_entered_at: 2026-01-31T22:18:35.514Z
+updated_at: 2026-01-31T22:53:09.731Z
+phase_entered_at: 2026-01-31T22:53:09.731Z
 loop_count: 0

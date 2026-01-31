@@ -152,6 +152,8 @@ export class ClaudeCodeAdapter implements CLIAdapter {
     const storagePaths = getTaskStoragePaths(projectRoot, params.taskId);
 
     return {
+      // Ensure NODE_ENV is set to a standard value to avoid Next.js warnings
+      NODE_ENV: 'development',
       MARK2_AGENT_TOKEN: params.agentToken,
       MARK2_API_URL: params.apiBaseUrl,
       MARK2_TASK_ID: params.taskId,

@@ -439,6 +439,48 @@ export function createMcpServer(): McpServer {
     },
   );
 
+  // ── mark2_get_diff ─────────────────────────────────────────────────
+
+  server.tool(
+    'mark2_get_diff',
+    'Get the git diff for a task (all changes from origin/main to current branch)',
+    {
+      task_id: z.string().describe('The task ID'),
+    },
+    async ({ task_id }) => {
+      const mark2Dir = getMark2Dir();
+      const cloneDir = path.join(mark2Dir, 'clones', task_id);
+
+      try {
+        // Get the merge base with origin/main or origin/HEAD
+        let mergeBase: string;
+        try {
+          mergeBase = execSync('git merge-base origin/main HEAD', { cwd: cloneDir, encoding: 'utf-8' }).trim();
+        } catch {
+          // Fallback to origin/HEAD if origin/main doesn't exist
+          mergeBase = execSync('git merge-base origin/HEAD HEAD', { cwd: cloneDir, encoding: 'utf-8' }).trim();
+        }
+
+        const diff = execSync(`git diff ${mergeBase}`, { cwd: cloneDir, encoding: 'utf-8' });
+
+        if (!diff.trim()) {
+          return {
+            content: [{ type: 'text' as const, text: '(No changes - diff is empty)' }],
+          };
+        }
+
+        return {
+          content: [{ type: 'text' as const, text: diff }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error getting diff: ${error}` }],
+          isError: true,
+        };
+      }
+    },
+  );
+
   // ── mark2_git_status ────────────────────────────────────────────────
 
   server.tool(

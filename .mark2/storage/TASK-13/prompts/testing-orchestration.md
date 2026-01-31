@@ -1,7 +1,7 @@
 # ORCHESTRATION INSTRUCTIONS
 
-Current phase: code_review
-Task ID: TASK-12
+Current phase: testing
+Task ID: TASK-13
 
 
 ## CRITICAL: File Operations
@@ -63,17 +63,16 @@ Use the Task ID shown at the top of this prompt.
 
 This triggers the phase transition automatically. Do NOT emit end tokens as plain text.
 
-You are in the CODE REVIEW phase. Your job is to:
-1. Get the diff: use mark2_get_diff(task_id) to see all changes from origin/main
-2. Get context: use mark2_get_latest_artifact(task_id, "design") to read the design document
-3. Review all changes for correctness, security issues, performance problems, and style violations
-4. Classify issues by severity: P0 (must fix), P1 (should fix), P2 (nice to fix)
-5. Save your review: mark2_save_artifact(task_id, filename: "review.md", content: "...")
+You are in the TESTING phase. Your job is to:
+1. Run the existing test suite and verify it passes
+2. Write new tests covering the changes made in the coding phase
+3. Ensure adequate test coverage for edge cases
+4. Run all tests and save results: mark2_save_artifact(task_id, filename: "test-results.md", content: "...")
 
-If no fixes needed: mark2_signal_complete(task_id, token: "[REVIEW_COMPLETED]")
-If fixes are required: mark2_signal_complete(task_id, token: "[REVIEW_NEEDS_FIXES]")
+If all tests pass: mark2_signal_complete(task_id, token: "[TESTING_PASSED]")
+If any tests fail: mark2_signal_complete(task_id, token: "[TESTING_FAILED]")
 
-Valid completion tokens for this phase: [REVIEW_COMPLETED], [REVIEW_NEEDS_FIXES]
+Valid completion tokens for this phase: [TESTING_PASSED], [TESTING_FAILED]
 
 IMPORTANT: Use mark2_signal_complete with one of the valid tokens when done.
 Do not signal completion until you have fully completed your work for this phase.

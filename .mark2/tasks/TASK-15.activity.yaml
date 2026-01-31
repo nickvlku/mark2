@@ -39,3 +39,45 @@ entries:
     metadata:
       old_phase: coding
       new_phase: testing
+  - timestamp: 2026-01-31T22:26:20.652Z
+    source: hook
+    type: phase_change
+    message: End token "[TESTING_PASSED]" detected via Claude Code hook
+    metadata:
+      token: "[TESTING_PASSED]"
+      phase: testing
+  - timestamp: 2026-01-31T22:27:20.917Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from testing to code_review
+    metadata:
+      old_phase: testing
+      new_phase: code_review
+  - timestamp: 2026-01-31T22:29:02.854Z
+    source: hook
+    type: phase_change
+    message: End token "[REVIEW_NEEDS_FIXES]" detected via Claude Code hook
+    metadata:
+      token: "[REVIEW_NEEDS_FIXES]"
+      phase: code_review
+  - timestamp: 2026-01-31T22:30:02.383Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from code_review to manual_testing
+    metadata:
+      old_phase: code_review
+      new_phase: manual_testing
+  - timestamp: 2026-01-31T22:30:09.019Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from manual_testing to done
+    metadata:
+      old_phase: manual_testing
+      new_phase: done
+  - timestamp: 2026-01-31T22:32:01.811Z
+    source: hook
+    type: phase_change
+    message: End token "[MANUAL_TESTING_READY]" detected via Claude Code hook
+    metadata:
+      token: "[MANUAL_TESTING_READY]"
+      phase: done
