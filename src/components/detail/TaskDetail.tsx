@@ -198,7 +198,7 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
         </div>
 
         {/* Dev Server Panel - show when task has a worktree */}
-        {task.phase !== 'pending' && task.phase !== 'done' && (
+        {task.phase !== 'pending' && (
           <DevServerPanel task={task} />
         )}
 
