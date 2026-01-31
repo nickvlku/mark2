@@ -1,3 +1,0 @@
-module.exports=[90234,a=>{"use strict";var b=a.i(7997);function c({children:a}){return(0,b.jsx)("html",{lang:"en",className:"dark",children:(0,b.jsx)("body",{className:"min-h-screen bg-bg-primary text-text-primary antialiased",children:a})})}a.s(["default",()=>c,"metadata",0,{title:"Mark2 - Agentic Orchestration",description:"Dark-mode Kanban board for agentic task orchestration"}])}];
-
-//# sourceMappingURL=_mark2_clones_TASK-12_src_app_layout_tsx_7f8e0260._.js.map

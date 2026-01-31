@@ -1,9 +1,0 @@
-{
-  "/api/stories/route": "app/api/stories/route.js",
-  "/api/tasks/[id]/activity/route": "app/api/tasks/[id]/activity/route.js",
-  "/api/tasks/[id]/archive/route": "app/api/tasks/[id]/archive/route.js",
-  "/api/tasks/[id]/restore/route": "app/api/tasks/[id]/restore/route.js",
-  "/api/tasks/[id]/route": "app/api/tasks/[id]/route.js",
-  "/api/tasks/route": "app/api/tasks/route.js",
-  "/page": "app/page.js"
-}

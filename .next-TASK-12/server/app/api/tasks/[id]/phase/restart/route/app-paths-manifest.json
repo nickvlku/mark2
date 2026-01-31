@@ -1,3 +1,0 @@
-{
-  "/api/tasks/[id]/phase/restart/route": "app/api/tasks/[id]/phase/restart/route.js"
-}
