@@ -48,7 +48,7 @@ const phaseActions: Record<Phase, PhaseButton[]> = {
     { label: 'Restart Phase', variant: 'danger', target: { restart: true } },
   ],
   manual_testing: [
-    { label: 'Approve & Merge', variant: 'success', target: { phase: 'done' } },
+    { label: 'Approve & Create PR', variant: 'success', target: { phase: 'done' } },
     { label: 'Request Revisions', variant: 'warning', target: { phase: 'fix_review' } },
   ],
   done: [],
@@ -125,8 +125,8 @@ export function ActionBar({ task, onPhaseAction, onToggleAutoApprove }: ActionBa
 
   if (actions.length === 0) return null;
 
-  // Check if this is the merge button
-  const isMergeButton = (btn: PhaseButton) =>
+  // Check if this is the PR button
+  const isPRButton = (btn: PhaseButton) =>
     'phase' in btn.target && btn.target.phase === 'done';
 
   return (
@@ -134,14 +134,14 @@ export function ActionBar({ task, onPhaseAction, onToggleAutoApprove }: ActionBa
       <div className="flex items-center gap-2 border-t border-border px-4 py-3">
         {actions.map((btn) => {
           // Special rendering for merge button with branch selector
-          if (isMergeButton(btn) && branches.length > 0) {
+          if (isPRButton(btn) && branches.length > 0) {
             return (
               <div key={btn.label} className="flex items-center">
                 <button
                   onClick={() => handleButtonClick(btn)}
                   className={`rounded-l-lg px-4 py-2 text-sm font-medium transition-colors ${variantStyles[btn.variant]}`}
                 >
-                  Merge to {targetBranch}
+                  Create PR → {targetBranch}
                 </button>
                 <div className="relative">
                   <select
@@ -202,14 +202,14 @@ export function ActionBar({ task, onPhaseAction, onToggleAutoApprove }: ActionBa
         <Dialog
           open={!!confirmButton}
           onClose={() => setConfirmButton(null)}
-          title={`Review & ${confirmButton ? (isMergeButton(confirmButton) ? `Merge to ${targetBranch}` : confirmButton.label) : ''}`}
+          title={`Review & ${confirmButton ? (isPRButton(confirmButton) ? `Create PR → ${targetBranch}` : confirmButton.label) : ''}`}
           description={`Review the artifacts produced in the "${task.phase}" phase before proceeding.`}
-          confirmLabel={confirmButton ? (isMergeButton(confirmButton) ? `Merge to ${targetBranch}` : confirmButton.label) : 'Confirm'}
+          confirmLabel={confirmButton ? (isPRButton(confirmButton) ? `Create PR → ${targetBranch}` : confirmButton.label) : 'Confirm'}
           variant={confirmButton?.variant === 'danger' ? 'danger' : 'default'}
           wide
           onConfirm={() => {
             if (confirmButton) {
-              if (isMergeButton(confirmButton)) {
+              if (isPRButton(confirmButton)) {
                 onPhaseAction({ phase: 'done', targetBranch });
               } else {
                 onPhaseAction(confirmButton.target);
@@ -238,17 +238,17 @@ export function ActionBar({ task, onPhaseAction, onToggleAutoApprove }: ActionBa
         <Dialog
           open={!!confirmButton}
           onClose={() => setConfirmButton(null)}
-          title={`Confirm: ${confirmButton ? (isMergeButton(confirmButton) ? `Merge to ${targetBranch}` : confirmButton.label) : ''}`}
+          title={`Confirm: ${confirmButton ? (isPRButton(confirmButton) ? `Create PR → ${targetBranch}` : confirmButton.label) : ''}`}
           description={
-            confirmButton && isMergeButton(confirmButton)
-              ? `This will merge ${task.id} into the "${targetBranch}" branch.`
+            confirmButton && isPRButton(confirmButton)
+              ? `This will create a PR for ${task.id} targeting the "${targetBranch}" branch.`
               : `Are you sure you want to "${confirmButton?.label}" for ${task.id}?`
           }
-          confirmLabel={confirmButton ? (isMergeButton(confirmButton) ? `Merge to ${targetBranch}` : confirmButton.label) : 'Confirm'}
+          confirmLabel={confirmButton ? (isPRButton(confirmButton) ? `Create PR → ${targetBranch}` : confirmButton.label) : 'Confirm'}
           variant={confirmButton?.variant === 'danger' ? 'danger' : 'default'}
           onConfirm={() => {
             if (confirmButton) {
-              if (isMergeButton(confirmButton)) {
+              if (isPRButton(confirmButton)) {
                 onPhaseAction({ phase: 'done', targetBranch });
               } else {
                 onPhaseAction(confirmButton.target);
