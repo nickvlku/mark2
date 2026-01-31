@@ -1,6 +1,5 @@
 import fs from 'fs';
-import type { Task } from '../../yaml/schemas';
-import type { RoleConfig } from './run-phase';
+import type { Task, AgentDefinition } from '../../yaml/schemas';
 import { CloneService } from '../../services/clone-service';
 import { getDb } from '../../db';
 import { activityEntries } from '../../db/schema';
@@ -18,11 +17,11 @@ export interface CodingResult {
  * Handle the coding phase for a task.
  *
  * Assembles the coding prompt (with optional loop-back context from test
- * failures or review comments) and spawns the coding role.
+ * failures or review comments) and spawns the coding agent.
  */
 export async function handleCoding(
   task: Task,
-  role: RoleConfig,
+  agent: AgentDefinition,
   adapter: CLIAdapter,
   _projectRoot: string,
   mark2Dir: string,
@@ -68,7 +67,7 @@ export async function handleCoding(
 
   // Assemble the prompts with split parts for CLI flags
   const assembler = new PromptAssembler(mark2Dir);
-  const prompts = assembler.buildAgentAndTaskPrompts(task, role, 'coding', promptContext);
+  const prompts = assembler.buildAgentAndTaskPrompts(task, agent, 'coding', promptContext);
 
   // Build invocation params with split prompts
   const params: AgentInvocationParams = {
@@ -78,13 +77,13 @@ export async function handleCoding(
     taskPrompt: prompts.taskPrompt,
     agentSlug: prompts.agentName,
     workingDirectory: clonePath,
-    agentName: role.name,
-    model: role.model,
+    agentName: agent.name,
+    model: agent.model,
     taskId: task.id,
     phase: 'coding',
     apiBaseUrl,
     agentToken,
-    timeoutMinutes: role.timeout_minutes,
+    timeoutMinutes: agent.timeout_minutes,
   };
 
   // Build command and environment
@@ -96,7 +95,7 @@ export async function handleCoding(
   const tmuxManager = new TmuxManager(mark2Dir);
   const tmuxSession = await tmuxManager.spawnAgent({
     taskId: task.id,
-    agentName: role.name,
+    agentName: agent.name,
     phase: 'coding',
     command,
     workingDir: clonePath,
@@ -112,10 +111,10 @@ export async function handleCoding(
       source: 'orchestration',
       type: 'phase_change',
       message: isLoop
-        ? `Coding phase restarted (loop #${task.loop_count}). Role "${role.name}" spawned.`
-        : `Coding phase started. Role "${role.name}" spawned in TMUX session "${tmuxSession}".`,
+        ? `Coding phase restarted (loop #${task.loop_count}). Agent "${agent.name}" spawned.`
+        : `Coding phase started. Agent "${agent.name}" spawned in TMUX session "${tmuxSession}".`,
       metadata_json: JSON.stringify({
-        role: role.name,
+        agent: agent.name,
         tmux_session: tmuxSession,
         loop_count: task.loop_count,
         has_test_failures: !!loopContext?.testFailures,

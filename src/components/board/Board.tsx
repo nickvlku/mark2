@@ -7,11 +7,13 @@ import { useTasks } from '@/hooks/useTasks';
 import { useStories } from '@/hooks/useStories';
 import { Column } from './Column';
 import { StoryFilter } from './StoryFilter';
+import { ArchiveFilter } from './ArchiveFilter';
 import { Card } from './Card';
 import { TaskDetail } from '../detail/TaskDetail';
 import { CreateTaskDialog } from '../create/CreateTaskDialog';
 import { CreateStoryDialog } from '../create/CreateStoryDialog';
 import { PageHeader } from '../shared/PageHeader';
+import { Dialog } from '../shared/Dialog';
 
 const PHASES: Phase[] = [
   'pending',
@@ -27,14 +29,21 @@ const PHASES: Phase[] = [
 
 export function Board() {
   const [selectedStoryId, setSelectedStoryId] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [showCreateTask, setShowCreateTask] = useState(false);
   const [showCreateStory, setShowCreateStory] = useState(false);
 
-  const { tasks, mutate: mutateTasks } = useTasks(
-    selectedStoryId ? { story_id: selectedStoryId } : undefined,
-  );
+  // Confirmation dialog states
+  const [confirmArchive, setConfirmArchive] = useState<Task | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Task | null>(null);
+
+  const filters = {
+    ...(selectedStoryId ? { story_id: selectedStoryId } : {}),
+    archived: showArchived,
+  };
+  const { tasks, mutate: mutateTasks } = useTasks(filters);
   const { stories, mutate: mutateStories } = useStories();
 
   // Find the task for initial snapshot — TaskDetail fetches its own data after mount
@@ -106,6 +115,49 @@ export function Board() {
     mutateTasks();
   }, [mutateTasks]);
 
+  const handleArchiveTask = useCallback((taskId: string) => {
+    const task = tasks.find((t: Task) => t.id === taskId);
+    if (task) setConfirmArchive(task);
+  }, [tasks]);
+
+  const handleRestoreTask = useCallback(async (taskId: string) => {
+    try {
+      await fetch(`/api/tasks/${taskId}/restore`, { method: 'POST' });
+      mutateTasks();
+    } catch (error) {
+      console.error('Failed to restore task:', error);
+    }
+  }, [mutateTasks]);
+
+  const handleDeleteTask = useCallback((taskId: string) => {
+    const task = tasks.find((t: Task) => t.id === taskId);
+    if (task) setConfirmDelete(task);
+  }, [tasks]);
+
+  const confirmArchiveAction = useCallback(async () => {
+    if (!confirmArchive) return;
+    try {
+      await fetch(`/api/tasks/${confirmArchive.id}/archive`, { method: 'POST' });
+      mutateTasks();
+    } catch (error) {
+      console.error('Failed to archive task:', error);
+    } finally {
+      setConfirmArchive(null);
+    }
+  }, [confirmArchive, mutateTasks]);
+
+  const confirmDeleteAction = useCallback(async () => {
+    if (!confirmDelete) return;
+    try {
+      await fetch(`/api/tasks/${confirmDelete.id}`, { method: 'DELETE' });
+      mutateTasks();
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+    } finally {
+      setConfirmDelete(null);
+    }
+  }, [confirmDelete, mutateTasks]);
+
   return (
     <div className="flex h-screen flex-col">
       {/* Top Bar */}
@@ -113,12 +165,18 @@ export function Board() {
         title="Board"
         currentPage="board"
         additionalElements={
-          <StoryFilter
-            stories={stories}
-            tasks={tasks}
-            selectedStoryId={selectedStoryId}
-            onSelect={setSelectedStoryId}
-          />
+          <div className="flex items-center gap-3">
+            <StoryFilter
+              stories={stories}
+              tasks={tasks}
+              selectedStoryId={selectedStoryId}
+              onSelect={setSelectedStoryId}
+            />
+            <ArchiveFilter
+              showArchived={showArchived}
+              onToggle={setShowArchived}
+            />
+          </div>
         }
         actions={
           <>
@@ -151,6 +209,9 @@ export function Board() {
               phase={phase}
               tasks={tasksByPhase(phase)}
               onCardClick={handleCardClick}
+              onArchive={showArchived ? undefined : handleArchiveTask}
+              onRestore={showArchived ? handleRestoreTask : undefined}
+              onDelete={showArchived ? handleDeleteTask : undefined}
             />
           ))}
           <DragOverlay>
@@ -193,6 +254,27 @@ export function Board() {
           }}
         />
       )}
+
+      {/* Archive Confirmation Dialog */}
+      <Dialog
+        open={!!confirmArchive}
+        onClose={() => setConfirmArchive(null)}
+        title="Archive Task"
+        description={`Archive ${confirmArchive?.id}? It will be hidden from the active tasks view but can be restored later.`}
+        confirmLabel="Archive"
+        onConfirm={confirmArchiveAction}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        title="Delete Task Permanently"
+        description={`Permanently delete ${confirmDelete?.id}? This action cannot be undone and will remove all task data including history and artifacts.`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={confirmDeleteAction}
+      />
     </div>
   );
 }

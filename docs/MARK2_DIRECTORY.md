@@ -106,12 +106,13 @@ phase_defaults:
   design:
     role: expert-system-architect
     cli_tool: claude-code
-    model: claude-opus-4-20250514
+    model: claude-opus-4-5
     auto_advance: false
   coding:
     role: expert-fullstack-coder
     cli_tool: claude-code
-    model: claude-sonnet-4-20250514
+    model: claude-sonnet-4-5
+
     auto_advance: false
   # ... other phases
 max_loop_count: 5

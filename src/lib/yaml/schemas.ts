@@ -112,6 +112,8 @@ export const TaskSchema = z.object({
   updated_at: z.string().datetime(),
   phase_entered_at: z.string().datetime(),
   loop_count: z.number().int().default(0),
+  archived: z.boolean().default(false),
+  archived_at: z.string().datetime().optional(),
 });
 export type Task = z.infer<typeof TaskSchema>;
 

@@ -1,6 +1,5 @@
 import fs from 'fs';
-import type { Task } from '../../yaml/schemas';
-import type { RoleConfig } from './run-phase';
+import type { Task, AgentDefinition } from '../../yaml/schemas';
 import { CloneService } from '../../services/clone-service';
 import { getDb } from '../../db';
 import { activityEntries } from '../../db/schema';
@@ -18,11 +17,11 @@ export interface CodeReviewResult {
  * Handle the code review phase for a task.
  *
  * Assembles the review prompt including the full diff from origin/main,
- * then spawns the review role.
+ * then spawns the review agent.
  */
 export async function handleCodeReview(
   task: Task,
-  role: RoleConfig,
+  agent: AgentDefinition,
   adapter: CLIAdapter,
   _projectRoot: string,
   mark2Dir: string,
@@ -68,7 +67,7 @@ export async function handleCodeReview(
 
   // Assemble the prompts with split parts for CLI flags
   const assembler = new PromptAssembler(mark2Dir);
-  const prompts = assembler.buildAgentAndTaskPrompts(task, role, 'code_review', promptContext);
+  const prompts = assembler.buildAgentAndTaskPrompts(task, agent, 'code_review', promptContext);
 
   // Build invocation params with split prompts
   const params: AgentInvocationParams = {
@@ -78,13 +77,13 @@ export async function handleCodeReview(
     taskPrompt: prompts.taskPrompt,
     agentSlug: prompts.agentName,
     workingDirectory: clonePath,
-    agentName: role.name,
-    model: role.model,
+    agentName: agent.name,
+    model: agent.model,
     taskId: task.id,
     phase: 'code_review',
     apiBaseUrl,
     agentToken,
-    timeoutMinutes: role.timeout_minutes,
+    timeoutMinutes: agent.timeout_minutes,
   };
 
   const command = adapter.buildCommand(params);
@@ -95,7 +94,7 @@ export async function handleCodeReview(
   const tmuxManager = new TmuxManager(mark2Dir);
   const tmuxSession = await tmuxManager.spawnAgent({
     taskId: task.id,
-    agentName: role.name,
+    agentName: agent.name,
     phase: 'code_review',
     command,
     workingDir: clonePath,
@@ -109,9 +108,9 @@ export async function handleCodeReview(
       timestamp: now,
       source: 'orchestration',
       type: 'phase_change',
-      message: `Code review phase started. Role "${role.name}" spawned in TMUX session "${tmuxSession}".`,
+      message: `Code review phase started. Agent "${agent.name}" spawned in TMUX session "${tmuxSession}".`,
       metadata_json: JSON.stringify({
-        role: role.name,
+        agent: agent.name,
         tmux_session: tmuxSession,
         diff_length: diff.length,
       }),

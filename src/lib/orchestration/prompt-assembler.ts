@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import type { Task, Phase } from '../yaml/schemas';
-import type { RoleConfig } from './phase-handlers/run-phase';
+import type { Task, AgentDefinition, Phase } from '../yaml/schemas';
 import { END_TOKENS } from './pipeline';
 import { getTaskStoragePathsFromMark2Dir } from '../utils/storage';
 
@@ -142,7 +141,7 @@ If all tests pass: mark2_signal_complete(task_id, token: "[TESTING_PASSED]")
 If any tests fail: mark2_signal_complete(task_id, token: "[TESTING_FAILED]")`,
 
   code_review: `You are in the CODE REVIEW phase. Your job is to:
-1. Get the diff: run \`git diff $(git merge-base origin/HEAD HEAD)\` to see all changes
+1. Get the diff: use mark2_get_diff(task_id) to see all changes from origin/main
 2. Get context: use mark2_get_latest_artifact(task_id, "design") to read the design document
 3. Review all changes for correctness, security issues, performance problems, and style violations
 4. Classify issues by severity: P0 (must fix), P1 (should fix), P2 (nice to fix)
@@ -208,7 +207,7 @@ export class PromptAssembler {
    */
   buildAgentAndTaskPrompts(
     task: Task,
-    role: RoleConfig,
+    agent: AgentDefinition,
     phase: Phase,
     context?: PromptContext,
   ): AgentPromptParts {
@@ -232,7 +231,7 @@ export class PromptAssembler {
     orchestrationPrompt = orchestrationPrompt.replace(/\$MARK2_STORAGE_DIR/g, storagePaths.root);
 
     // Build agent prompt (role/personality only for --agents)
-    let agentPrompt = role.role_prompt;
+    let agentPrompt = agent.role_prompt;
     agentPrompt = agentPrompt.replace(/\$MARK2_ARTIFACTS_DIR/g, storagePaths.artifacts);
     agentPrompt = agentPrompt.replace(/\$MARK2_PROMPTS_DIR/g, storagePaths.prompts);
     agentPrompt = agentPrompt.replace(/\$MARK2_STORAGE_DIR/g, storagePaths.root);
@@ -253,8 +252,8 @@ export class PromptAssembler {
    * Legacy: Assemble the full prompt (for adapters that don't support separate flags).
    * Combines all parts into a single prompt string.
    */
-  assemble(task: Task, role: RoleConfig, phase: Phase, context?: PromptContext): string {
-    const parts = this.buildAgentAndTaskPrompts(task, role, phase, context);
+  assemble(task: Task, agent: AgentDefinition, phase: Phase, context?: PromptContext): string {
+    const parts = this.buildAgentAndTaskPrompts(task, agent, phase, context);
     return `${parts.agentPrompt}\n\n---\n\n${parts.orchestrationPrompt}\n\n---\n\n${parts.taskPrompt}`;
   }
 

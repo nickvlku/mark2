@@ -12,12 +12,14 @@ export async function GET(request: Request) {
     const priority = searchParams.get('priority');
     const story_id = searchParams.get('story_id');
     const blocked = searchParams.get('blocked');
+    const archived = searchParams.get('archived');
     const includeStatus = searchParams.get('include_status') !== 'false'; // default true
 
     if (phase) filters.phase = phase;
     if (priority) filters.priority = priority;
     if (story_id) filters.story_id = story_id;
     if (blocked !== null) filters.blocked = blocked === 'true';
+    if (archived !== null) filters.archived = archived === 'true';
 
     // Use listWithStatus to include session status for each task
     if (includeStatus) {

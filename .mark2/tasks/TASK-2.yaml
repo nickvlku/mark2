@@ -1,6 +1,6 @@
 id: TASK-2
-title: No author task
-description: Testing default created_by
+title: gfsdgfsd
+description: gfsgs
 phase: pending
 phase_agents: {}
 phase_overrides: {}
@@ -13,7 +13,8 @@ created_by: human
 merge_strategy: squash
 auto_advance: true
 auto_approve: false
-created_at: 2026-01-31T15:32:26.955Z
-updated_at: 2026-01-31T15:32:26.955Z
-phase_entered_at: 2026-01-31T15:32:26.955Z
+created_at: 2026-01-31T21:55:23.752Z
+updated_at: 2026-01-31T21:55:23.752Z
+phase_entered_at: 2026-01-31T21:55:23.752Z
 loop_count: 0
+archived: false

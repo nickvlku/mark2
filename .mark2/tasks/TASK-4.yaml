@@ -1,6 +1,6 @@
 id: TASK-4
-title: Minimal Task
-description: ""
+title: Test Archive YAML
+description: Testing archive and YAML persistence
 phase: pending
 phase_agents: {}
 phase_overrides: {}
@@ -9,11 +9,12 @@ priority: P2
 artifacts: []
 ports: []
 worktrees: {}
-created_by: human
+created_by: test
 merge_strategy: squash
 auto_advance: true
 auto_approve: false
-created_at: 2026-01-31T15:32:27.043Z
-updated_at: 2026-01-31T15:32:27.043Z
-phase_entered_at: 2026-01-31T15:32:27.043Z
+created_at: 2026-01-31T22:01:31.866Z
+updated_at: 2026-01-31T22:01:51.510Z
+phase_entered_at: 2026-01-31T22:01:31.866Z
 loop_count: 0
+archived: false

@@ -1,5 +1,4 @@
-import type { Task } from '../../yaml/schemas';
-import type { RoleConfig } from './run-phase';
+import type { Task, AgentDefinition } from '../../yaml/schemas';
 import { CloneService } from '../../services/clone-service';
 import { getDb } from '../../db';
 import { activityEntries } from '../../db/schema';
@@ -25,7 +24,7 @@ export interface DesignResult {
  */
 export async function handleDesign(
   task: Task,
-  role: RoleConfig,
+  agent: AgentDefinition,
   adapter: CLIAdapter,
   _projectRoot: string,
   mark2Dir: string,
@@ -47,7 +46,7 @@ export async function handleDesign(
   const promptContext: PromptContext | undefined = loopContext
     ? { humanComments: loopContext.humanComments, testFailures: loopContext.testFailures, reviewComments: loopContext.reviewComments }
     : undefined;
-  const prompts = assembler.buildAgentAndTaskPrompts(task, role, 'design', promptContext);
+  const prompts = assembler.buildAgentAndTaskPrompts(task, agent, 'design', promptContext);
 
   // Build invocation params with split prompts for CLI flags
   const params: AgentInvocationParams = {
@@ -57,13 +56,13 @@ export async function handleDesign(
     taskPrompt: prompts.taskPrompt,
     agentSlug: prompts.agentName,
     workingDirectory: clonePath,
-    agentName: role.name,
-    model: role.model,
+    agentName: agent.name,
+    model: agent.model,
     taskId: task.id,
     phase: 'design',
     apiBaseUrl,
     agentToken,
-    timeoutMinutes: role.timeout_minutes,
+    timeoutMinutes: agent.timeout_minutes,
   };
 
   // Build command and environment via adapter
@@ -75,7 +74,7 @@ export async function handleDesign(
   const tmuxManager = new TmuxManager(mark2Dir);
   const tmuxSession = await tmuxManager.spawnAgent({
     taskId: task.id,
-    agentName: role.name,
+    agentName: agent.name,
     phase: 'design',
     command,
     workingDir: clonePath,
@@ -89,9 +88,9 @@ export async function handleDesign(
       timestamp: now,
       source: 'orchestration',
       type: 'phase_change',
-      message: `Design phase started. Role "${role.name}" spawned in TMUX session "${tmuxSession}".`,
+      message: `Design phase started. Agent "${agent.name}" spawned in TMUX session "${tmuxSession}".`,
       metadata_json: JSON.stringify({
-        role: role.name,
+        agent: agent.name,
         tmux_session: tmuxSession,
         clone_path: clonePath,
         branch: branchName,

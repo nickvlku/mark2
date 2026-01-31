@@ -3,10 +3,11 @@ import type { Task } from '@/types';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-export function useTasks(filters?: { phase?: string; story_id?: string }) {
+export function useTasks(filters?: { phase?: string; story_id?: string; archived?: boolean }) {
   const params = new URLSearchParams();
   if (filters?.phase) params.set('phase', filters.phase);
   if (filters?.story_id) params.set('story_id', filters.story_id);
+  if (filters?.archived !== undefined) params.set('archived', filters.archived.toString());
   const query = params.toString();
 
   const { data, error, mutate } = useSWR<{ tasks: Task[] }>(

@@ -37,8 +37,9 @@
     "**/*.mts",
     ".next-TASK-1/types/**/*.ts",
     ".next-TASK-1/dev/types/**/*.ts",
-    ".next-TASK-13/types/**/*.ts",
-    ".next-TASK-13/types/**/*.ts"
+    ".next-TASK-12/types/**/*.ts",
+    ".next-TASK-12/types/**/*.ts",
+    ".next-TASK-12/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

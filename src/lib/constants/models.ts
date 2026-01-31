@@ -11,8 +11,8 @@ export type CLITool = 'claude-code' | 'codex-cli' | 'gemini-cli' | 'opencode';
 
 export const MODELS_BY_CLI: Record<CLITool, ModelDefinition[]> = {
   'claude-code': [
-    { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4' },
-    { id: 'claude-opus-4-20250514', name: 'Claude Opus 4' },
+    { id: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5' },
+    { id: 'claude-opus-4-5', name: 'Claude Opus 4.5' },
   ],
   'codex-cli': [
     { id: 'gpt-5.2-codex', name: 'GPT-5.2 Codex', description: 'Latest agentic coding model' },
@@ -31,3 +31,10 @@ export const MODELS_BY_CLI: Record<CLITool, ModelDefinition[]> = {
 };
 
 export const CLI_TOOLS: CLITool[] = ['claude-code', 'codex-cli', 'gemini-cli', 'opencode'];
+
+// Model migration map for backward compatibility
+// Automatically maps old Claude 4.0 model IDs to new Claude 4.5 aliases
+export const MODEL_MIGRATIONS: Record<string, string> = {
+  'claude-sonnet-4-20250514': 'claude-sonnet-4-5',
+  'claude-opus-4-20250514': 'claude-opus-4-5',
+};
