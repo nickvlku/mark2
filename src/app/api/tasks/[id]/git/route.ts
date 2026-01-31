@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { CloneService } from '@/lib/services/clone-service';
 import { TaskService } from '@/lib/services/task-service';
+import { isValidTaskId } from '@/lib/utils/route-validation';
 
 const cloneService = new CloneService();
 const taskService = new TaskService();
@@ -15,6 +16,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
 
     const task = taskService.getById(id);
     if (!task) {

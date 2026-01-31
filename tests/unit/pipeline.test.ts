@@ -11,13 +11,13 @@ import {
 describe('Pipeline State Machine', () => {
   // ── PHASE_ORDER ─────────────────────────────────────────────────────
   describe('PHASE_ORDER', () => {
-    it('has exactly 7 entries', () => {
-      expect(PHASE_ORDER).toHaveLength(7);
+    it('has exactly 9 entries', () => {
+      expect(PHASE_ORDER).toHaveLength(9);
     });
 
     it('starts with pending and ends with done', () => {
       expect(PHASE_ORDER[0]).toBe('pending');
-      expect(PHASE_ORDER[6]).toBe('done');
+      expect(PHASE_ORDER[8]).toBe('done');
     });
 
     it('contains all phases in the correct order', () => {
@@ -27,6 +27,8 @@ describe('Pipeline State Machine', () => {
         'coding',
         'testing',
         'code_review',
+        'fix_review',
+        'final_testing',
         'manual_testing',
         'done',
       ]);
@@ -55,12 +57,20 @@ describe('Pipeline State Machine', () => {
       expect(phaseIndex('code_review')).toBe(4);
     });
 
-    it('returns 5 for manual_testing', () => {
-      expect(phaseIndex('manual_testing')).toBe(5);
+    it('returns 5 for fix_review', () => {
+      expect(phaseIndex('fix_review')).toBe(5);
     });
 
-    it('returns 6 for done', () => {
-      expect(phaseIndex('done')).toBe(6);
+    it('returns 6 for final_testing', () => {
+      expect(phaseIndex('final_testing')).toBe(6);
+    });
+
+    it('returns 7 for manual_testing', () => {
+      expect(phaseIndex('manual_testing')).toBe(7);
+    });
+
+    it('returns 8 for done', () => {
+      expect(phaseIndex('done')).toBe(8);
     });
   });
 

@@ -1,11 +1,6 @@
 import type { Task, AgentDefinition } from '../../yaml/schemas';
-import { CloneService } from '../../services/clone-service';
-import { getDb } from '../../db';
-import { activityEntries } from '../../db/schema';
-import { TmuxManager } from '../tmux-manager';
-import { PromptAssembler } from '../prompt-assembler';
 import type { CLIAdapter } from '../../adapters/types';
-import type { AgentInvocationParams } from '../../../types';
+import { runAgentPhase } from './run-agent-phase';
 import type { PromptContext } from '../prompt-assembler';
 
 export interface DesignResult {
@@ -32,72 +27,35 @@ export async function handleDesign(
   agentToken: string,
   loopContext?: { humanComments?: string; testFailures?: string; reviewComments?: string },
 ): Promise<DesignResult> {
-  const db = getDb(mark2Dir);
-  const now = new Date().toISOString();
-
-  // Create or reuse the isolated git clone for this task
-  const cloneService = new CloneService(mark2Dir);
-  const cloneInfo = await cloneService.createClone(task.id);
-  const clonePath = cloneInfo.clonePath;
-  const branchName = cloneInfo.branchName;
-
-  // Assemble the prompts (include any context from restart)
-  const assembler = new PromptAssembler(mark2Dir);
-  const promptContext: PromptContext | undefined = loopContext
-    ? { humanComments: loopContext.humanComments, testFailures: loopContext.testFailures, reviewComments: loopContext.reviewComments }
-    : undefined;
-  const promptParts = assembler.buildAgentAndTaskPrompts(task, agent, 'design', promptContext);
-
-  // Build invocation params with separated prompts
-  const params: AgentInvocationParams = {
-    prompt: promptParts.taskPrompt, // Legacy fallback
-    orchestrationPrompt: promptParts.orchestrationPrompt,
-    agentPrompt: promptParts.agentPrompt,
-    taskPrompt: promptParts.taskPrompt,
-    agentSlug: promptParts.agentName,
-    agentUuid: agent.uuid,
-    workingDirectory: clonePath,
-    agentName: agent.name,
-    model: agent.model,
-    taskId: task.id,
-    phase: 'design',
-    apiBaseUrl,
-    agentToken,
-    timeoutMinutes: agent.timeout_minutes,
-  };
-
-  // Build command and environment via adapter
-  const command = adapter.buildCommand(params);
-  const env = adapter.getEnvironment(params);
-  const promptFile = adapter.getPromptFilePath?.(params);
-
-  // Spawn the agent
-  const tmuxManager = new TmuxManager(mark2Dir);
-  const tmuxSession = await tmuxManager.spawnAgent({
-    taskId: task.id,
-    agentName: agent.name,
-    phase: 'design',
-    command,
-    workingDir: clonePath,
-    env,
+  const result = await runAgentPhase(task, agent, adapter, mark2Dir, apiBaseUrl, agentToken, 'design', {
+    createCloneFirst: true,
+    phaseContext: loopContext,
+    getPromptContext: (_clonePath, _task, phaseContext): PromptContext | undefined => {
+      const ctx = phaseContext as
+        | { humanComments?: string; testFailures?: string; reviewComments?: string }
+        | undefined;
+      return ctx
+        ? {
+            humanComments: ctx.humanComments,
+            testFailures: ctx.testFailures,
+            reviewComments: ctx.reviewComments,
+          }
+        : undefined;
+    },
+    activityMessage: (ctx) =>
+      `Design phase started. Agent "${ctx.agent.name}" spawned in TMUX session "${ctx.tmuxSession}".`,
+    activityMetadata: (ctx) => ({
+      agent: ctx.agent.name,
+      tmux_session: ctx.tmuxSession,
+      clone_path: ctx.clonePath,
+      branch: ctx.branchName,
+    }),
   });
 
-  // Log activity
-  db.insert(activityEntries)
-    .values({
-      task_id: task.id,
-      timestamp: now,
-      source: 'orchestration',
-      type: 'phase_change',
-      message: `Design phase started. Agent "${agent.name}" spawned in TMUX session "${tmuxSession}".`,
-      metadata_json: JSON.stringify({
-        agent: agent.name,
-        tmux_session: tmuxSession,
-        clone_path: clonePath,
-        branch: branchName,
-      }),
-    })
-    .run();
-
-  return { tmuxSession, clonePath, branchName, promptFile };
+  return {
+    tmuxSession: result.tmuxSession,
+    clonePath: result.clonePath!,
+    branchName: result.branchName!,
+    promptFile: result.promptFile,
+  };
 }

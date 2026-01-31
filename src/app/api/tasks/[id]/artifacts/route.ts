@@ -4,6 +4,7 @@ import fs from 'fs';
 import { ArtifactService } from '@/lib/services/artifact-service';
 import { TaskService } from '@/lib/services/task-service';
 import { resolveArtifactPath, fileExistsSync } from '@/lib/utils/storage';
+import { isValidTaskId } from '@/lib/utils/route-validation';
 
 const service = new ArtifactService();
 const taskService = new TaskService();
@@ -14,6 +15,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
     const { searchParams } = new URL(request.url);
     const artifactPath = searchParams.get('path');
 
@@ -36,9 +40,16 @@ export async function GET(
     const mark2Dir = path.join(process.cwd(), '.mark2');
     const projectRoot = path.dirname(mark2Dir);
 
-    // 1. PRIMARY: Check storage location first (new structure)
-    // Storage path: .mark2/storage/{taskId}/artifacts/{path}
-    const storagePath = resolveArtifactPath(projectRoot, id, artifactPath);
+    let storagePath: string;
+    try {
+      storagePath = resolveArtifactPath(projectRoot, id, artifactPath);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Invalid path';
+      if (message === 'Path escapes artifact directory') {
+        return NextResponse.json({ error: message }, { status: 400 });
+      }
+      throw err;
+    }
     const resolvedStorage = path.resolve(storagePath);
 
     // Security: ensure the resolved path is within storage
@@ -96,6 +107,9 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
     const body = await request.json();
 
     if (!body.name || !body.phase || !body.path) {

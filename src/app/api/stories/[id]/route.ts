@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { StoryService } from '@/lib/services/story-service';
+import { isValidStoryId } from '@/lib/utils/route-validation';
 
 const service = new StoryService();
 
@@ -9,6 +10,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    if (!isValidStoryId(id)) {
+      return NextResponse.json({ error: 'Invalid story ID' }, { status: 400 });
+    }
     const story = service.getById(id);
     if (!story) {
       return NextResponse.json({ error: `Story ${id} not found` }, { status: 404 });
@@ -29,6 +33,9 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
+    if (!isValidStoryId(id)) {
+      return NextResponse.json({ error: 'Invalid story ID' }, { status: 400 });
+    }
     const body = await request.json();
     const story = service.update(id, body);
     return NextResponse.json({ story });
@@ -55,6 +62,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    if (!isValidStoryId(id)) {
+      return NextResponse.json({ error: 'Invalid story ID' }, { status: 400 });
+    }
     service.delete(id);
     return NextResponse.json({ success: true });
   } catch (error: any) {

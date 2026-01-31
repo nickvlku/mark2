@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { StoryService } from '@/lib/services/story-service';
+import { isValidStoryId } from '@/lib/utils/route-validation';
 
 const service = new StoryService();
 
@@ -9,6 +10,9 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    if (!isValidStoryId(id)) {
+      return NextResponse.json({ error: 'Invalid story ID' }, { status: 400 });
+    }
     const body = await request.json();
 
     if (!body.task_id) {
@@ -37,6 +41,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    if (!isValidStoryId(id)) {
+      return NextResponse.json({ error: 'Invalid story ID' }, { status: 400 });
+    }
     const { searchParams } = new URL(request.url);
     const taskId = searchParams.get('task_id');
 

@@ -1,25 +1,19 @@
 import { NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { spawnSync } from 'child_process';
 import { CloneService } from '@/lib/services/clone-service';
 import { TaskService } from '@/lib/services/task-service';
 import { ConfigService } from '@/lib/services/config-service';
+import { isValidTaskId } from '@/lib/utils/route-validation';
 
-const execAsync = promisify(exec);
 const taskService = new TaskService();
 const cloneService = new CloneService();
 const configService = new ConfigService();
 
-async function tryOpenIDE(command: string, path: string): Promise<boolean> {
-  try {
-    // First check if the command exists
-    await execAsync(`which ${command}`);
-    // Then open the path
-    await execAsync(`${command} "${path}"`);
-    return true;
-  } catch {
-    return false;
-  }
+function tryOpenIDE(command: string, clonePath: string): boolean {
+  const whichResult = spawnSync('which', [command], { encoding: 'utf-8' });
+  if (whichResult.status !== 0) return false;
+  const result = spawnSync(command, [clonePath], { stdio: 'inherit' });
+  return result.status === 0;
 }
 
 export async function POST(
@@ -28,6 +22,9 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
 
     const task = taskService.getById(id);
     if (!task) {
@@ -47,7 +44,7 @@ export async function POST(
 
     // Try each IDE command in order until one succeeds
     for (const ideCommand of ideCommands) {
-      const success = await tryOpenIDE(ideCommand, clonePath);
+      const success = tryOpenIDE(ideCommand, clonePath);
       if (success) {
         return NextResponse.json({
           success: true,

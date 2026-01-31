@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { exec as execCb } from 'child_process';
 import { promisify } from 'util';
+import { isValidTaskId } from '@/lib/utils/route-validation';
 
 const exec = promisify(execCb);
 
@@ -27,6 +28,9 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
     const sessionName = devServerSessionName(id);
 
     // Check if session exists

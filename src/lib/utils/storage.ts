@@ -102,10 +102,13 @@ export function ensureTaskStorageExistsSync(projectRoot: string, taskId: string)
  * 1. If path starts with artifacts/, prompts/, or sessions/: use as-is relative to storage root
  * 2. Otherwise: prefix with artifacts/ (backwards compatible default)
  *
+ * Rejects paths that would escape the task storage root (e.g. ".." or absolute paths).
+ *
  * @param projectRoot - The project root directory
  * @param taskId - The task ID
  * @param relativePath - The relative path from the task definition (e.g., "design.md" or "artifacts/design.md")
  * @returns Absolute path to the artifact
+ * @throws Error if relativePath would resolve outside the task storage root
  */
 export function resolveArtifactPath(
   projectRoot: string,
@@ -117,17 +120,34 @@ export function resolveArtifactPath(
   // Normalize the path to handle any OS-specific separators
   const normalizedPath = relativePath.replace(/\\/g, '/');
 
+  // Reject path traversal and absolute paths
+  if (normalizedPath.includes('..') || normalizedPath.startsWith('/')) {
+    throw new Error('Path escapes artifact directory');
+  }
+
+  const rootForCheck = paths.root;
+  let joined: string;
+
   // Check if path already has a known prefix
   if (
     normalizedPath.startsWith('artifacts/') ||
     normalizedPath.startsWith('prompts/') ||
     normalizedPath.startsWith('sessions/')
   ) {
-    return path.join(paths.root, normalizedPath);
+    joined = path.join(paths.root, normalizedPath);
+  } else {
+    joined = path.join(paths.artifacts, normalizedPath);
   }
 
-  // Default to artifacts directory
-  return path.join(paths.artifacts, normalizedPath);
+  // Ensure resolved path stays under the task storage root
+  const resolved = path.resolve(joined);
+  const rootResolved = path.resolve(rootForCheck);
+  const relative = path.relative(rootResolved, resolved);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error('Path escapes artifact directory');
+  }
+
+  return joined;
 }
 
 /**

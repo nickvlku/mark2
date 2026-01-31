@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { execSync } from 'child_process';
+import { execSync, spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { YamlReader } from '../yaml/reader';
@@ -486,8 +486,8 @@ export function createMcpServer(): McpServer {
       const cloneDir = path.join(mark2Dir, 'clones', task_id);
 
       try {
-        execSync('git add -A', { cwd: cloneDir, encoding: 'utf-8' });
-        execSync(`git commit -m "${message.replace(/"/g, '\\"')}"`, { cwd: cloneDir, encoding: 'utf-8' });
+        spawnSync('git', ['add', '-A'], { cwd: cloneDir, encoding: 'utf-8' });
+        spawnSync('git', ['commit', '-m', message], { cwd: cloneDir, encoding: 'utf-8' });
 
         const hash = execSync('git rev-parse --short HEAD', { cwd: cloneDir, encoding: 'utf-8' }).trim();
 

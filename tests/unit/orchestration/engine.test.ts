@@ -193,6 +193,27 @@ describe('OrchestrationEngine', () => {
 
     it('processes [DESIGN_COMPLETED] token correctly', async () => {
       const mockStartPhase = vi.spyOn(engine, 'startPhase').mockResolvedValue();
+      const taskInDesign = {
+        id: 'TASK-1',
+        title: 'Test Task',
+        phase: 'design' as const,
+        loop_count: 0,
+        phase_agents: {},
+        blockers: [],
+        priority: 'P2',
+        artifacts: [],
+        ports: [],
+        worktrees: {},
+        created_by: 'test',
+        merge_strategy: 'squash' as const,
+        auto_advance: true,
+        auto_approve: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        phase_entered_at: new Date().toISOString(),
+      };
+      const reader = (engine as any).reader as YamlReader;
+      reader.readTask.mockReturnValue({ data: taskInDesign });
 
       await engine.processEndToken('TASK-1', 'test-agent', 'design', '[DESIGN_COMPLETED]');
 

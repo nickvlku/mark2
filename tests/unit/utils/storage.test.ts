@@ -135,6 +135,21 @@ describe('storage utilities', () => {
         path.join(projectRoot, '.mark2', 'storage', 'TASK-1', 'artifacts', 'design.md')
       );
     });
+
+    it('throws for path traversal (..)', () => {
+      expect(() =>
+        resolveArtifactPath(projectRoot, 'TASK-1', '../etc/passwd')
+      ).toThrow('Path escapes artifact directory');
+      expect(() =>
+        resolveArtifactPath(projectRoot, 'TASK-1', 'artifacts/../../x')
+      ).toThrow('Path escapes artifact directory');
+    });
+
+    it('throws for absolute path', () => {
+      expect(() =>
+        resolveArtifactPath(projectRoot, 'TASK-1', '/etc/passwd')
+      ).toThrow('Path escapes artifact directory');
+    });
   });
 
   describe('resolveArtifactPathFromMark2Dir', () => {

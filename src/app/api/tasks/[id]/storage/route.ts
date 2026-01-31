@@ -7,6 +7,7 @@ import {
   fileExistsSync,
 } from '@/lib/utils/storage';
 import { TaskService } from '@/lib/services/task-service';
+import { isValidTaskId } from '@/lib/utils/route-validation';
 
 const taskService = new TaskService();
 
@@ -21,6 +22,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
 
     // Verify task exists
     const task = taskService.getById(id);
@@ -75,6 +79,9 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
 
     // Verify task exists
     const task = taskService.getById(id);

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { TaskService } from '@/lib/services/task-service';
+import { isValidTaskId } from '@/lib/utils/route-validation';
 
 const service = new TaskService();
 
@@ -9,6 +10,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
 
     // Sync artifacts from storage before returning task
     service.syncArtifactsFromStorage(id);
@@ -36,6 +40,9 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
     const body = await request.json();
     const task = service.update(id, body);
     return NextResponse.json({ task });
@@ -62,6 +69,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
     service.delete(id);
     return NextResponse.json({ success: true });
   } catch (error: any) {

@@ -7,6 +7,7 @@ import { OrchestrationEngine } from '@/lib/orchestration/engine';
 import { handleDone } from '@/lib/orchestration/phase-handlers/done';
 import type { Phase } from '@/lib/yaml/schemas';
 import type { PhaseContext } from '@/types';
+import { isValidTaskId } from '@/lib/utils/route-validation';
 
 const taskService = new TaskService();
 const artifactService = new ArtifactService();
@@ -18,6 +19,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
     const task = taskService.getById(id);
     if (!task) {
       return NextResponse.json({ error: `Task ${id} not found` }, { status: 404 });
@@ -82,6 +86,9 @@ async function handlePhaseTransition(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
     const body = await request.json();
 
     if (!body.phase) {

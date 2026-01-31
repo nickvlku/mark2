@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { exec as execCb } from 'child_process';
 import path from 'path';
 import fs from 'fs';
+import { isValidTaskId } from '@/lib/utils/route-validation';
 
 // ---------------------------------------------------------------------------
 // POST /api/tasks/[id]/terminal — Open a terminal in the task's clone directory
@@ -13,6 +14,9 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
     const projectRoot = process.cwd();
     const clonePath = path.join(projectRoot, '.mark2', 'clones', id);
 

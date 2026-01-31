@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exec as execCb } from 'child_process';
-import { promisify } from 'util';
+import { spawnSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { TaskService } from '@/lib/services/task-service';
 import { resolveArtifactPath, fileExistsSync } from '@/lib/utils/storage';
+import { isValidTaskId } from '@/lib/utils/route-validation';
 
-const exec = promisify(execCb);
 const taskService = new TaskService();
 
 // ---------------------------------------------------------------------------
@@ -19,6 +18,9 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
     const { path: artifactPath } = await request.json();
 
     if (!artifactPath) {
@@ -43,7 +45,16 @@ export async function POST(
     let resolvedPath: string | null = null;
 
     // 1. PRIMARY: Check storage location first (new structure)
-    const storagePath = resolveArtifactPath(projectRoot, id, artifactPath);
+    let storagePath: string;
+    try {
+      storagePath = resolveArtifactPath(projectRoot, id, artifactPath);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Invalid path';
+      if (message === 'Path escapes artifact directory') {
+        return NextResponse.json({ error: message }, { status: 400 });
+      }
+      throw err;
+    }
     const resolvedStorage = path.resolve(storagePath);
     const storageRoot = path.resolve(path.join(mark2Dir, 'storage', id));
 
@@ -98,18 +109,15 @@ export async function POST(
     ];
 
     for (const editor of editors) {
-      try {
-        await exec(`which ${editor.cmd}`);
-        // Editor found, open the file
-        await exec(`${editor.cmd} "${resolvedPath}"`);
-        return NextResponse.json({
-          success: true,
-          editor: editor.name,
-          path: resolvedPath,
-        });
-      } catch {
-        // Editor not found, try next
-      }
+      const whichResult = spawnSync('which', [editor.cmd], { encoding: 'utf-8' });
+      if (whichResult.status !== 0) continue;
+      // Editor found, open the file (no shell — path passed as single argument)
+      spawnSync(editor.cmd, [resolvedPath], { stdio: 'inherit' });
+      return NextResponse.json({
+        success: true,
+        editor: editor.name,
+        path: resolvedPath,
+      });
     }
 
     return NextResponse.json(

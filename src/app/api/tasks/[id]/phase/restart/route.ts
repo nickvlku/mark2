@@ -4,6 +4,7 @@ import { TaskService } from '@/lib/services/task-service';
 import { ActivityService } from '@/lib/services/activity-service';
 import { ArtifactService } from '@/lib/services/artifact-service';
 import { OrchestrationEngine } from '@/lib/orchestration/engine';
+import { isValidTaskId } from '@/lib/utils/route-validation';
 
 const taskService = new TaskService();
 const activityService = new ActivityService();
@@ -15,6 +16,9 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
     const task = taskService.getById(id);
     if (!task) {
       return NextResponse.json({ error: `Task ${id} not found` }, { status: 404 });

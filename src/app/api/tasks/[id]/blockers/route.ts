@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { TaskService } from '@/lib/services/task-service';
+import { isValidTaskId } from '@/lib/utils/route-validation';
 
 const service = new TaskService();
 
@@ -9,6 +10,9 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
     const body = await request.json();
 
     if (!body.blocker_id) {
@@ -37,6 +41,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
     const { searchParams } = new URL(request.url);
     const blockerId = searchParams.get('blocker_id');
 

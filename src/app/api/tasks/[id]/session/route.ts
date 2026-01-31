@@ -4,6 +4,7 @@ import { eq, and, desc } from 'drizzle-orm';
 import { exec } from 'child_process';
 import { isSessionAlive, capturePane } from '@/lib/utils/tmux';
 import { TerminalStream } from '@/lib/ws/terminal-stream';
+import { isValidTaskId } from '@/lib/utils/route-validation';
 
 // ---------------------------------------------------------------------------
 // GET /api/tasks/[id]/session — Return active tmux session info for a task
@@ -15,6 +16,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
     const db = getDb();
 
     // Get most recent sessions for this task (including completed ones)
@@ -78,6 +82,9 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
     const db = getDb();
 
     // Get recent sessions (including completed) - tmux might still be alive
@@ -182,6 +189,9 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
     const db = getDb();
 
     // Find an alive tmux session for this task

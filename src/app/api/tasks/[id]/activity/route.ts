@@ -3,6 +3,7 @@ import { ActivityService } from '@/lib/services/activity-service';
 import { getDb, schema } from '@/lib/db';
 import { eq, and, desc } from 'drizzle-orm';
 import { sendCommand, isSessionAlive } from '@/lib/utils/tmux';
+import { isValidTaskId } from '@/lib/utils/route-validation';
 
 const service = new ActivityService();
 
@@ -12,6 +13,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get('limit');
     const offset = searchParams.get('offset');
@@ -37,6 +41,9 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
     const body = await request.json();
 
     if (!body.source || !body.type || !body.message) {

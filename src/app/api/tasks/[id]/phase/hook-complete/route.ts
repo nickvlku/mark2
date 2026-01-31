@@ -4,6 +4,7 @@ import { TaskService } from '@/lib/services/task-service';
 import { ActivityService } from '@/lib/services/activity-service';
 import { OrchestrationEngine } from '@/lib/orchestration/engine';
 import { TmuxManager } from '@/lib/orchestration/tmux-manager';
+import { isValidTaskId } from '@/lib/utils/route-validation';
 
 const taskService = new TaskService();
 const activityService = new ActivityService();
@@ -21,6 +22,9 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
     const body = await request.json();
 
     const { token, session_id, transcript_path } = body;

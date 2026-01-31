@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { PortService } from '@/lib/services/port-service';
 import { TaskService } from '@/lib/services/task-service';
 import { CloneService } from '@/lib/services/clone-service';
+import { isValidTaskId } from '@/lib/utils/route-validation';
 
 const exec = promisify(execCb);
 
@@ -36,6 +37,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
     const task = taskService.getById(id);
 
     if (!task) {
@@ -91,6 +95,9 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
     const body = await request.json().catch(() => ({}));
     const command = body.command || 'npm run dev';
 
@@ -191,6 +198,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    if (!isValidTaskId(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
     const sessionName = devServerSessionName(id);
 
     // Kill the tmux session

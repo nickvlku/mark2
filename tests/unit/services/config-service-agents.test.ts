@@ -53,7 +53,12 @@ describe('ConfigService - Agent Management', () => {
       fs.writeFileSync(agentsPath, YAML.stringify(agentsFile), 'utf-8');
 
       const agents = configService.getAgents();
-      expect(agents).toEqual(testAgents);
+      expect(agents).toHaveLength(testAgents.length);
+      agents.forEach((agent, i) => {
+        expect(agent).toMatchObject(testAgents[i]);
+        expect(agent.uuid).toBeDefined();
+        expect(typeof agent.uuid).toBe('string');
+      });
     });
 
     it('should throw error for invalid agents.yaml structure', () => {
@@ -177,9 +182,14 @@ describe('ConfigService - Agent Management', () => {
 
       expect(result).toEqual(newAgents);
 
-      // Verify file was updated
+      // Verify file was updated (getAgents adds uuid when missing)
       const retrievedAgents = configService.getAgents();
-      expect(retrievedAgents).toEqual(newAgents);
+      expect(retrievedAgents).toHaveLength(newAgents.length);
+      retrievedAgents.forEach((agent, i) => {
+        expect(agent).toMatchObject(newAgents[i]);
+        expect(agent.uuid).toBeDefined();
+        expect(typeof agent.uuid).toBe('string');
+      });
     });
 
     it('should handle multiple agents', () => {
@@ -214,9 +224,14 @@ describe('ConfigService - Agent Management', () => {
 
       expect(result).toEqual(testAgents);
 
-      // Verify all agents were saved
+      // Verify all agents were saved (getAgents adds uuid when missing)
       const retrievedAgents = configService.getAgents();
-      expect(retrievedAgents).toEqual(testAgents);
+      expect(retrievedAgents).toHaveLength(testAgents.length);
+      retrievedAgents.forEach((agent, i) => {
+        expect(agent).toMatchObject(testAgents[i]);
+        expect(agent.uuid).toBeDefined();
+        expect(typeof agent.uuid).toBe('string');
+      });
     });
 
     it('should handle empty agents array', () => {
