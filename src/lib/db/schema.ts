@@ -24,6 +24,9 @@ export const tasks = sqliteTable(
     updated_at: text('updated_at').notNull(),
     phase_entered_at: text('phase_entered_at').notNull(),
     loop_count: integer('loop_count').notNull().default(0),
+    // Archive fields
+    archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
+    archived_at: text('archived_at'), // ISO 8601 timestamp, nullable
     // JSON text columns for array/object fields
     // Deprecated: use phase_overrides_json instead
     phase_agents_json: text('phase_agents_json').notNull().default('{}'),
@@ -39,6 +42,7 @@ export const tasks = sqliteTable(
     index('idx_tasks_priority').on(table.priority),
     index('idx_tasks_story_id').on(table.story_id),
     index('idx_tasks_parent_task').on(table.parent_task),
+    index('idx_tasks_archived').on(table.archived),
   ],
 );;
 

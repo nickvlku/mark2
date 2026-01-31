@@ -7,6 +7,7 @@ import { useTasks } from '@/hooks/useTasks';
 import { useStories } from '@/hooks/useStories';
 import { Column } from './Column';
 import { StoryFilter } from './StoryFilter';
+import { ArchiveFilter } from './ArchiveFilter';
 import { Card } from './Card';
 import { TaskDetail } from '../detail/TaskDetail';
 import { CreateTaskDialog } from '../create/CreateTaskDialog';
@@ -27,14 +28,17 @@ const PHASES: Phase[] = [
 
 export function Board() {
   const [selectedStoryId, setSelectedStoryId] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [showCreateTask, setShowCreateTask] = useState(false);
   const [showCreateStory, setShowCreateStory] = useState(false);
 
-  const { tasks, mutate: mutateTasks } = useTasks(
-    selectedStoryId ? { story_id: selectedStoryId } : undefined,
-  );
+  const filters = {
+    ...(selectedStoryId ? { story_id: selectedStoryId } : {}),
+    archived: showArchived,
+  };
+  const { tasks, mutate: mutateTasks } = useTasks(filters);
   const { stories, mutate: mutateStories } = useStories();
 
   // Find the task for initial snapshot — TaskDetail fetches its own data after mount
@@ -106,6 +110,35 @@ export function Board() {
     mutateTasks();
   }, [mutateTasks]);
 
+  const handleArchiveTask = useCallback(async (taskId: string) => {
+    try {
+      await fetch(`/api/tasks/${taskId}/archive`, { method: 'POST' });
+      mutateTasks();
+    } catch (error) {
+      console.error('Failed to archive task:', error);
+    }
+  }, [mutateTasks]);
+
+  const handleRestoreTask = useCallback(async (taskId: string) => {
+    try {
+      await fetch(`/api/tasks/${taskId}/restore`, { method: 'POST' });
+      mutateTasks();
+    } catch (error) {
+      console.error('Failed to restore task:', error);
+    }
+  }, [mutateTasks]);
+
+  const handleDeleteTask = useCallback(async (taskId: string) => {
+    if (confirm('Permanently delete this task? This cannot be undone.')) {
+      try {
+        await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+        mutateTasks();
+      } catch (error) {
+        console.error('Failed to delete task:', error);
+      }
+    }
+  }, [mutateTasks]);
+
   return (
     <div className="flex h-screen flex-col">
       {/* Top Bar */}
@@ -113,12 +146,18 @@ export function Board() {
         title="Board"
         currentPage="board"
         additionalElements={
-          <StoryFilter
-            stories={stories}
-            tasks={tasks}
-            selectedStoryId={selectedStoryId}
-            onSelect={setSelectedStoryId}
-          />
+          <div className="flex items-center gap-3">
+            <StoryFilter
+              stories={stories}
+              tasks={tasks}
+              selectedStoryId={selectedStoryId}
+              onSelect={setSelectedStoryId}
+            />
+            <ArchiveFilter
+              showArchived={showArchived}
+              onToggle={setShowArchived}
+            />
+          </div>
         }
         actions={
           <>
@@ -151,6 +190,9 @@ export function Board() {
               phase={phase}
               tasks={tasksByPhase(phase)}
               onCardClick={handleCardClick}
+              onArchive={showArchived ? undefined : handleArchiveTask}
+              onRestore={showArchived ? handleRestoreTask : undefined}
+              onDelete={showArchived ? handleDeleteTask : undefined}
             />
           ))}
           <DragOverlay>

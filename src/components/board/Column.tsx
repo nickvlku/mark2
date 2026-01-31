@@ -8,6 +8,9 @@ interface ColumnProps {
   phase: Phase;
   tasks: Task[];
   onCardClick: (task: Task) => void;
+  onArchive?: (taskId: string) => void;
+  onRestore?: (taskId: string) => void;
+  onDelete?: (taskId: string) => void;
 }
 
 const phaseLabels: Record<Phase, string> = {
@@ -34,7 +37,7 @@ const phaseColors: Record<Phase, string> = {
   done: 'bg-green-500',
 };
 
-export function Column({ phase, tasks, onCardClick }: ColumnProps) {
+export function Column({ phase, tasks, onCardClick, onArchive, onRestore, onDelete }: ColumnProps) {
   const { isOver, setNodeRef } = useDroppable({
     id: phase,
     data: { phase },
@@ -68,7 +71,14 @@ export function Column({ phase, tasks, onCardClick }: ColumnProps) {
           </div>
         )}
         {tasks.map((task) => (
-          <Card key={task.id} task={task} onClick={onCardClick} />
+          <Card
+            key={task.id}
+            task={task}
+            onClick={onCardClick}
+            onArchive={onArchive}
+            onRestore={onRestore}
+            onDelete={onDelete}
+          />
         ))}
       </div>
     </div>

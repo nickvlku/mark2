@@ -1,0 +1,11 @@
+var R=require("../../../../../../chunks/[turbopack]_runtime.js")("server/app/api/tasks/[id]/phase/hook-complete/route.js")
+R.c("server/chunks/[root-of-the-server]__5f08ea50._.js")
+R.c("server/chunks/_mark2_clones_TASK-12_src_lib_orchestration_engine_ts_bd3514bb._.js")
+R.c("server/chunks/_mark2_clones_TASK-12_src_lib_e7470b68._.js")
+R.c("server/chunks/[root-of-the-server]__a54c9b94._.js")
+R.c("server/chunks/[root-of-the-server]__1e226397._.js")
+R.c("server/chunks/[root-of-the-server]__f408c708._.js")
+R.c("server/chunks/_f0533a47._.js")
+R.c("server/chunks/f99ed_server_app_api_tasks_[id]_phase_hook-complete_route_actions_f0645ade.js")
+R.m(50477)
+module.exports=R.m(50477).exports

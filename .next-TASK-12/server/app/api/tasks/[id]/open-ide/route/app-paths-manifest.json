@@ -1,0 +1,3 @@
+{
+  "/api/tasks/[id]/open-ide/route": "app/api/tasks/[id]/open-ide/route.js"
+}

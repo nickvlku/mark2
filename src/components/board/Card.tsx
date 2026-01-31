@@ -7,6 +7,9 @@ import { PriorityBadge, AgentBadge, StatusIndicator, BlockerBadge } from './Card
 interface CardProps {
   task: Task & { session_status?: SessionStatus };
   onClick: (task: Task) => void;
+  onArchive?: (taskId: string) => void;
+  onRestore?: (taskId: string) => void;
+  onDelete?: (taskId: string) => void;
 }
 
 function getTaskStatus(task: Task & { session_status?: SessionStatus }): string {
@@ -49,10 +52,11 @@ function relativeTime(dateStr: string): string {
   return `${days}d`;
 }
 
-export function Card({ task, onClick }: CardProps) {
+export function Card({ task, onClick, onArchive, onRestore, onDelete }: CardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
     data: { task },
+    disabled: task.archived, // Disable dragging for archived tasks
   });
 
   const style = transform
@@ -71,7 +75,11 @@ export function Card({ task, onClick }: CardProps) {
         e.stopPropagation();
         onClick(task);
       }}
-      className={`group cursor-pointer rounded-lg border border-border bg-bg-card p-3 transition-all hover:border-accent/50 hover:bg-bg-hover ${
+      className={`group cursor-pointer rounded-lg border p-3 transition-all ${
+        task.archived
+          ? 'opacity-60 border-border/50 bg-bg-card/50'
+          : 'border-border bg-bg-card hover:border-accent/50 hover:bg-bg-hover'
+      } ${
         isDragging ? 'opacity-50 shadow-xl rotate-2 scale-105' : ''
       }`}
     >
@@ -100,6 +108,54 @@ export function Card({ task, onClick }: CardProps) {
         <span className="text-[10px] text-text-secondary shrink-0 ml-2">
           {relativeTime(task.phase_entered_at)}
         </span>
+      </div>
+
+      {/* Action buttons */}
+      <div className="flex items-center justify-end gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        {!task.archived && onArchive && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onArchive(task.id);
+            }}
+            className="p-1 rounded text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
+            title="Archive task"
+          >
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m20.25 7.5-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
+            </svg>
+          </button>
+        )}
+
+        {task.archived && onRestore && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRestore(task.id);
+            }}
+            className="p-1 rounded text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
+            title="Restore task"
+          >
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+            </svg>
+          </button>
+        )}
+
+        {task.archived && onDelete && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(task.id);
+            }}
+            className="p-1 rounded text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+            title="Delete permanently"
+          >
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+            </svg>
+          </button>
+        )}
       </div>
     </div>
   );

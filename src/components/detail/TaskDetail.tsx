@@ -95,6 +95,39 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
     }
   };
 
+  const handleArchive = async () => {
+    if (confirm(`Archive task ${task.id}? It will be hidden from the active tasks view.`)) {
+      try {
+        await fetch(`/api/tasks/${task.id}/archive`, { method: 'POST' });
+        onUpdate();
+        onClose();
+      } catch (error) {
+        console.error('Failed to archive task:', error);
+      }
+    }
+  };
+
+  const handleRestore = async () => {
+    try {
+      await fetch(`/api/tasks/${task.id}/restore`, { method: 'POST' });
+      onUpdate();
+    } catch (error) {
+      console.error('Failed to restore task:', error);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (confirm(`Permanently delete task ${task.id}? This cannot be undone.`)) {
+      try {
+        await fetch(`/api/tasks/${task.id}`, { method: 'DELETE' });
+        onUpdate();
+        onClose();
+      } catch (error) {
+        console.error('Failed to delete task:', error);
+      }
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       {/* Backdrop */}
@@ -203,7 +236,14 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
         )}
 
         {/* Action Bar */}
-        <ActionBar task={task} onPhaseAction={handlePhaseAction} onToggleAutoApprove={handleToggleAutoApprove} />
+        <ActionBar
+          task={task}
+          onPhaseAction={handlePhaseAction}
+          onToggleAutoApprove={handleToggleAutoApprove}
+          onArchive={handleArchive}
+          onRestore={handleRestore}
+          onDelete={handleDelete}
+        />
       </div>
     </div>
   );
