@@ -1,0 +1,45 @@
+id: TASK-16
+title: The board is very wide and can't fit on a normal screen, let's add drag/pan functionality (and also support arrow keys to go left and right)
+description: The board is very wide and can't fit on a normal screen, let's add drag/pan functionality (and also support arrow keys to go left and right)
+phase: done
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts:
+  - name: design
+    phase: design
+    path: design-design-1769901190850-0aqlvq.md
+    mime_type: text/markdown
+    created_at: 2026-01-31T23:13:10.850Z
+  - name: coding-summary
+    phase: coding
+    path: coding-coding-summary-1769901444006-btd7ya.md
+    mime_type: text/markdown
+    created_at: 2026-01-31T23:17:24.006Z
+  - name: test-results
+    phase: testing
+    path: testing-test-results-1769902488863-ftghqf.md
+    mime_type: text/markdown
+    created_at: 2026-01-31T23:34:48.864Z
+  - name: review
+    phase: code_review
+    path: code_review-review-1769902838455-j7otjg.md
+    mime_type: text/markdown
+    created_at: 2026-01-31T23:40:38.455Z
+  - name: test-plan
+    phase: done
+    path: done-test-plan-1769903055828-m480le.md
+    mime_type: text/markdown
+    created_at: 2026-01-31T23:44:15.828Z
+ports: []
+worktrees: {}
+created_by: human
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-01-31T23:10:58.848Z
+updated_at: 2026-01-31T23:44:15.828Z
+phase_entered_at: 2026-01-31T23:41:51.904Z
+loop_count: 0
+archived: false

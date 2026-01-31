@@ -125,7 +125,8 @@ export class OrchestrationEngine {
       return;
     }
 
-    // Stop terminal streaming (session tracking removed for roles system)
+    // Mark the current session as completed and stop streaming
+    this.tmuxManager.markCompletedByPhase(taskId, phase);
     this.terminalStream.stop(taskId);
 
     // Log the end token detection
@@ -403,7 +404,10 @@ export class OrchestrationEngine {
     const now = new Date().toISOString();
     const tmuxName = buildSessionName(taskId, agentName, phase);
 
-    // Stop terminal stream (session tracking removed for roles system)
+    // Mark session as failed
+    this.tmuxManager.markFailedByPhase(taskId, phase);
+
+    // Stop terminal stream
     this.terminalStream.stop(taskId);
 
     // Log the crash
@@ -431,10 +435,36 @@ export class OrchestrationEngine {
     orphaned: number;
     reattached: number;
   }> {
-    // Session reconciliation removed - roles system uses simpler tmux management
+    // Reconcile DB with actual TMUX state
+    const orphaned = await this.tmuxManager.reconcile();
 
-    // Terminal stream re-attachment removed - roles system uses simpler approach
-    return { orphaned: 0, reattached: 0 };
+    // Log orphaned sessions
+    const db = getDb(this.config.mark2Dir);
+    const now = new Date().toISOString();
+
+    for (const session of orphaned) {
+      db.insert(activityEntries)
+        .values({
+          task_id: session.task_id,
+          timestamp: now,
+          source: 'orchestration',
+          type: 'error',
+          message: `Orphaned session detected on startup: "${session.tmux_session}" (phase: ${session.phase}). Marked as failed.`,
+        })
+        .run();
+    }
+
+    // Re-attach terminal streaming for sessions still running
+    // End token detection is handled by Claude Code's Stop hook
+    const activeSessions = this.tmuxManager.getActiveSessions();
+    let reattached = 0;
+
+    for (const session of activeSessions) {
+      this.terminalStream.start(session.task_id, session.tmux_session);
+      reattached++;
+    }
+
+    return { orphaned: orphaned.length, reattached };
   }
 
   /**

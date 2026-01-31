@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDb, schema } from '@/lib/db';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { exec } from 'child_process';
 import { isSessionAlive, capturePane } from '@/lib/utils/tmux';
 import { TerminalStream } from '@/lib/ws/terminal-stream';
@@ -20,31 +20,30 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
     }
 
-    // Simplified for roles system - discover active tmux sessions for the task
-    const { listMark2Sessions } = await import('@/lib/utils/tmux');
-    const allSessions = await listMark2Sessions();
+    // Get the most recent session from the database (prioritize by started_at)
+    const mark2Dir = process.cwd() + '/.mark2';
+    const db = getDb(mark2Dir);
+    const latestSession = db
+      .select()
+      .from(schema.agentSessions)
+      .where(eq(schema.agentSessions.task_id, id))
+      .orderBy(desc(schema.agentSessions.started_at))
+      .limit(1)
+      .get();
 
-    // Find sessions that belong to this task
-    const taskSessions = allSessions.filter(sessionName => sessionName.includes(id));
-
-    // Find any session that is actually alive
-    let session = null;
-    for (const sessionName of taskSessions) {
-      const alive = await isSessionAlive(sessionName);
-      if (alive) {
-        // Extract phase from session name pattern (mark2_TASK-X_role_phase)
-        const parts = sessionName.split('_');
-        const phase = parts.length >= 4 ? parts[3] : 'unknown';
-
-        session = {
-          tmux_session: sessionName,
-          agent_name: `role-${phase}`,
-          phase: phase,
-          status: 'running', // Since we found an alive session
-        };
-        break;
-      }
+    if (!latestSession) {
+      return NextResponse.json({ session: null });
     }
+
+    // Check if the tmux session is still alive
+    const alive = await isSessionAlive(latestSession.tmux_session);
+
+    const session = {
+      tmux_session: latestSession.tmux_session,
+      agent_name: latestSession.agent_name,
+      phase: latestSession.phase,
+      status: alive ? 'running' : latestSession.status,
+    };
 
     return NextResponse.json({ session });
   } catch (error: any) {
@@ -68,22 +67,29 @@ export async function POST(
     if (!isValidTaskId(id)) {
       return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
     }
-    // Find active tmux sessions for this task (simplified for roles system)
-    const { listMark2Sessions } = await import('@/lib/utils/tmux');
-    const allSessions = await listMark2Sessions();
-    const taskSessions = allSessions.filter(sessionName => sessionName.includes(id));
 
-    // Find a session with an alive tmux
-    let sessionName = null;
-    for (const name of taskSessions) {
-      const alive = await isSessionAlive(name);
-      if (alive) {
-        sessionName = name;
-        break;
-      }
+    // Get the most recent session from the database
+    const mark2Dir = process.cwd() + '/.mark2';
+    const db = getDb(mark2Dir);
+    const latestSession = db
+      .select()
+      .from(schema.agentSessions)
+      .where(eq(schema.agentSessions.task_id, id))
+      .orderBy(desc(schema.agentSessions.started_at))
+      .limit(1)
+      .get();
+
+    if (!latestSession) {
+      return NextResponse.json(
+        { error: 'No session found for this task' },
+        { status: 404 },
+      );
     }
 
-    if (!sessionName) {
+    const sessionName = latestSession.tmux_session;
+    const alive = await isSessionAlive(sessionName);
+
+    if (!alive) {
       return NextResponse.json(
         { error: 'No active tmux session for this task' },
         { status: 404 },
@@ -169,21 +175,29 @@ export async function PATCH(
     if (!isValidTaskId(id)) {
       return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
     }
-    // Find an active tmux session for this task (simplified for roles system)
-    const { listMark2Sessions } = await import('@/lib/utils/tmux');
-    const allSessions = await listMark2Sessions();
-    const taskSessions = allSessions.filter(sessionName => sessionName.includes(id));
 
-    let sessionName = null;
-    for (const name of taskSessions) {
-      const alive = await isSessionAlive(name);
-      if (alive) {
-        sessionName = name;
-        break;
-      }
+    // Get the most recent session from the database
+    const mark2Dir = process.cwd() + '/.mark2';
+    const db = getDb(mark2Dir);
+    const latestSession = db
+      .select()
+      .from(schema.agentSessions)
+      .where(eq(schema.agentSessions.task_id, id))
+      .orderBy(desc(schema.agentSessions.started_at))
+      .limit(1)
+      .get();
+
+    if (!latestSession) {
+      return NextResponse.json(
+        { error: 'No session found for this task' },
+        { status: 404 },
+      );
     }
 
-    if (!sessionName) {
+    const sessionName = latestSession.tmux_session;
+    const alive = await isSessionAlive(sessionName);
+
+    if (!alive) {
       return NextResponse.json(
         { error: 'No active tmux session for this task' },
         { status: 404 },
@@ -193,10 +207,6 @@ export async function PATCH(
     // Start/resume terminal streaming for this session
     const terminalStream = TerminalStream.getInstance();
     terminalStream.start(id, sessionName);
-
-    // Extract phase from session name for simplified role system
-    const parts = sessionName.split('_');
-    const phase = parts.length >= 4 ? parts[3] : 'unknown';
 
     // Capture and return the current buffer so the client can display history
     let buffer = '';
@@ -209,8 +219,8 @@ export async function PATCH(
     return NextResponse.json({
       success: true,
       tmux_session: sessionName,
-      agent_name: `role-${phase}`,
-      phase: phase,
+      agent_name: latestSession.agent_name,
+      phase: latestSession.phase,
       buffer,
     });
   } catch (error: any) {
