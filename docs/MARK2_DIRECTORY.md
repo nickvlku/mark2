@@ -112,6 +112,7 @@ phase_defaults:
     role: expert-fullstack-coder
     cli_tool: claude-code
     model: claude-sonnet-4-5
+
     auto_advance: false
   # ... other phases
 max_loop_count: 5
