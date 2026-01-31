@@ -42,6 +42,11 @@ async function main() {
       await restartCommand(taskId, phase);
       break;
     }
+    case 'tmuxes': {
+      const { tmuxesCommand } = await import('./commands/tmuxes');
+      await tmuxesCommand();
+      break;
+    }
     default:
       console.log('Usage: mark2 <command>');
       console.log('');
@@ -52,6 +57,7 @@ async function main() {
       console.log('  reindex                   Rebuild the SQLite index from YAML files');
       console.log('  status                    Show active agent sessions');
       console.log('  kill-sessions             Kill all mark2 tmux sessions');
+      console.log('  tmuxes                    Show all tmux sessions and interactively select one');
       console.log('  restart <taskId> [phase]  Restart current phase or transition to specified phase');
       process.exit(1);
   }
