@@ -1,7 +1,7 @@
 # ORCHESTRATION INSTRUCTIONS
 
 Current phase: code_review
-Task ID: TASK-12
+Task ID: TASK-15
 
 
 ## CRITICAL: File Operations
@@ -64,7 +64,7 @@ Use the Task ID shown at the top of this prompt.
 This triggers the phase transition automatically. Do NOT emit end tokens as plain text.
 
 You are in the CODE REVIEW phase. Your job is to:
-1. Get the diff: use mark2_get_diff(task_id) to see all changes from origin/main
+1. Get the diff: run `git diff $(git merge-base origin/HEAD HEAD)` to see all changes
 2. Get context: use mark2_get_latest_artifact(task_id, "design") to read the design document
 3. Review all changes for correctness, security issues, performance problems, and style violations
 4. Classify issues by severity: P0 (must fix), P1 (should fix), P2 (nice to fix)

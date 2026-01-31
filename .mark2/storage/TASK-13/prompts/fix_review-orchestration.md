@@ -1,7 +1,7 @@
 # ORCHESTRATION INSTRUCTIONS
 
-Current phase: code_review
-Task ID: TASK-12
+Current phase: fix_review
+Task ID: TASK-13
 
 
 ## CRITICAL: File Operations
@@ -41,19 +41,6 @@ configured for a different project and will write files to the WRONG location.
 artifacts, or temporary files to the working directory. Only source code changes belong there.
 
 
-## Saving Artifacts
-
-Use the `mark2_save_artifact` MCP tool to save artifacts. Just provide the filename you want — it will be stored with a unique name like "{phase}-{filename}-{timestamp}-{random}.{ext}".
-
-Examples:
-  mark2_save_artifact(task_id: "<ID>", filename: "design.md", content: "# Design...")
-  mark2_save_artifact(task_id: "<ID>", filename: "screenshot.png", content: "<base64>")
-  mark2_save_artifact(task_id: "<ID>", filename: "results.json", content: "{...}")
-
-You can save multiple artifacts per phase. Each gets a unique filename.
-Always save artifacts BEFORE signaling phase completion.
-
-
 ## Signaling Phase Completion
 
 When you have completed all work for this phase, use the `mark2_signal_complete` MCP tool.
@@ -63,17 +50,16 @@ Use the Task ID shown at the top of this prompt.
 
 This triggers the phase transition automatically. Do NOT emit end tokens as plain text.
 
-You are in the CODE REVIEW phase. Your job is to:
-1. Get the diff: use mark2_get_diff(task_id) to see all changes from origin/main
-2. Get context: use mark2_get_latest_artifact(task_id, "design") to read the design document
-3. Review all changes for correctness, security issues, performance problems, and style violations
-4. Classify issues by severity: P0 (must fix), P1 (should fix), P2 (nice to fix)
-5. Save your review: mark2_save_artifact(task_id, filename: "review.md", content: "...")
+You are in the FIX REVIEW phase. Your job is to:
+1. Get the MOST RECENT review feedback: use mark2_get_latest_artifact(task_id, "review") - this automatically returns only the latest review, ignoring older ones that were already addressed
+2. If tests failed, also get test results: mark2_get_latest_artifact(task_id, "test")
+3. Address all P0 and P1 issues from the review
+4. Make the necessary code changes
+5. Commit your fixes: mark2_git_commit(task_id, message: "fix: address code review feedback")
 
-If no fixes needed: mark2_signal_complete(task_id, token: "[REVIEW_COMPLETED]")
-If fixes are required: mark2_signal_complete(task_id, token: "[REVIEW_NEEDS_FIXES]")
+When done, signal: mark2_signal_complete(task_id, token: "[FIX_REVIEW_COMPLETED]")
 
-Valid completion tokens for this phase: [REVIEW_COMPLETED], [REVIEW_NEEDS_FIXES]
+Valid completion tokens for this phase: [FIX_REVIEW_COMPLETED]
 
 IMPORTANT: Use mark2_signal_complete with one of the valid tokens when done.
 Do not signal completion until you have fully completed your work for this phase.

@@ -1,7 +1,7 @@
 id: TASK-15
 title: Use Claude Sonnet 4.5 not 4.0
 description: We are using claude sonnet 4.0 not 4.5.  Let's make sure that both claude sonnett and opus are the 4.5 versions.
-phase: testing
+phase: done
 phase_agents: {}
 phase_overrides: {}
 blockers: []
@@ -22,6 +22,21 @@ artifacts:
     path: coding-coding-summary-1769898159501-epw8ek.md
     mime_type: text/markdown
     created_at: 2026-01-31T22:22:39.501Z
+  - name: test-results
+    phase: testing
+    path: testing-test-results-1769898363334-bsvd28.md
+    mime_type: text/markdown
+    created_at: 2026-01-31T22:26:03.334Z
+  - name: review
+    phase: code_review
+    path: code_review-review-1769898534977-kh6x17.md
+    mime_type: text/markdown
+    created_at: 2026-01-31T22:28:54.977Z
+  - name: test-plan
+    phase: done
+    path: done-test-plan-1769898706893-cb04ef.md
+    mime_type: text/markdown
+    created_at: 2026-01-31T22:31:46.893Z
 ports: []
 worktrees: {}
 created_by: human
@@ -29,6 +44,6 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-01-31T22:08:35.640Z
-updated_at: 2026-01-31T22:23:43.211Z
-phase_entered_at: 2026-01-31T22:23:43.211Z
+updated_at: 2026-01-31T22:31:46.893Z
+phase_entered_at: 2026-01-31T22:30:09.019Z
 loop_count: 0

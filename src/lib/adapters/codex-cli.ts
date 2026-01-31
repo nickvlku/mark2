@@ -23,6 +23,7 @@ export class CodexCLIAdapter implements CLIAdapter {
 
   getEnvironment(params: AgentInvocationParams): Record<string, string> {
     return {
+      NODE_ENV: 'development',
       MARK2_AGENT_TOKEN: params.agentToken,
       MARK2_API_URL: params.apiBaseUrl,
       MARK2_TASK_ID: params.taskId,
