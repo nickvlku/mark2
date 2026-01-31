@@ -33,7 +33,7 @@ describe('ConfigService - Agent Management', () => {
         {
           name: 'test-agent',
           cli_tool: 'claude-code',
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-5',
           phase: 'coding',
           role_prompt: 'You are a test agent',
           timeout_minutes: 60,
@@ -110,7 +110,7 @@ describe('ConfigService - Agent Management', () => {
         {
           name: 'new-agent',
           cli_tool: 'claude-code' as const,
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-5',
           phase: 'coding' as const,
           role_prompt: 'You are a new agent',
           timeout_minutes: 60,
@@ -197,7 +197,7 @@ describe('ConfigService - Agent Management', () => {
         {
           name: 'agent-one',
           cli_tool: 'claude-code' as const,
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-5',
           phase: 'design' as const,
           role_prompt: 'You are agent one',
           timeout_minutes: 60,
@@ -240,7 +240,7 @@ describe('ConfigService - Agent Management', () => {
         {
           name: 'temp-agent',
           cli_tool: 'claude-code' as const,
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-5',
           phase: 'coding' as const,
           role_prompt: 'Temporary agent',
           timeout_minutes: 60,
@@ -276,7 +276,7 @@ describe('ConfigService - Agent Management', () => {
       const agentWithoutTimeout = {
         name: 'default-timeout-agent',
         cli_tool: 'claude-code',
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-5',
         phase: 'coding',
         role_prompt: 'Agent with default timeout',
         // timeout_minutes not specified - should default to 60
@@ -291,7 +291,7 @@ describe('ConfigService - Agent Management', () => {
       const agentWithCustomTimeout = {
         name: 'custom-timeout-agent',
         cli_tool: 'claude-code' as const,
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-5',
         phase: 'coding' as const,
         role_prompt: 'Agent with custom timeout',
         timeout_minutes: 180,
@@ -317,7 +317,7 @@ describe('ConfigService - Agent Management', () => {
         const agent = {
           name: invalidName,
           cli_tool: 'claude-code' as const,
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-5',
           phase: 'coding' as const,
           role_prompt: 'Test agent',
           timeout_minutes: 60,
@@ -340,7 +340,7 @@ describe('ConfigService - Agent Management', () => {
         const agent = {
           name: validName,
           cli_tool: 'claude-code' as const,
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-5',
           phase: 'coding' as const,
           role_prompt: 'Test agent',
           timeout_minutes: 60,

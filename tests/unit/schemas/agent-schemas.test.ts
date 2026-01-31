@@ -6,7 +6,7 @@ describe('Agent Schemas', () => {
     const validAgent = {
       name: 'test-agent',
       cli_tool: 'claude-code',
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-5',
       phase: 'coding',
       role_prompt: 'You are a helpful assistant',
       timeout_minutes: 60,
@@ -138,7 +138,7 @@ describe('Agent Schemas', () => {
     describe('model validation', () => {
       it('should accept any non-empty string for model', () => {
         const validModels = [
-          'claude-sonnet-4-20250514',
+          'claude-sonnet-4-5',
           'gpt-4',
           'gpt-4-turbo',
           'gemini-1.5-pro',
@@ -268,7 +268,7 @@ describe('Agent Schemas', () => {
         {
           name: 'agent-one',
           cli_tool: 'claude-code',
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-5',
           phase: 'design',
           role_prompt: 'You are agent one',
           timeout_minutes: 60,
@@ -316,7 +316,7 @@ describe('Agent Schemas', () => {
           {
             name: 'valid-agent',
             cli_tool: 'claude-code',
-            model: 'claude-sonnet-4-20250514',
+            model: 'claude-sonnet-4-5',
             phase: 'coding',
             role_prompt: 'Valid agent',
             timeout_minutes: 60,
@@ -384,7 +384,7 @@ describe('Agent Schemas', () => {
       const manyAgents = Array.from({ length: 100 }, (_, i) => ({
         name: `agent-${i}`,
         cli_tool: 'claude-code' as const,
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-5',
         phase: phases[i % phases.length],
         role_prompt: `You are agent number ${i}`,
         timeout_minutes: 60,

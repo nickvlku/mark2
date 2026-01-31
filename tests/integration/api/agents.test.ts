@@ -49,7 +49,7 @@ describe('Agents API', () => {
         {
           name: 'test-agent',
           cli_tool: 'claude-code',
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-5',
           phase: 'coding',
           role_prompt: 'You are a test agent',
           timeout_minutes: 60,
@@ -90,7 +90,7 @@ describe('Agents API', () => {
     const validAgent = {
       name: 'test-agent',
       cli_tool: 'claude-code',
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-5',
       phase: 'coding',
       role_prompt: 'You are a test agent',
       timeout_minutes: 60,
@@ -222,7 +222,7 @@ describe('Agents API', () => {
         {
           name: 'first-agent',
           cli_tool: 'claude-code',
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-5',
           phase: 'design',
           role_prompt: 'You are a test agent',
           timeout_minutes: 60,

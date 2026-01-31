@@ -300,7 +300,7 @@ export type ReviewSeverity = z.infer<typeof ReviewSeverity>;
 export const AgentDefinition = z.object({
   name: z.string().regex(/^[a-z0-9-]+$/, "Agent names must be lowercase alphanumeric with hyphens"),
   cli_tool: z.enum(["claude-code", "codex-cli", "gemini-cli", "opencode"]),
-  model: z.string(),                    // e.g. "claude-sonnet-4-20250514", "o3", "gemini-2.5-pro"
+  model: z.string(),                    // e.g. "claude-sonnet-4-5", "o3", "gemini-2.5-pro"
   role_prompt: z.string(),              // Personality/expertise prompt
   timeout_minutes: z.number().int().positive().default(60),
 });
@@ -1204,7 +1204,7 @@ interface AgentInvocationParams {
   prompt: string;                    // Fully assembled 4-layer prompt
   workingDirectory: string;          // Worktree path
   agentName: string;                 // e.g. "claude-python-pro"
-  model: string;                     // e.g. "claude-sonnet-4-20250514"
+  model: string;                     // e.g. "claude-sonnet-4-5"
   taskId: string;
   phase: Phase;
   mcpServerUrl?: string;             // If tool supports MCP
@@ -2043,7 +2043,7 @@ agents:
 
   - name: claude-python-pro
     cli_tool: claude-code
-    model: claude-sonnet-4-20250514
+    model: claude-sonnet-4-5
     role_prompt: |
       You are a senior Python backend engineer with expertise in FastAPI, SQLAlchemy,
       and modern Python patterns. You write clean, well-tested code with comprehensive
