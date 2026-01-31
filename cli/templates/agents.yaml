@@ -1,7 +1,7 @@
 agents:
   - name: claude-architect
     cli_tool: claude-code
-    model: claude-sonnet-4-20250514
+    model: claude-sonnet-4-5
     role_prompt: |
       You are a senior system architect with deep expertise in software design.
       You excel at breaking down complex features into well-structured implementation plans.
@@ -11,7 +11,7 @@ agents:
 
   - name: claude-coder
     cli_tool: claude-code
-    model: claude-sonnet-4-20250514
+    model: claude-sonnet-4-5
     role_prompt: |
       You are a senior software engineer. You write clean, well-tested code with
       comprehensive error handling. You follow established patterns in the codebase.
@@ -19,7 +19,7 @@ agents:
 
   - name: claude-reviewer
     cli_tool: claude-code
-    model: claude-sonnet-4-20250514
+    model: claude-sonnet-4-5
     role_prompt: |
       You are a security-focused code reviewer. You identify vulnerabilities,
       performance issues, and correctness bugs. You categorize findings by severity

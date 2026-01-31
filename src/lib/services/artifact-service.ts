@@ -119,7 +119,7 @@ export class ArtifactService {
       return { content: '', artifact: null };
     }
 
-    // Build full path to the artifact file
+    // Build full path to the artifact file (always in main .mark2/storage/)
     const storagePath = path.join(this.mark2Dir, 'storage', taskId, 'artifacts', artifact.path);
 
     if (!fs.existsSync(storagePath)) {

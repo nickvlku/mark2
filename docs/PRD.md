@@ -74,14 +74,14 @@ A **task** is the fundamental work unit. Tasks represent features, bugs, refacto
 An **agent** is a named configuration that combines three things:
 
 1. **CLI tool** — The underlying coding assistant (Claude Code, Codex CLI, Gemini CLI, OpenCode, etc.)
-2. **Model** — The specific model to use (e.g., `claude-sonnet-4-20250514`, `o3`, `gemini-2.5-pro`)
+2. **Model** — The specific model to use (e.g., `claude-sonnet-4-5`, `o3`, `gemini-2.5-pro`)
 3. **Role prompt** — A personality/role prompt that shapes the agent's behavior (e.g., "You are a senior Python backend engineer", "You are a security-focused code reviewer", "You are a UX designer")
 
 **Example agent definitions:**
 
 | Agent Name | CLI Tool | Model | Role |
 |------------|----------|-------|------|
-| `claude-python-pro` | Claude Code | claude-sonnet-4-20250514 | Senior Python backend engineer |
+| `claude-python-pro` | Claude Code | claude-sonnet-4-5 | Senior Python backend engineer |
 | `gemini-fullstack` | Gemini CLI | gemini-2.5-pro | Full-stack TypeScript engineer |
 | `codex-reviewer` | Codex CLI | o3 | Security-focused code reviewer |
 | `claude-architect` | Claude Code | claude-opus-4-20250115 | System architect and designer |

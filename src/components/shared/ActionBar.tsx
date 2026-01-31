@@ -37,8 +37,17 @@ const phaseActions: Record<Phase, PhaseButton[]> = {
     { label: 'Restart Phase', variant: 'danger', target: { restart: true } },
   ],
   code_review: [
-    { label: 'Approve Review', variant: 'success', target: { phase: 'fix_review' } },
-    { label: 'Request Fixes', variant: 'secondary', target: { phase: 'coding' } },
+    { label: 'Approve Review', variant: 'success', target: { phase: 'final_testing' } },
+    { label: 'Request Fixes', variant: 'secondary', target: { phase: 'fix_review' } },
+    { label: 'Restart Phase', variant: 'danger', target: { restart: true } },
+  ],
+  fix_review: [
+    { label: 'Re-review Code', variant: 'primary', target: { phase: 'code_review' } },
+    { label: 'Restart Phase', variant: 'danger', target: { restart: true } },
+  ],
+  final_testing: [
+    { label: 'Tests Passing', variant: 'success', target: { phase: 'manual_testing' } },
+    { label: 'Tests Failed', variant: 'secondary', target: { phase: 'fix_review' } },
     { label: 'Restart Phase', variant: 'danger', target: { restart: true } },
   ],
   fix_review: [
@@ -53,7 +62,7 @@ const phaseActions: Record<Phase, PhaseButton[]> = {
   ],
   manual_testing: [
     { label: 'Approve & Merge', variant: 'success', target: { phase: 'done' } },
-    { label: 'Request Revisions', variant: 'secondary', target: { phase: 'coding' } },
+    { label: 'Request Revisions', variant: 'secondary', target: { phase: 'fix_review' } },
   ],
   done: [],
 };
@@ -70,8 +79,8 @@ const variantStyles: Record<string, string> = {
  */
 function isForwardTransition(btn: PhaseButton, currentPhase: Phase): boolean {
   if ('restart' in btn.target) return false;
-  // "Request Fixes" and "Request Revisions" go backward to coding — not forward
-  const phaseOrder: Phase[] = ['pending', 'design', 'coding', 'testing', 'code_review', 'manual_testing', 'done'];
+  // "Request Fixes" and "Request Revisions" go backward — not forward
+  const phaseOrder: Phase[] = ['pending', 'design', 'coding', 'testing', 'code_review', 'fix_review', 'final_testing', 'manual_testing', 'done'];
   const currentIdx = phaseOrder.indexOf(currentPhase);
   const targetIdx = phaseOrder.indexOf(btn.target.phase);
   return targetIdx > currentIdx;
