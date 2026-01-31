@@ -4,8 +4,8 @@ import crypto from 'crypto';
 import YAML from 'yaml';
 import { YamlReader } from '../yaml/reader';
 import { YamlWriter } from '../yaml/writer';
-import { ConfigSchema, AgentsFileSchema, RolesFileSchema } from '../yaml/schemas';
-import type { Config, AgentsFile, AgentDefinition, Role, RolesFile } from '../yaml/schemas';
+import { ConfigSchema, RolesFileSchema } from '../yaml/schemas';
+import type { Config, Role, RolesFile } from '../yaml/schemas';
 
 export class ConfigService {
   private reader: YamlReader;
@@ -75,59 +75,4 @@ export class ConfigService {
     return roles.find(r => r.name === name);
   }
 
-  // ── Agents (deprecated, kept for backwards compatibility) ─────────────
-
-  /**
-   * @deprecated Use getRoles() instead. Agents are being replaced by the new
-   * decoupled role/cli/model system.
-   */
-  getAgents(): AgentDefinition[] {
-    const filePath = path.join(this.mark2Dir, 'agents.yaml');
-    if (!fs.existsSync(filePath)) {
-      return [];
-    }
-    try {
-      const content = fs.readFileSync(filePath, 'utf-8');
-      const parsed = YAML.parse(content);
-      const result = AgentsFileSchema.safeParse(parsed);
-      if (result.success) {
-        // Auto-generate UUIDs for agents that don't have them
-        let needsUpdate = false;
-        const agents = result.data.agents.map(agent => {
-          if (!agent.uuid) {
-            needsUpdate = true;
-            return { ...agent, uuid: crypto.randomUUID() };
-          }
-          return agent;
-        });
-
-        // Persist the generated UUIDs
-        if (needsUpdate) {
-          this.updateAgents(agents);
-        }
-
-        return agents;
-      }
-      throw new Error(`Invalid agents.yaml: ${result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
-    } catch (e: any) {
-      if (e.message.startsWith('Invalid agents.yaml')) throw e;
-      throw new Error(`Failed to read agents.yaml: ${e.message}`);
-    }
-  }
-
-  /**
-   * @deprecated Use updateRoles() instead. Agents are being replaced by the new
-   * decoupled role/cli/model system.
-   */
-  updateAgents(agents: AgentDefinition[]): AgentDefinition[] {
-    const agentsFile = AgentsFileSchema.parse({ agents });
-    const filePath = path.join(this.mark2Dir, 'agents.yaml');
-    const dir = path.dirname(filePath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    const content = YAML.stringify(agentsFile, { lineWidth: 0 });
-    fs.writeFileSync(filePath, content, 'utf-8');
-    return agentsFile.agents;
-  }
 }

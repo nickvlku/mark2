@@ -72,27 +72,9 @@ export async function POST(
       agentToken: process.env.MARK2_AGENT_TOKEN || 'mark2-local',
     });
 
-    // Find the session for this task to get agent name
-    const tmuxManager = new TmuxManager(mark2Dir);
-    let activeSession = tmuxManager.getActiveSessionForTask(id);
-
-    if (!activeSession) {
-      // Try to find the most recent session for this task (may have just completed)
-      const allSessions = tmuxManager.getSessionsForTask(id);
-      if (allSessions.length > 0) {
-        // Sort by started_at descending and get the most recent
-        activeSession = allSessions.sort((a, b) =>
-          new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
-        )[0];
-        console.log(`[hook-complete] Using most recent session for task ${id}: ${activeSession.tmux_session} (status: ${activeSession.status})`);
-      }
-    }
-
-    if (!activeSession) {
-      console.warn(`[hook-complete] No session found for task ${id}`);
-    }
-
-    const agentName = activeSession?.agent_name ?? 'unknown';
+    // For the roles system, we simplify agent name resolution
+    // The engine can work with a generic role identifier
+    const agentName = `role-${task.phase}`;
 
     // Process the end token (this handles phase transitions)
     await engine.processEndToken(id, agentName, task.phase, token);

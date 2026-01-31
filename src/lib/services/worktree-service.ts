@@ -7,7 +7,6 @@ import path from 'path';
 export interface WorktreeRecord {
   id: number;
   task_id: string;
-  agent_name: string;
   worktree_path: string;
   branch_name: string;
   created_at: string;
@@ -44,7 +43,6 @@ export class WorktreeService {
     const db = getDb(this.mark2Dir);
     const result = db.insert(worktreeRecords).values({
       task_id: taskId,
-      agent_name: agentName,
       worktree_path: worktreePath,
       branch_name: branchName,
       created_at: now,
@@ -54,7 +52,6 @@ export class WorktreeService {
     return {
       id: result.id,
       task_id: result.task_id,
-      agent_name: result.agent_name,
       worktree_path: result.worktree_path,
       branch_name: result.branch_name,
       created_at: result.created_at,
@@ -72,14 +69,13 @@ export class WorktreeService {
       .where(
         and(
           eq(worktreeRecords.task_id, taskId),
-          eq(worktreeRecords.agent_name, agentName),
           eq(worktreeRecords.status, 'active'),
         ),
       )
       .get();
 
     if (!record) {
-      throw new Error(`No active worktree found for task ${taskId}, agent ${agentName}`);
+      throw new Error(`No active worktree found for task ${taskId}`);
     }
 
     // Remove git worktree + branch
@@ -103,7 +99,6 @@ export class WorktreeService {
     return rows.map((row) => ({
       id: row.id,
       task_id: row.task_id,
-      agent_name: row.agent_name,
       worktree_path: row.worktree_path,
       branch_name: row.branch_name,
       created_at: row.created_at,
@@ -127,7 +122,6 @@ export class WorktreeService {
     return rows.map((row) => ({
       id: row.id,
       task_id: row.task_id,
-      agent_name: row.agent_name,
       worktree_path: row.worktree_path,
       branch_name: row.branch_name,
       created_at: row.created_at,

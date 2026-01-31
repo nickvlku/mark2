@@ -6,9 +6,9 @@ import { tasks, activityEntries } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { YamlReader } from '../yaml/reader';
 import { YamlWriter } from '../yaml/writer';
-import type { Task, Phase, ResolvedAgent, RolesFile, Role, CLITool } from '../yaml/schemas';
-import { isNewPhaseDefault, isLegacyPhaseDefault, AgentsFileSchema } from '../yaml/schemas';
-import type { AgentsFile, AgentDefinition } from '../yaml/schemas';
+import type { Task, Phase, RolesFile, Role, CLITool } from '../yaml/schemas';
+import { isNewPhaseDefault, isLegacyPhaseDefault } from '../yaml/schemas';
+import type { RoleConfig } from './phase-handlers/run-phase';
 import type { CLIAdapter } from '../adapters/types';
 
 import { ClaudeCodeAdapter } from '../adapters/claude-code';
@@ -125,8 +125,7 @@ export class OrchestrationEngine {
       return;
     }
 
-    // Mark the current session as completed and stop streaming
-    this.tmuxManager.markCompleted(tmuxName);
+    // Stop terminal streaming (session tracking removed for roles system)
     this.terminalStream.stop(taskId);
 
     // Log the end token detection
@@ -301,17 +300,9 @@ export class OrchestrationEngine {
       throw new Error(`Task ${taskId} not found`);
     }
 
-    const resolved = this.resolveAgent(task, phase);
-    // Convert ResolvedAgent to the agent shape expected by phase handlers
-    const agent = {
-      name: resolved.roleName,
-      cli_tool: resolved.cli_tool,
-      model: resolved.model,
-      phase: phase as any,
-      role_prompt: resolved.role_prompt,
-      timeout_minutes: resolved.timeout_minutes,
-    };
-    const adapter = this.getAdapterForTool(agent.cli_tool);
+    const role = this.resolveAgent(task, phase);
+    // RoleConfig already has the right shape for phase handlers
+    const adapter = this.getAdapterForTool(role.cli_tool);
     const { projectRoot, mark2Dir, apiBaseUrl, agentToken } = this.config;
 
     let tmuxSession: string | undefined;
@@ -329,7 +320,7 @@ export class OrchestrationEngine {
 
       case 'design': {
         const result = await handleDesign(
-          task, agent, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken, loopContext,
+          task, role, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken, loopContext,
         );
         tmuxSession = result.tmuxSession;
         promptFile = result.promptFile;
@@ -338,7 +329,7 @@ export class OrchestrationEngine {
 
       case 'coding': {
         const result = await handleCoding(
-          task, agent, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken, loopContext,
+          task, role, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken, loopContext,
         );
         tmuxSession = result.tmuxSession;
         promptFile = result.promptFile;
@@ -347,7 +338,7 @@ export class OrchestrationEngine {
 
       case 'testing': {
         const result = await handleTesting(
-          task, agent, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken,
+          task, role, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken,
         );
         tmuxSession = result.tmuxSession;
         promptFile = result.promptFile;
@@ -356,7 +347,7 @@ export class OrchestrationEngine {
 
       case 'code_review': {
         const result = await handleCodeReview(
-          task, agent, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken,
+          task, role, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken,
         );
         tmuxSession = result.tmuxSession;
         promptFile = result.promptFile;
@@ -365,7 +356,7 @@ export class OrchestrationEngine {
 
       case 'fix_review': {
         const result = await handleFixReview(
-          task, agent, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken, loopContext,
+          task, role, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken, loopContext,
         );
         tmuxSession = result.tmuxSession;
         promptFile = result.promptFile;
@@ -374,7 +365,7 @@ export class OrchestrationEngine {
 
       case 'final_testing': {
         const result = await handleFinalTesting(
-          task, agent, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken,
+          task, role, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken,
         );
         tmuxSession = result.tmuxSession;
         promptFile = result.promptFile;
@@ -383,7 +374,7 @@ export class OrchestrationEngine {
 
       case 'manual_testing': {
         const result = await handleManualTesting(
-          task, agent, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken,
+          task, role, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken,
           this.config.basePort, this.config.portsPerTask,
         );
         tmuxSession = result.tmuxSession;
@@ -412,10 +403,7 @@ export class OrchestrationEngine {
     const now = new Date().toISOString();
     const tmuxName = buildSessionName(taskId, agentName, phase);
 
-    // Mark session as failed
-    this.tmuxManager.markFailed(tmuxName);
-
-    // Stop terminal stream
+    // Stop terminal stream (session tracking removed for roles system)
     this.terminalStream.stop(taskId);
 
     // Log the crash
@@ -443,36 +431,10 @@ export class OrchestrationEngine {
     orphaned: number;
     reattached: number;
   }> {
-    // Reconcile DB with actual TMUX state
-    const orphaned = await this.tmuxManager.reconcile();
+    // Session reconciliation removed - roles system uses simpler tmux management
 
-    // Log orphaned sessions
-    const db = getDb(this.config.mark2Dir);
-    const now = new Date().toISOString();
-
-    for (const session of orphaned) {
-      db.insert(activityEntries)
-        .values({
-          task_id: session.task_id,
-          timestamp: now,
-          source: 'orchestration',
-          type: 'error',
-          message: `Orphaned session detected on startup: "${session.tmux_session}" (phase: ${session.phase}). Marked as failed.`,
-        })
-        .run();
-    }
-
-    // Re-attach terminal streaming for sessions still running
-    // End token detection is handled by Claude Code's Stop hook
-    const activeSessions = this.tmuxManager.getActiveSessions();
-    let reattached = 0;
-
-    for (const session of activeSessions) {
-      this.terminalStream.start(session.task_id, session.tmux_session);
-      reattached++;
-    }
-
-    return { orphaned: orphaned.length, reattached };
+    // Terminal stream re-attachment removed - roles system uses simpler approach
+    return { orphaned: 0, reattached: 0 };
   }
 
   /**
@@ -498,7 +460,7 @@ export class OrchestrationEngine {
    */
   async cleanupAll(): Promise<number> {
     this.terminalStream.stopAll();
-    return this.tmuxManager.cleanup();
+    return this.tmuxManager.cleanupSessions();
   }
 
   // ── Private Helpers ─────────────────────────────────────────────────────
@@ -602,48 +564,49 @@ export class OrchestrationEngine {
   }
 
   /**
-   * Resolve which agent configuration to use for a given task and phase.
-   * 
-   * Resolution order:
-   * 1. Check if config has new format phase_defaults (role + cli_tool + model)
-   *    - If yes, use roles.yaml to get role_prompt, apply task-level overrides
-   * 2. Fall back to legacy format (default_agent pointing to agents.yaml)
-   * 3. Fall back to first agent in agents.yaml for the phase
+   * Resolve which role configuration to use for a given task and phase.
+   *
+   * Requires the new phase_defaults format with role, cli_tool, and model.
+   * Uses roles.yaml to get role_prompt, applies task-level overrides.
+   * Legacy agents.yaml is no longer supported.
    */
-  private resolveAgent(task: Task, phase: Phase): ResolvedAgent {
+  private resolveAgent(task: Task, phase: Phase): RoleConfig {
     const configResult = this.reader.readConfig();
     const config = configResult.data;
-    
+
     if (!config) {
       throw new Error('Config not found. Ensure .mark2/config.yaml exists.');
     }
 
     const phaseDefault = config.phase_defaults?.[phase];
 
-    // Check if we're using the new format (has role, cli_tool, model)
-    if (phaseDefault && isNewPhaseDefault(phaseDefault)) {
-      return this.resolveAgentNewFormat(task, phase, phaseDefault);
+    // Require the new format (has role, cli_tool, model)
+    if (!phaseDefault || !isNewPhaseDefault(phaseDefault)) {
+      throw new Error(
+        `Phase "${phase}" requires role-based configuration. ` +
+        `Add "${phase}" to phase_defaults in config.yaml with role, cli_tool, and model fields. ` +
+        `Legacy agents.yaml format is no longer supported.`
+      );
     }
 
-    // Legacy format: use agents.yaml
-    return this.resolveAgentLegacyFormat(task, phase, phaseDefault);
+    return this.resolveRoleConfiguration(task, phase, phaseDefault);
   }
 
   /**
-   * Resolve agent using the new decoupled role/cli/model format.
+   * Resolve role configuration using the decoupled role/cli/model format.
    */
-  private resolveAgentNewFormat(
+  private resolveRoleConfiguration(
     task: Task,
     phase: Phase,
     phaseDefault: { role: string; cli_tool: CLITool; model: string; timeout_minutes?: number; auto_advance?: boolean }
-  ): ResolvedAgent {
+  ): RoleConfig {
     // Read roles file
     const rolesResult = this.reader.readRoles();
     const rolesFile = rolesResult.data;
 
     if (!rolesFile || rolesFile.roles.length === 0) {
       throw new Error(
-        'No roles defined. Create .mark2/roles.yaml with at least one role, or use legacy agents.yaml format.',
+        'No roles defined. Create .mark2/roles.yaml with at least one role.',
       );
     }
 
@@ -667,9 +630,10 @@ export class OrchestrationEngine {
       }
     }
 
-    // Build resolved agent
+    // Build resolved role configuration
     return {
-      roleName: finalRole.name,
+      name: finalRole.name,
+      uuid: finalRole.uuid,
       role_prompt: finalRole.role_prompt,
       cli_tool: override.cli_tool ?? phaseDefault.cli_tool,
       model: override.model ?? phaseDefault.model,
@@ -677,74 +641,6 @@ export class OrchestrationEngine {
     };
   }
 
-  /**
-   * Resolve agent using the legacy agents.yaml format.
-   * Kept for backwards compatibility.
-   */
-  private resolveAgentLegacyFormat(
-    task: Task,
-    phase: Phase,
-    phaseDefault?: { default_agent?: string; timeout_minutes?: number; auto_advance?: boolean }
-  ): ResolvedAgent {
-    // Read agents file
-    const agentsPath = path.join(this.config.mark2Dir, 'agents.yaml');
-    let agentsFile: AgentsFile | null = null;
-
-    try {
-      if (fs.existsSync(agentsPath)) {
-        const YAML = require('yaml');
-        const raw = fs.readFileSync(agentsPath, 'utf-8');
-        const parsed = YAML.parse(raw);
-        const result = AgentsFileSchema.safeParse(parsed);
-        if (result.success) {
-          agentsFile = result.data;
-        }
-      }
-    } catch {
-      // Fall through
-    }
-
-    if (!agentsFile || agentsFile.agents.length === 0) {
-      throw new Error(
-        'No agents defined. Create .mark2/agents.yaml with at least one agent, or configure roles.yaml with new format.',
-      );
-    }
-
-    // Filter agents that match this phase
-    const phaseAgents = agentsFile.agents.filter((a) => a.phase === phase);
-
-    let agent: AgentDefinition | undefined;
-
-    // 1. Check if the task has a specific agent assigned for this phase (legacy phase_agents)
-    const assignedAgentName = task.phase_agents?.[phase as keyof typeof task.phase_agents];
-    if (assignedAgentName) {
-      agent = phaseAgents.find((a) => a.name === assignedAgentName);
-    }
-
-    // 2. Check phase defaults in config
-    if (!agent && phaseDefault?.default_agent) {
-      agent = phaseAgents.find((a) => a.name === phaseDefault.default_agent);
-    }
-
-    // 3. Fall back to first agent for this phase
-    if (!agent && phaseAgents.length > 0) {
-      agent = phaseAgents[0];
-    }
-
-    // 4. Final fallback: first agent in the file
-    if (!agent) {
-      agent = agentsFile.agents[0];
-    }
-
-    // Convert AgentDefinition to ResolvedAgent
-    return {
-      roleName: agent.name,
-      role_prompt: agent.role_prompt,
-      cli_tool: agent.cli_tool,
-      model: agent.model,
-      timeout_minutes: agent.timeout_minutes,
-    };
-  }
 
   /**
    * Update task phase in both YAML and DB.

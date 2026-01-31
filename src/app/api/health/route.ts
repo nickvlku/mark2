@@ -8,7 +8,7 @@ const mark2Dir = path.join(process.cwd(), '.mark2');
 export async function GET() {
   try {
     const tmuxManager = new TmuxManager(mark2Dir);
-    const activeSessions = tmuxManager.getActiveSessions();
+    const activeSessions = await tmuxManager.getActiveSessions();
 
     return NextResponse.json({
       status: 'ok',

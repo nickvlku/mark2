@@ -50,16 +50,6 @@ const phaseActions: Record<Phase, PhaseButton[]> = {
     { label: 'Tests Failed', variant: 'secondary', target: { phase: 'fix_review' } },
     { label: 'Restart Phase', variant: 'danger', target: { restart: true } },
   ],
-  fix_review: [
-    { label: 'Fixes Complete', variant: 'success', target: { phase: 'final_testing' } },
-    { label: 'Need More Fixes', variant: 'secondary', target: { phase: 'coding' } },
-    { label: 'Restart Phase', variant: 'danger', target: { restart: true } },
-  ],
-  final_testing: [
-    { label: 'Tests Pass', variant: 'success', target: { phase: 'manual_testing' } },
-    { label: 'Tests Failed', variant: 'secondary', target: { phase: 'coding' } },
-    { label: 'Restart Phase', variant: 'danger', target: { restart: true } },
-  ],
   manual_testing: [
     { label: 'Approve & Merge', variant: 'success', target: { phase: 'done' } },
     { label: 'Request Revisions', variant: 'secondary', target: { phase: 'fix_review' } },

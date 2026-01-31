@@ -1,4 +1,5 @@
 import type { Task } from '../../yaml/schemas';
+import type { RoleConfig } from './run-phase';
 import { getDb } from '../../db';
 import { tasks, activityEntries } from '../../db/schema';
 import { eq } from 'drizzle-orm';
