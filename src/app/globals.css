@@ -93,3 +93,17 @@ body {
 .fade-in {
   animation: fade-in 0.2s ease-out;
 }
+
+/* Board pan improvements */
+.cursor-grab {
+  cursor: grab;
+}
+
+.cursor-grabbing {
+  cursor: grabbing;
+}
+
+/* Optional: hide scrollbar during pan for cleaner UX */
+.select-none::-webkit-scrollbar {
+  display: none;
+}
