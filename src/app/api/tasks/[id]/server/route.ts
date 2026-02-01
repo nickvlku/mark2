@@ -3,15 +3,13 @@ import { exec as execCb } from 'child_process';
 import { promisify } from 'util';
 import { getDb, schema } from '@/lib/db';
 import { eq } from 'drizzle-orm';
-import { PortService } from '@/lib/services/port-service';
-import { TaskService } from '@/lib/services/task-service';
-import { CloneService } from '@/lib/services/clone-service';
+import { createPortService, createTaskService, createCloneService } from '@/lib/services/factory';
 import { isValidTaskId } from '@/lib/utils/route-validation';
 
 const exec = promisify(execCb);
 
-const portService = new PortService();
-const taskService = new TaskService();
+const portService = createPortService();
+const taskService = createTaskService();
 
 // Dev server session naming
 function devServerSessionName(taskId: string): string {
@@ -131,7 +129,7 @@ export async function POST(
     }
 
     // Find the clone path for this task
-    const cloneService = new CloneService();
+    const cloneService = createCloneService();
     const clonePath = cloneService.getClonePath(id);
 
     if (!cloneService.cloneExists(id)) {

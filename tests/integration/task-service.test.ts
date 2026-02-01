@@ -19,7 +19,8 @@ beforeEach(() => {
   mkdirSync(path.join(mark2Dir, 'activity'), { recursive: true });
   mkdirSync(path.join(mark2Dir, 'artifacts'), { recursive: true });
   initializeDatabase(mark2Dir);
-  taskService = new TaskService(mark2Dir);
+  // Use localOnly=true to skip git operations in tests
+  taskService = new TaskService(mark2Dir, undefined, true);
   reader = new YamlReader(mark2Dir);
 });
 
@@ -30,8 +31,8 @@ afterEach(() => {
 
 describe('TaskService', () => {
   describe('create', () => {
-    it('creates a task in both YAML and DB', () => {
-      const task = taskService.create({
+    it('creates a task in both YAML and DB', async () => {
+      const task = await taskService.create({
         title: 'Build login page',
         description: 'Create the login page with form validation',
         priority: 'P1',
@@ -56,16 +57,16 @@ describe('TaskService', () => {
       expect(row!.priority).toBe('P1');
     });
 
-    it('creates sequential task IDs', () => {
-      const t1 = taskService.create({ title: 'Task A', description: 'desc', created_by: 'human' });
-      const t2 = taskService.create({ title: 'Task B', description: 'desc', created_by: 'human' });
+    it('creates sequential task IDs', async () => {
+      const t1 = await taskService.create({ title: 'Task A', description: 'desc', created_by: 'human' });
+      const t2 = await taskService.create({ title: 'Task B', description: 'desc', created_by: 'human' });
 
       expect(t1.id).toBe('TASK-1');
       expect(t2.id).toBe('TASK-2');
     });
 
-    it('initializes activity log for new task', () => {
-      taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
+    it('initializes activity log for new task', async () => {
+      await taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
 
       const { data } = reader.readActivity('TASK-1');
       expect(data).not.toBeNull();
@@ -73,8 +74,8 @@ describe('TaskService', () => {
       expect(data!.entries).toEqual([]);
     });
 
-    it('applies default values', () => {
-      const task = taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
+    it('applies default values', async () => {
+      const task = await taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
 
       expect(task.phase).toBe('pending');
       expect(task.priority).toBe('P2');
@@ -84,8 +85,8 @@ describe('TaskService', () => {
   });
 
   describe('getById', () => {
-    it('returns task by ID', () => {
-      taskService.create({ title: 'Test task', description: 'desc', created_by: 'human' });
+    it('returns task by ID', async () => {
+      await taskService.create({ title: 'Test task', description: 'desc', created_by: 'human' });
 
       const task = taskService.getById('TASK-1');
       expect(task).not.toBeNull();
@@ -99,9 +100,9 @@ describe('TaskService', () => {
   });
 
   describe('list', () => {
-    beforeEach(() => {
-      taskService.create({ title: 'Pending task', description: 'desc', created_by: 'human', priority: 'P0' });
-      taskService.create({ title: 'Another pending', description: 'desc', created_by: 'human', priority: 'P1' });
+    beforeEach(async () => {
+      await taskService.create({ title: 'Pending task', description: 'desc', created_by: 'human', priority: 'P0' });
+      await taskService.create({ title: 'Another pending', description: 'desc', created_by: 'human', priority: 'P1' });
     });
 
     it('returns all tasks with no filter', () => {
@@ -128,9 +129,9 @@ describe('TaskService', () => {
       expect(p1[0].title).toBe('Another pending');
     });
 
-    it('filters by blocked status', () => {
+    it('filters by blocked status', async () => {
       // Add a blocker to TASK-1
-      taskService.addBlocker('TASK-1', 'TASK-2');
+      await taskService.addBlocker('TASK-1', 'TASK-2');
 
       const blocked = taskService.list({ blocked: true });
       expect(blocked).toHaveLength(1);
@@ -143,10 +144,10 @@ describe('TaskService', () => {
   });
 
   describe('update', () => {
-    it('updates task title in both YAML and DB', () => {
-      taskService.create({ title: 'Original', description: 'desc', created_by: 'human' });
+    it('updates task title in both YAML and DB', async () => {
+      await taskService.create({ title: 'Original', description: 'desc', created_by: 'human' });
 
-      const updated = taskService.update('TASK-1', { title: 'Updated Title' });
+      const updated = await taskService.update('TASK-1', { title: 'Updated Title' });
       expect(updated.title).toBe('Updated Title');
 
       // Check YAML
@@ -160,33 +161,35 @@ describe('TaskService', () => {
     });
 
     it('updates updated_at timestamp', async () => {
-      const original = taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
+      const original = await taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
       const originalUpdatedAt = original.updated_at;
 
       // Wait to ensure a different ISO timestamp
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      const updated = taskService.update('TASK-1', { description: 'new desc' });
+      const updated = await taskService.update('TASK-1', { description: 'new desc' });
       expect(updated.updated_at).not.toBe(originalUpdatedAt);
     });
 
-    it('throws for non-existent task', () => {
-      expect(() => taskService.update('TASK-999', { title: 'x' })).toThrow('TASK-999 not found');
+    it('throws for non-existent task', async () => {
+      await expect(taskService.update('TASK-999', { title: 'x' })).rejects.toThrow('TASK-999 not found');
     });
 
-    it('prevents ID from being changed', () => {
-      taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
+    it('prevents ID from being changed', async () => {
+      await taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
 
-      const updated = taskService.update('TASK-1', { id: 'TASK-999' } as any);
+      const updated = await taskService.update('TASK-1', { id: 'TASK-999' } as any);
       expect(updated.id).toBe('TASK-1');
     });
   });
 
   describe('delete', () => {
-    it('removes task from both YAML and DB', () => {
-      taskService.create({ title: 'To delete', description: 'desc', created_by: 'human' });
+    it('removes task from both YAML and DB', async () => {
+      await taskService.create({ title: 'To delete', description: 'desc', created_by: 'human' });
 
-      taskService.delete('TASK-1');
+      // Archive the task first (required before deletion)
+      await taskService.update('TASK-1', { archived: true });
+      await taskService.delete('TASK-1');
 
       // YAML gone
       const yamlPath = path.join(mark2Dir, 'tasks', 'TASK-1.yaml');
@@ -198,12 +201,14 @@ describe('TaskService', () => {
       expect(row).toBeUndefined();
     });
 
-    it('also removes activity YAML and DB entries', () => {
-      taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
+    it('also removes activity YAML and DB entries', async () => {
+      await taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
       // Transition to create activity entries
-      taskService.transitionPhase('TASK-1', 'design');
+      await taskService.transitionPhase('TASK-1', 'design');
 
-      taskService.delete('TASK-1');
+      // Archive the task first (required before deletion)
+      await taskService.update('TASK-1', { archived: true });
+      await taskService.delete('TASK-1');
 
       // Activity YAML gone
       const activityPath = path.join(mark2Dir, 'tasks', 'TASK-1.activity.yaml');
@@ -217,10 +222,10 @@ describe('TaskService', () => {
   });
 
   describe('transitionPhase', () => {
-    it('updates phase and logs activity', () => {
-      taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
+    it('updates phase and logs activity', async () => {
+      await taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
 
-      const updated = taskService.transitionPhase('TASK-1', 'design');
+      const updated = await taskService.transitionPhase('TASK-1', 'design');
       expect(updated.phase).toBe('design');
 
       // Check activity entry was created in DB
@@ -238,60 +243,60 @@ describe('TaskService', () => {
     });
 
     it('updates phase_entered_at', async () => {
-      const original = taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
+      const original = await taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
       const originalEnteredAt = original.phase_entered_at;
 
       // Wait to ensure a different ISO timestamp
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      const updated = taskService.transitionPhase('TASK-1', 'design');
+      const updated = await taskService.transitionPhase('TASK-1', 'design');
       expect(updated.phase_entered_at).not.toBe(originalEnteredAt);
     });
 
-    it('throws for non-existent task', () => {
-      expect(() => taskService.transitionPhase('TASK-999', 'design')).toThrow();
+    it('throws for non-existent task', async () => {
+      await expect(taskService.transitionPhase('TASK-999', 'design')).rejects.toThrow();
     });
 
-    it('throws for invalid phase value', () => {
-      taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
-      expect(() => taskService.transitionPhase('TASK-1', 'invalid_phase')).toThrow();
+    it('throws for invalid phase value', async () => {
+      await taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
+      await expect(taskService.transitionPhase('TASK-1', 'invalid_phase')).rejects.toThrow();
     });
   });
 
   describe('addBlocker / removeBlocker', () => {
-    it('adds a blocker to a task', () => {
-      taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
+    it('adds a blocker to a task', async () => {
+      await taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
 
-      const updated = taskService.addBlocker('TASK-1', 'TASK-2');
+      const updated = await taskService.addBlocker('TASK-1', 'TASK-2');
       expect(updated.blockers).toContain('TASK-2');
     });
 
-    it('does not duplicate blockers', () => {
-      taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
+    it('does not duplicate blockers', async () => {
+      await taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
 
-      taskService.addBlocker('TASK-1', 'TASK-2');
-      const updated = taskService.addBlocker('TASK-1', 'TASK-2');
-      expect(updated.blockers.filter((b) => b === 'TASK-2')).toHaveLength(1);
+      await taskService.addBlocker('TASK-1', 'TASK-2');
+      const updated = await taskService.addBlocker('TASK-1', 'TASK-2');
+      expect(updated.blockers.filter((b: string) => b === 'TASK-2')).toHaveLength(1);
     });
 
-    it('removes a blocker from a task', () => {
-      taskService.create({ title: 'Task', description: 'desc', created_by: 'human', blockers: ['TASK-2', 'TASK-3'] });
+    it('removes a blocker from a task', async () => {
+      await taskService.create({ title: 'Task', description: 'desc', created_by: 'human', blockers: ['TASK-2', 'TASK-3'] });
 
-      const updated = taskService.removeBlocker('TASK-1', 'TASK-2');
+      const updated = await taskService.removeBlocker('TASK-1', 'TASK-2');
       expect(updated.blockers).toEqual(['TASK-3']);
     });
 
-    it('addBlocker throws for non-existent task', () => {
-      expect(() => taskService.addBlocker('TASK-999', 'TASK-2')).toThrow();
+    it('addBlocker throws for non-existent task', async () => {
+      await expect(taskService.addBlocker('TASK-999', 'TASK-2')).rejects.toThrow();
     });
 
-    it('removeBlocker throws for non-existent task', () => {
-      expect(() => taskService.removeBlocker('TASK-999', 'TASK-2')).toThrow();
+    it('removeBlocker throws for non-existent task', async () => {
+      await expect(taskService.removeBlocker('TASK-999', 'TASK-2')).rejects.toThrow();
     });
 
-    it('blockers are persisted in YAML', () => {
-      taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
-      taskService.addBlocker('TASK-1', 'TASK-2');
+    it('blockers are persisted in YAML', async () => {
+      await taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
+      await taskService.addBlocker('TASK-1', 'TASK-2');
 
       const { data } = reader.readTask('TASK-1');
       expect(data!.blockers).toContain('TASK-2');
@@ -299,24 +304,24 @@ describe('TaskService', () => {
   });
 
   describe('allBlockersResolved', () => {
-    it('returns true when no blockers', () => {
-      taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
+    it('returns true when no blockers', async () => {
+      await taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
       expect(taskService.allBlockersResolved('TASK-1')).toBe(true);
     });
 
-    it('returns false when blocker is not done', () => {
-      taskService.create({ title: 'Blocker', description: 'desc', created_by: 'human' });
-      taskService.create({ title: 'Blocked', description: 'desc', created_by: 'human', blockers: ['TASK-1'] });
+    it('returns false when blocker is not done', async () => {
+      await taskService.create({ title: 'Blocker', description: 'desc', created_by: 'human' });
+      await taskService.create({ title: 'Blocked', description: 'desc', created_by: 'human', blockers: ['TASK-1'] });
 
       expect(taskService.allBlockersResolved('TASK-2')).toBe(false);
     });
 
-    it('returns true when all blockers are done', () => {
-      taskService.create({ title: 'Blocker', description: 'desc', created_by: 'human' });
-      taskService.create({ title: 'Blocked', description: 'desc', created_by: 'human', blockers: ['TASK-1'] });
+    it('returns true when all blockers are done', async () => {
+      await taskService.create({ title: 'Blocker', description: 'desc', created_by: 'human' });
+      await taskService.create({ title: 'Blocked', description: 'desc', created_by: 'human', blockers: ['TASK-1'] });
 
       // Transition blocker to done
-      taskService.transitionPhase('TASK-1', 'done');
+      await taskService.transitionPhase('TASK-1', 'done');
 
       expect(taskService.allBlockersResolved('TASK-2')).toBe(true);
     });

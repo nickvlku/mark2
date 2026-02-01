@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema';
+import { getMark2Dir } from '../utils/mark2-dir';
 import path from 'path';
 import fs from 'fs';
 
@@ -11,9 +12,8 @@ let initialized = false;
 export function getDb(mark2Dir?: string): ReturnType<typeof drizzle> {
   if (db) return db;
 
-  const dbPath = mark2Dir
-    ? path.join(mark2Dir, 'mark2.db')
-    : path.join(process.cwd(), '.mark2', 'mark2.db');
+  const resolvedMark2Dir = mark2Dir ?? getMark2Dir();
+  const dbPath = path.join(resolvedMark2Dir, 'mark2.db');
 
   // Ensure directory exists
   const dir = path.dirname(dbPath);

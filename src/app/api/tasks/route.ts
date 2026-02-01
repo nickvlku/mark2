@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { TaskService } from '@/lib/services/task-service';
+import { createTaskService } from '@/lib/services/factory';
 
-const service = new TaskService();
+const service = createTaskService();
 
 export async function GET(request: Request) {
   try {
@@ -14,6 +14,7 @@ export async function GET(request: Request) {
     const blocked = searchParams.get('blocked');
     const archived = searchParams.get('archived');
     const includeStatus = searchParams.get('include_status') !== 'false'; // default true
+    const includeLocks = searchParams.get('include_locks') !== 'false'; // default true
 
     if (phase) filters.phase = phase;
     if (priority) filters.priority = priority;
@@ -21,8 +22,17 @@ export async function GET(request: Request) {
     if (blocked !== null) filters.blocked = blocked === 'true';
     if (archived !== null) filters.archived = archived === 'true';
 
-    // Use listWithStatus to include session status for each task
-    if (includeStatus) {
+    // Use listWithStatusAndLocks to include session status and lock info for each task
+    if (includeStatus && includeLocks) {
+      const tasks = await service.listWithStatusAndLocks(filters as any);
+
+      // Also sync artifacts from storage for each task
+      for (const task of tasks) {
+        service.syncArtifactsFromStorage(task.id);
+      }
+
+      return NextResponse.json({ tasks });
+    } else if (includeStatus) {
       const tasks = await service.listWithStatus(filters as any);
 
       // Also sync artifacts from storage for each task
@@ -54,7 +64,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const task = service.create({
+    const task = await service.create({
       title: body.title,
       description: body.description || '',
       priority: body.priority,

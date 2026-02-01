@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
-import path from 'path';
-import { TaskService } from '@/lib/services/task-service';
-import { ActivityService } from '@/lib/services/activity-service';
+import { createTaskService, createActivityService } from '@/lib/services/factory';
+import { getMark2Dir, getProjectRoot } from '@/lib/utils/mark2-dir';
 import { OrchestrationEngine } from '@/lib/orchestration/engine';
 import { TmuxManager } from '@/lib/orchestration/tmux-manager';
 import { isValidTaskId } from '@/lib/utils/route-validation';
 
-const taskService = new TaskService();
-const activityService = new ActivityService();
+const taskService = createTaskService();
+const activityService = createActivityService();
 
 /**
  * POST /api/tasks/[id]/phase/hook-complete
@@ -62,8 +61,8 @@ export async function POST(
     console.log(`[hook-complete] Processing end token "${token}" for task ${id} (phase: ${task.phase})`);
 
     // Get the orchestration engine and process the end token
-    const projectRoot = process.cwd();
-    const mark2Dir = path.join(projectRoot, '.mark2');
+    const mark2Dir = getMark2Dir();
+    const projectRoot = getProjectRoot();
 
     const engine = OrchestrationEngine.getInstance({
       projectRoot,

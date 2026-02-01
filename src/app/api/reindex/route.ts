@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { ReindexService } from '@/lib/services/reindex-service';
-import path from 'path';
+import { getMark2Dir } from '@/lib/utils/mark2-dir';
 
 export async function POST() {
   try {
-    const mark2Dir = path.join(process.cwd(), '.mark2');
+    const mark2Dir = getMark2Dir();
     const service = new ReindexService(mark2Dir);
     const result = await service.fullReindex();
 

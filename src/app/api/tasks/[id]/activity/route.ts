@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { ActivityService } from '@/lib/services/activity-service';
+import { createActivityService } from '@/lib/services/factory';
 import { getDb, schema } from '@/lib/db';
 import { eq, and, desc } from 'drizzle-orm';
 import { sendCommand, isSessionAlive } from '@/lib/utils/tmux';
 import { isValidTaskId } from '@/lib/utils/route-validation';
 
-const service = new ActivityService();
+const service = createActivityService();
 
 export async function GET(
   request: Request,

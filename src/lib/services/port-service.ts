@@ -2,6 +2,7 @@ import { getDb } from '../db';
 import { portAllocations } from '../db/schema';
 import { allocatePortsForTask } from '../utils/port-allocator';
 import { eq } from 'drizzle-orm';
+import { getMark2Dir } from '../utils/mark2-dir';
 import path from 'path';
 
 export interface PortAllocation {
@@ -15,7 +16,7 @@ export class PortService {
   private mark2Dir: string;
 
   constructor(mark2Dir?: string) {
-    this.mark2Dir = mark2Dir ?? path.join(process.cwd(), '.mark2');
+    this.mark2Dir = mark2Dir ?? getMark2Dir();
   }
 
   allocate(taskId: string, basePort?: number, portsPerTask?: number): PortAllocation {

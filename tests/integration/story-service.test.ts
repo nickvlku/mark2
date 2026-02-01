@@ -21,8 +21,9 @@ beforeEach(() => {
   mkdirSync(path.join(mark2Dir, 'activity'), { recursive: true });
   mkdirSync(path.join(mark2Dir, 'artifacts'), { recursive: true });
   initializeDatabase(mark2Dir);
-  storyService = new StoryService(mark2Dir);
-  taskService = new TaskService(mark2Dir);
+  // Use localOnly=true to skip git operations in tests
+  storyService = new StoryService(mark2Dir, undefined, true);
+  taskService = new TaskService(mark2Dir, undefined, true);
   reader = new YamlReader(mark2Dir);
 });
 
@@ -33,8 +34,8 @@ afterEach(() => {
 
 describe('StoryService', () => {
   describe('create', () => {
-    it('creates a story in both YAML and DB', () => {
-      const story = storyService.create({
+    it('creates a story in both YAML and DB', async () => {
+      const story = await storyService.create({
         title: 'Authentication Epic',
         description: 'All auth tasks',
         created_by: 'human',
@@ -56,9 +57,9 @@ describe('StoryService', () => {
       expect(row!.title).toBe('Authentication Epic');
     });
 
-    it('creates sequential story IDs', () => {
-      const s1 = storyService.create({ title: 'Story A', description: 'desc', created_by: 'human' });
-      const s2 = storyService.create({ title: 'Story B', description: 'desc', created_by: 'human' });
+    it('creates sequential story IDs', async () => {
+      const s1 = await storyService.create({ title: 'Story A', description: 'desc', created_by: 'human' });
+      const s2 = await storyService.create({ title: 'Story B', description: 'desc', created_by: 'human' });
 
       expect(s1.id).toBe('STORY-1');
       expect(s2.id).toBe('STORY-2');
@@ -66,8 +67,8 @@ describe('StoryService', () => {
   });
 
   describe('getById', () => {
-    it('returns story by ID', () => {
-      storyService.create({ title: 'Test story', description: 'desc', created_by: 'human' });
+    it('returns story by ID', async () => {
+      await storyService.create({ title: 'Test story', description: 'desc', created_by: 'human' });
 
       const story = storyService.getById('STORY-1');
       expect(story).not.toBeNull();
@@ -81,10 +82,10 @@ describe('StoryService', () => {
   });
 
   describe('update', () => {
-    it('updates story title', () => {
-      storyService.create({ title: 'Original', description: 'desc', created_by: 'human' });
+    it('updates story title', async () => {
+      await storyService.create({ title: 'Original', description: 'desc', created_by: 'human' });
 
-      const updated = storyService.update('STORY-1', { title: 'Updated' });
+      const updated = await storyService.update('STORY-1', { title: 'Updated' });
       expect(updated.title).toBe('Updated');
 
       // Check YAML
@@ -97,16 +98,16 @@ describe('StoryService', () => {
       expect(row!.title).toBe('Updated');
     });
 
-    it('throws for non-existent story', () => {
-      expect(() => storyService.update('STORY-999', { title: 'x' })).toThrow('STORY-999 not found');
+    it('throws for non-existent story', async () => {
+      await expect(storyService.update('STORY-999', { title: 'x' })).rejects.toThrow('STORY-999 not found');
     });
   });
 
   describe('delete', () => {
-    it('removes story from both YAML and DB', () => {
-      storyService.create({ title: 'To delete', description: 'desc', created_by: 'human' });
+    it('removes story from both YAML and DB', async () => {
+      await storyService.create({ title: 'To delete', description: 'desc', created_by: 'human' });
 
-      storyService.delete('STORY-1');
+      await storyService.delete('STORY-1');
 
       // YAML gone
       const yamlPath = path.join(mark2Dir, 'stories', 'STORY-1.yaml');
@@ -120,99 +121,99 @@ describe('StoryService', () => {
   });
 
   describe('addTask / removeTask', () => {
-    it('adds a task to a story', () => {
-      storyService.create({ title: 'Story', description: 'desc', created_by: 'human' });
+    it('adds a task to a story', async () => {
+      await storyService.create({ title: 'Story', description: 'desc', created_by: 'human' });
 
-      const updated = storyService.addTask('STORY-1', 'TASK-1');
+      const updated = await storyService.addTask('STORY-1', 'TASK-1');
       expect(updated.tasks).toContain('TASK-1');
     });
 
-    it('does not duplicate task references', () => {
-      storyService.create({ title: 'Story', description: 'desc', created_by: 'human' });
+    it('does not duplicate task references', async () => {
+      await storyService.create({ title: 'Story', description: 'desc', created_by: 'human' });
 
-      storyService.addTask('STORY-1', 'TASK-1');
-      const updated = storyService.addTask('STORY-1', 'TASK-1');
-      expect(updated.tasks.filter((t) => t === 'TASK-1')).toHaveLength(1);
+      await storyService.addTask('STORY-1', 'TASK-1');
+      const updated = await storyService.addTask('STORY-1', 'TASK-1');
+      expect(updated.tasks.filter((t: string) => t === 'TASK-1')).toHaveLength(1);
     });
 
-    it('removes a task from a story', () => {
-      storyService.create({ title: 'Story', description: 'desc', created_by: 'human' });
-      storyService.addTask('STORY-1', 'TASK-1');
-      storyService.addTask('STORY-1', 'TASK-2');
+    it('removes a task from a story', async () => {
+      await storyService.create({ title: 'Story', description: 'desc', created_by: 'human' });
+      await storyService.addTask('STORY-1', 'TASK-1');
+      await storyService.addTask('STORY-1', 'TASK-2');
 
-      const updated = storyService.removeTask('STORY-1', 'TASK-1');
+      const updated = await storyService.removeTask('STORY-1', 'TASK-1');
       expect(updated.tasks).toEqual(['TASK-2']);
     });
 
-    it('task changes are persisted in YAML', () => {
-      storyService.create({ title: 'Story', description: 'desc', created_by: 'human' });
-      storyService.addTask('STORY-1', 'TASK-1');
+    it('task changes are persisted in YAML', async () => {
+      await storyService.create({ title: 'Story', description: 'desc', created_by: 'human' });
+      await storyService.addTask('STORY-1', 'TASK-1');
 
       const { data } = reader.readStory('STORY-1');
       expect(data!.tasks).toContain('TASK-1');
     });
 
-    it('throws for non-existent story', () => {
-      expect(() => storyService.addTask('STORY-999', 'TASK-1')).toThrow();
-      expect(() => storyService.removeTask('STORY-999', 'TASK-1')).toThrow();
+    it('throws for non-existent story', async () => {
+      await expect(storyService.addTask('STORY-999', 'TASK-1')).rejects.toThrow();
+      await expect(storyService.removeTask('STORY-999', 'TASK-1')).rejects.toThrow();
     });
   });
 
   describe('deriveStatus / getStatus', () => {
-    it('returns pending for story with no tasks', () => {
-      storyService.create({ title: 'Empty story', description: 'desc', created_by: 'human' });
+    it('returns pending for story with no tasks', async () => {
+      await storyService.create({ title: 'Empty story', description: 'desc', created_by: 'human' });
 
       const status = storyService.getStatus('STORY-1');
       expect(status).toBe('pending');
     });
 
-    it('returns pending when all tasks are pending', () => {
-      storyService.create({ title: 'Story', description: 'desc', created_by: 'human' });
-      taskService.create({ title: 'Task A', description: 'desc', created_by: 'human' });
-      taskService.create({ title: 'Task B', description: 'desc', created_by: 'human' });
-      storyService.addTask('STORY-1', 'TASK-1');
-      storyService.addTask('STORY-1', 'TASK-2');
+    it('returns pending when all tasks are pending', async () => {
+      await storyService.create({ title: 'Story', description: 'desc', created_by: 'human' });
+      await taskService.create({ title: 'Task A', description: 'desc', created_by: 'human' });
+      await taskService.create({ title: 'Task B', description: 'desc', created_by: 'human' });
+      await storyService.addTask('STORY-1', 'TASK-1');
+      await storyService.addTask('STORY-1', 'TASK-2');
 
       const status = storyService.getStatus('STORY-1');
       expect(status).toBe('pending');
     });
 
-    it('returns in_progress when some tasks are in non-pending/non-done phase', () => {
-      storyService.create({ title: 'Story', description: 'desc', created_by: 'human' });
-      taskService.create({ title: 'Task A', description: 'desc', created_by: 'human' });
-      taskService.create({ title: 'Task B', description: 'desc', created_by: 'human' });
-      storyService.addTask('STORY-1', 'TASK-1');
-      storyService.addTask('STORY-1', 'TASK-2');
+    it('returns in_progress when some tasks are in non-pending/non-done phase', async () => {
+      await storyService.create({ title: 'Story', description: 'desc', created_by: 'human' });
+      await taskService.create({ title: 'Task A', description: 'desc', created_by: 'human' });
+      await taskService.create({ title: 'Task B', description: 'desc', created_by: 'human' });
+      await storyService.addTask('STORY-1', 'TASK-1');
+      await storyService.addTask('STORY-1', 'TASK-2');
 
       // Move one task to coding
-      taskService.transitionPhase('TASK-1', 'coding');
+      await taskService.transitionPhase('TASK-1', 'coding');
 
       const status = storyService.getStatus('STORY-1');
       expect(status).toBe('in_progress');
     });
 
-    it('returns completed when all tasks are done', () => {
-      storyService.create({ title: 'Story', description: 'desc', created_by: 'human' });
-      taskService.create({ title: 'Task A', description: 'desc', created_by: 'human' });
-      taskService.create({ title: 'Task B', description: 'desc', created_by: 'human' });
-      storyService.addTask('STORY-1', 'TASK-1');
-      storyService.addTask('STORY-1', 'TASK-2');
+    it('returns completed when all tasks are done', async () => {
+      await storyService.create({ title: 'Story', description: 'desc', created_by: 'human' });
+      await taskService.create({ title: 'Task A', description: 'desc', created_by: 'human' });
+      await taskService.create({ title: 'Task B', description: 'desc', created_by: 'human' });
+      await storyService.addTask('STORY-1', 'TASK-1');
+      await storyService.addTask('STORY-1', 'TASK-2');
 
-      taskService.transitionPhase('TASK-1', 'done');
-      taskService.transitionPhase('TASK-2', 'done');
+      await taskService.transitionPhase('TASK-1', 'done');
+      await taskService.transitionPhase('TASK-2', 'done');
 
       const status = storyService.getStatus('STORY-1');
       expect(status).toBe('completed');
     });
 
-    it('returns in_progress when mix of done and pending', () => {
-      storyService.create({ title: 'Story', description: 'desc', created_by: 'human' });
-      taskService.create({ title: 'Task A', description: 'desc', created_by: 'human' });
-      taskService.create({ title: 'Task B', description: 'desc', created_by: 'human' });
-      storyService.addTask('STORY-1', 'TASK-1');
-      storyService.addTask('STORY-1', 'TASK-2');
+    it('returns in_progress when mix of done and pending', async () => {
+      await storyService.create({ title: 'Story', description: 'desc', created_by: 'human' });
+      await taskService.create({ title: 'Task A', description: 'desc', created_by: 'human' });
+      await taskService.create({ title: 'Task B', description: 'desc', created_by: 'human' });
+      await storyService.addTask('STORY-1', 'TASK-1');
+      await storyService.addTask('STORY-1', 'TASK-2');
 
-      taskService.transitionPhase('TASK-1', 'done');
+      await taskService.transitionPhase('TASK-1', 'done');
       // TASK-2 remains pending
 
       const status = storyService.getStatus('STORY-1');
@@ -226,29 +227,29 @@ describe('StoryService', () => {
   });
 
   describe('list', () => {
-    it('returns all stories', () => {
-      storyService.create({ title: 'Story A', description: 'desc', created_by: 'human' });
-      storyService.create({ title: 'Story B', description: 'desc', created_by: 'human' });
+    it('returns all stories', async () => {
+      await storyService.create({ title: 'Story A', description: 'desc', created_by: 'human' });
+      await storyService.create({ title: 'Story B', description: 'desc', created_by: 'human' });
 
       const result = storyService.list();
       expect(result).toHaveLength(2);
     });
 
-    it('includes derived status in list results', () => {
-      storyService.create({ title: 'Empty story', description: 'desc', created_by: 'human' });
+    it('includes derived status in list results', async () => {
+      await storyService.create({ title: 'Empty story', description: 'desc', created_by: 'human' });
 
       const result = storyService.list();
       expect(result[0].status).toBe('pending');
     });
 
-    it('filters by status', () => {
-      storyService.create({ title: 'Empty', description: 'desc', created_by: 'human' });
-      storyService.create({ title: 'With tasks', description: 'desc', created_by: 'human' });
+    it('filters by status', async () => {
+      await storyService.create({ title: 'Empty', description: 'desc', created_by: 'human' });
+      await storyService.create({ title: 'With tasks', description: 'desc', created_by: 'human' });
 
       // Add a task in coding to make STORY-2 "in_progress"
-      taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
-      storyService.addTask('STORY-2', 'TASK-1');
-      taskService.transitionPhase('TASK-1', 'coding');
+      await taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
+      await storyService.addTask('STORY-2', 'TASK-1');
+      await taskService.transitionPhase('TASK-1', 'coding');
 
       const pending = storyService.list({ status: 'pending' });
       expect(pending).toHaveLength(1);

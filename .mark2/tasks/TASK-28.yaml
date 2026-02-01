@@ -1,0 +1,21 @@
+id: TASK-28
+title: Build System & Distribution
+description: Add bin entry to package.json. Add files field for npm publishing. Add build scripts for CLI. Create tsconfig.cli.json. Update src/lib/adapters/claude-code.ts for dynamic path resolution for MCP server and hooks.
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: dogfood-script
+story_id: STORY-9
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-01T00:08:01.103Z
+updated_at: 2026-02-01T00:08:01.103Z
+phase_entered_at: 2026-02-01T00:08:01.103Z
+loop_count: 0
+archived: false

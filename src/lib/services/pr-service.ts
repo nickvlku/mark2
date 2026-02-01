@@ -8,6 +8,7 @@ import { TaskService } from './task-service';
 import { ArtifactService } from './artifact-service';
 import { CloneService } from './clone-service';
 import { StoryService } from './story-service';
+import { getMark2Dir } from '../utils/mark2-dir';
 import type { Task, TaskArtifact } from '../yaml/schemas';
 
 const exec = promisify(execCb);
@@ -28,7 +29,7 @@ export class PRService {
   private storyService: StoryService;
 
   constructor(mark2Dir?: string) {
-    this.mark2Dir = mark2Dir ?? path.join(process.cwd(), '.mark2');
+    this.mark2Dir = mark2Dir ?? getMark2Dir();
     this.projectRoot = path.dirname(this.mark2Dir);
     this.taskService = new TaskService(this.mark2Dir);
     this.artifactService = new ArtifactService(this.mark2Dir);

@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server';
 import { spawnSync } from 'child_process';
-import { CloneService } from '@/lib/services/clone-service';
-import { TaskService } from '@/lib/services/task-service';
-import { ConfigService } from '@/lib/services/config-service';
+import { createCloneService, createTaskService, createConfigService } from '@/lib/services/factory';
 import { isValidTaskId } from '@/lib/utils/route-validation';
 
-const taskService = new TaskService();
-const cloneService = new CloneService();
-const configService = new ConfigService();
+const taskService = createTaskService();
+const cloneService = createCloneService();
+const configService = createConfigService();
 
 function tryOpenIDE(command: string, clonePath: string): boolean {
   const whichResult = spawnSync('which', [command], { encoding: 'utf-8' });

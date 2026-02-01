@@ -18,6 +18,8 @@ const mockTmuxManager = vi.hoisted(() => ({
   cleanupSessions: vi.fn().mockResolvedValue(0),
   register: vi.fn(),
   createSession: vi.fn().mockResolvedValue({ name: 'mock-session' }),
+  markCompletedByPhase: vi.fn(),
+  markFailedByPhase: vi.fn(),
 }));
 
 const mockEndTokenWatcher = vi.hoisted(() => ({
@@ -58,6 +60,8 @@ vi.mock('@/lib/orchestration/tmux-manager', () => ({
     cleanupSessions = mockTmuxManager.cleanupSessions;
     register = mockTmuxManager.register;
     createSession = mockTmuxManager.createSession;
+    markCompletedByPhase = mockTmuxManager.markCompletedByPhase;
+    markFailedByPhase = mockTmuxManager.markFailedByPhase;
   },
 }));
 
@@ -209,6 +213,7 @@ describe('Phase Transitions Integration', () => {
       updated_at: new Date().toISOString(),
       phase_entered_at: new Date().toISOString(),
       loop_count: 0,
+      archived: false,
     };
     yamlWriter.writeTask(testTask);
 

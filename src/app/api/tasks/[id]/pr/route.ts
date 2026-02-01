@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { PRService } from '@/lib/services/pr-service';
+import { createPRService } from '@/lib/services/factory';
 import { isValidTaskId } from '@/lib/utils/route-validation';
 
-const service = new PRService();
+const service = createPRService();
 
 export async function POST(
   request: Request,

@@ -3,19 +3,34 @@ import path from 'path';
 import { getDb, initializeDatabase } from '../db';
 import { tasks, stories, activityEntries, idCounters, corruptFiles } from '../db/schema';
 import { YamlReader } from '../yaml/reader';
+import { StateBranchService } from './state-branch-service';
 import type { ReindexResult, ParseError } from '../../types';
 import { sql } from 'drizzle-orm';
 
 export class ReindexService {
-  private reader: YamlReader;
   private mark2Dir: string;
+  private stateBranch: StateBranchService;
 
-  constructor(mark2Dir: string) {
+  constructor(mark2Dir: string, stateBranch?: StateBranchService) {
     this.mark2Dir = mark2Dir;
-    this.reader = new YamlReader(mark2Dir);
+    this.stateBranch = stateBranch ?? new StateBranchService(mark2Dir);
   }
 
+  /**
+   * Full reindex from the state branch.
+   * 1. Ensures the state worktree exists
+   * 2. Pulls latest from remote (if available)
+   * 3. Rebuilds SQLite from the .state/ YAML files
+   */
   async fullReindex(): Promise<ReindexResult> {
+    // Ensure worktree exists and pull latest
+    await this.stateBranch.ensureWorktree();
+    const pullResult = await this.stateBranch.pull();
+
+    // Use a YamlReader pointed at the state directory
+    const stateDir = this.stateBranch.getStateDir();
+    const reader = new YamlReader(stateDir);
+
     const db = getDb(this.mark2Dir);
     const errors: ParseError[] = [];
 
@@ -26,7 +41,7 @@ export class ReindexService {
     db.delete(corruptFiles).run();
 
     // Index tasks
-    const taskResult = this.reader.readAllTasks();
+    const taskResult = reader.readAllTasks();
     let tasksIndexed = 0;
     for (const task of taskResult.tasks) {
       db.insert(tasks).values({
@@ -47,6 +62,7 @@ export class ReindexService {
         loop_count: task.loop_count,
         archived: task.archived ?? false,
         archived_at: task.archived_at ?? null,
+        phase_agents_json: JSON.stringify(task.phase_agents ?? {}),
         phase_overrides_json: JSON.stringify(task.phase_overrides ?? {}),
         blockers_json: JSON.stringify(task.blockers),
         artifacts_json: JSON.stringify(task.artifacts),
@@ -58,7 +74,7 @@ export class ReindexService {
     errors.push(...taskResult.errors);
 
     // Index stories
-    const storyResult = this.reader.readAllStories();
+    const storyResult = reader.readAllStories();
     let storiesIndexed = 0;
     for (const story of storyResult.stories) {
       db.insert(stories).values({
@@ -75,7 +91,7 @@ export class ReindexService {
     errors.push(...storyResult.errors);
 
     // Index activities
-    const activityResult = this.reader.readAllActivities();
+    const activityResult = reader.readAllActivities();
     let activitiesIndexed = 0;
     for (const activity of activityResult.activities) {
       for (const entry of activity.entries) {
@@ -117,10 +133,18 @@ export class ReindexService {
       stories_indexed: storiesIndexed,
       activities_indexed: activitiesIndexed,
       errors,
+      sync_result: pullResult,
     };
   }
 
+  /**
+   * Incremental reindex for specific files (used by file watchers).
+   * Note: In the new architecture, this is less important as the
+   * canonical source is the state branch, not local files.
+   */
   async incrementalReindex(changedFiles: string[]): Promise<ReindexResult> {
+    const stateDir = this.stateBranch.getStateDir();
+    const reader = new YamlReader(stateDir);
     const db = getDb(this.mark2Dir);
     const errors: ParseError[] = [];
     let tasksIndexed = 0;
@@ -132,7 +156,7 @@ export class ReindexService {
 
       if (basename.match(/^TASK-\d+\.yaml$/) && !basename.includes('.activity.')) {
         const taskId = basename.replace('.yaml', '');
-        const { data, error } = this.reader.readTask(taskId);
+        const { data, error } = reader.readTask(taskId);
         if (data) {
           // Upsert task
           db.delete(tasks).where(sql`id = ${data.id}`).run();
@@ -154,6 +178,7 @@ export class ReindexService {
             loop_count: data.loop_count,
             archived: data.archived ?? false,
             archived_at: data.archived_at ?? null,
+            phase_agents_json: JSON.stringify(data.phase_agents ?? {}),
             phase_overrides_json: JSON.stringify(data.phase_overrides ?? {}),
             blockers_json: JSON.stringify(data.blockers),
             artifacts_json: JSON.stringify(data.artifacts),
@@ -165,7 +190,7 @@ export class ReindexService {
         if (error) errors.push(error);
       } else if (basename.match(/^TASK-\d+\.activity\.yaml$/)) {
         const taskId = basename.replace('.activity.yaml', '');
-        const { data, error } = this.reader.readActivity(taskId);
+        const { data, error } = reader.readActivity(taskId);
         if (data) {
           db.delete(activityEntries).where(sql`task_id = ${data.task_id}`).run();
           for (const entry of data.entries) {
@@ -183,7 +208,7 @@ export class ReindexService {
         if (error) errors.push(error);
       } else if (basename.match(/^STORY-\d+\.yaml$/)) {
         const storyId = basename.replace('.yaml', '');
-        const { data, error } = this.reader.readStory(storyId);
+        const { data, error } = reader.readStory(storyId);
         if (data) {
           db.delete(stories).where(sql`id = ${data.id}`).run();
           db.insert(stories).values({

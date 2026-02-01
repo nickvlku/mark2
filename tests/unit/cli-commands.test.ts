@@ -145,7 +145,7 @@ mark2-session|5|1643725000|attached|100x25`;
           attached,
           size,
         };
-      }).filter(Boolean);
+      }).filter((s): s is NonNullable<typeof s> => s !== null);
 
       expect(validSessions).toHaveLength(1);
       expect(validSessions[0].name).toBe('session2');
@@ -292,7 +292,7 @@ mark2-session|5|1643725000|attached|100x25`;
       });
 
       // Test error handling
-      let sessions = [];
+      let sessions: string[] = [];
       try {
         execSync(
           "tmux list-sessions -F '#{session_name}|#{session_windows}|#{session_created}|#{?session_attached,attached,detached}|#{window_width}x#{window_height}' 2>/dev/null",

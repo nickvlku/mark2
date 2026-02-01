@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { TaskService } from '@/lib/services/task-service';
+import { createTaskService } from '@/lib/services/factory';
 import { isValidTaskId } from '@/lib/utils/route-validation';
 
-const service = new TaskService();
+const service = createTaskService();
 
 export async function GET(
   request: Request,

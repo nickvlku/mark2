@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs';
-import { ArtifactService } from '@/lib/services/artifact-service';
-import { TaskService } from '@/lib/services/task-service';
+import { createArtifactService, createTaskService } from '@/lib/services/factory';
+import { getMark2Dir } from '@/lib/utils/mark2-dir';
 import { resolveArtifactPath, fileExistsSync } from '@/lib/utils/storage';
 import { isValidTaskId } from '@/lib/utils/route-validation';
 
-const service = new ArtifactService();
-const taskService = new TaskService();
+const service = createArtifactService();
+const taskService = createTaskService();
 
 export async function GET(
   request: Request,
@@ -37,7 +37,7 @@ export async function GET(
     const artifact = task.artifacts?.find(a => a.path === artifactPath);
     const phase = artifact?.phase ?? task.phase;
 
-    const mark2Dir = path.join(process.cwd(), '.mark2');
+    const mark2Dir = getMark2Dir();
     const projectRoot = path.dirname(mark2Dir);
 
     let storagePath: string;

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { StoryService } from '@/lib/services/story-service';
+import { createStoryService } from '@/lib/services/factory';
 
-const service = new StoryService();
+const service = createStoryService();
 
 export async function GET(request: Request) {
   try {

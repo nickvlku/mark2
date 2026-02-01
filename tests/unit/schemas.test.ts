@@ -7,7 +7,6 @@ import {
   ActivityEntry,
   ActivityLog,
   ConfigSchema,
-  AgentDefinitionSchema,
   StoryStatus,
   MergeStrategy,
   ReviewSeverity,
@@ -364,96 +363,4 @@ describe('Zod Schemas', () => {
     });
   });
 
-  // ── AgentDefinitionSchema ───────────────────────────────────────────
-  describe('AgentDefinitionSchema', () => {
-    it('validates a proper agent definition', () => {
-      const input = {
-        name: 'design-agent',
-        cli_tool: 'claude-code',
-        model: 'claude-sonnet-4-5',
-        phase: 'design',
-        role_prompt: 'You are a design agent.',
-        timeout_minutes: 30,
-      };
-      const result = AgentDefinitionSchema.parse(input);
-      expect(result.name).toBe('design-agent');
-      expect(result.cli_tool).toBe('claude-code');
-      expect(result.phase).toBe('design');
-    });
-
-    it('validates all cli_tool enum values', () => {
-      const tools = ['claude-code', 'codex-cli', 'gemini-cli', 'opencode'];
-      for (const tool of tools) {
-        const result = AgentDefinitionSchema.parse({
-          name: 'agent',
-          cli_tool: tool,
-          model: 'model',
-          phase: 'coding',
-          role_prompt: 'prompt',
-        });
-        expect(result.cli_tool).toBe(tool);
-      }
-    });
-
-    it('validates all phase enum values', () => {
-      const phases = ['design', 'coding', 'testing', 'code_review', 'manual_testing'];
-      for (const phase of phases) {
-        const result = AgentDefinitionSchema.parse({
-          name: 'agent',
-          cli_tool: 'claude-code',
-          model: 'model',
-          phase,
-          role_prompt: 'prompt',
-        });
-        expect(result.phase).toBe(phase);
-      }
-    });
-
-    it('rejects invalid cli_tool', () => {
-      expect(() =>
-        AgentDefinitionSchema.parse({
-          name: 'agent',
-          cli_tool: 'unknown-tool',
-          model: 'model',
-          phase: 'coding',
-          role_prompt: 'prompt',
-        }),
-      ).toThrow();
-    });
-
-    it('rejects invalid phase', () => {
-      expect(() =>
-        AgentDefinitionSchema.parse({
-          name: 'agent',
-          cli_tool: 'claude-code',
-          model: 'model',
-          phase: 'invalid-phase',
-          role_prompt: 'prompt',
-        }),
-      ).toThrow();
-    });
-
-    it('rejects agent name with uppercase or special chars', () => {
-      expect(() =>
-        AgentDefinitionSchema.parse({
-          name: 'Design_Agent',
-          cli_tool: 'claude-code',
-          model: 'model',
-          phase: 'design',
-          role_prompt: 'prompt',
-        }),
-      ).toThrow();
-    });
-
-    it('defaults timeout_minutes to 60', () => {
-      const result = AgentDefinitionSchema.parse({
-        name: 'agent',
-        cli_tool: 'claude-code',
-        model: 'model',
-        phase: 'coding',
-        role_prompt: 'prompt',
-      });
-      expect(result.timeout_minutes).toBe(60);
-    });
-  });
 });

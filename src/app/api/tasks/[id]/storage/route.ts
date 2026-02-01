@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
-import path from 'path';
 import {
   getTaskStoragePaths,
   ensureTaskStorageExists,
   getStorageStats,
   fileExistsSync,
 } from '@/lib/utils/storage';
-import { TaskService } from '@/lib/services/task-service';
+import { createTaskService } from '@/lib/services/factory';
+import { getMark2Dir, getProjectRoot } from '@/lib/utils/mark2-dir';
 import { isValidTaskId } from '@/lib/utils/route-validation';
 
-const taskService = new TaskService();
+const taskService = createTaskService();
 
 /**
  * GET /api/tasks/{id}/storage
@@ -32,8 +32,7 @@ export async function GET(
       return NextResponse.json({ error: `Task ${id} not found` }, { status: 404 });
     }
 
-    const mark2Dir = path.join(process.cwd(), '.mark2');
-    const projectRoot = path.dirname(mark2Dir);
+    const projectRoot = getProjectRoot();
 
     const paths = getTaskStoragePaths(projectRoot, id);
     const stats = await getStorageStats(projectRoot, id);
@@ -89,8 +88,7 @@ export async function POST(
       return NextResponse.json({ error: `Task ${id} not found` }, { status: 404 });
     }
 
-    const mark2Dir = path.join(process.cwd(), '.mark2');
-    const projectRoot = path.dirname(mark2Dir);
+    const projectRoot = getProjectRoot();
 
     await ensureTaskStorageExists(projectRoot, id);
 

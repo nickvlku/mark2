@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { PortService } from '@/lib/services/port-service';
+import { createPortService } from '@/lib/services/factory';
 
-const service = new PortService();
+const service = createPortService();
 
 export async function GET() {
   try {

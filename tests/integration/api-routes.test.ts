@@ -17,8 +17,9 @@ beforeEach(() => {
   mkdirSync(path.join(mark2Dir, 'activity'), { recursive: true });
   mkdirSync(path.join(mark2Dir, 'artifacts'), { recursive: true });
   initializeDatabase(mark2Dir);
-  taskService = new TaskService(mark2Dir);
-  storyService = new StoryService(mark2Dir);
+  // Use localOnly=true to skip git operations in tests
+  taskService = new TaskService(mark2Dir, undefined, true);
+  storyService = new StoryService(mark2Dir, undefined, true);
 });
 
 afterEach(() => {
@@ -27,7 +28,7 @@ afterEach(() => {
 });
 
 describe('Task creation (simulating API route)', () => {
-  it('creates a task with only title (matching UI dialog payload)', () => {
+  it('creates a task with only title (matching UI dialog payload)', async () => {
     // This is exactly what the CreateTaskDialog sends
     const body: { title: string; description: string; priority: string; story_id: undefined; created_by?: string } = {
       title: 'My new task',
@@ -36,7 +37,7 @@ describe('Task creation (simulating API route)', () => {
       story_id: undefined,
     };
 
-    const task = taskService.create({
+    const task = await taskService.create({
       title: body.title,
       description: body.description || '',
       priority: body.priority,
@@ -51,8 +52,8 @@ describe('Task creation (simulating API route)', () => {
     expect(task.priority).toBe('P2');
   });
 
-  it('creates a task with title and description', () => {
-    const task = taskService.create({
+  it('creates a task with title and description', async () => {
+    const task = await taskService.create({
       title: 'Build login page',
       description: 'Create the login page with form validation',
       created_by: 'human',
@@ -64,8 +65,8 @@ describe('Task creation (simulating API route)', () => {
     expect(task.created_by).toBe('human');
   });
 
-  it('creates a task with all fields', () => {
-    const task = taskService.create({
+  it('creates a task with all fields', async () => {
+    const task = await taskService.create({
       title: 'Full task',
       description: 'A fully specified task',
       priority: 'P0',
@@ -80,18 +81,18 @@ describe('Task creation (simulating API route)', () => {
     expect(task.phase_agents).toEqual({ coding: 'coder' });
   });
 
-  it('creates multiple tasks with sequential IDs', () => {
-    const t1 = taskService.create({
+  it('creates multiple tasks with sequential IDs', async () => {
+    const t1 = await taskService.create({
       title: 'First task',
       description: '',
       created_by: 'human',
     });
-    const t2 = taskService.create({
+    const t2 = await taskService.create({
       title: 'Second task',
       description: '',
       created_by: 'human',
     });
-    const t3 = taskService.create({
+    const t3 = await taskService.create({
       title: 'Third task',
       description: '',
       created_by: 'human',
@@ -102,8 +103,8 @@ describe('Task creation (simulating API route)', () => {
     expect(t3.id).toBe('TASK-3');
   });
 
-  it('created task is retrievable via getById', () => {
-    const created = taskService.create({
+  it('created task is retrievable via getById', async () => {
+    const created = await taskService.create({
       title: 'Retrievable task',
       description: 'Should be findable',
       created_by: 'human',
@@ -115,8 +116,8 @@ describe('Task creation (simulating API route)', () => {
     expect(retrieved!.description).toBe('Should be findable');
   });
 
-  it('created task appears in list', () => {
-    taskService.create({
+  it('created task appears in list', async () => {
+    await taskService.create({
       title: 'Listed task',
       description: 'In the list',
       created_by: 'human',
@@ -127,36 +128,36 @@ describe('Task creation (simulating API route)', () => {
     expect(all[0].title).toBe('Listed task');
   });
 
-  it('rejects empty title via Zod validation', () => {
-    expect(() => {
+  it('rejects empty title via Zod validation', async () => {
+    await expect(
       taskService.create({
         title: '',
         description: 'No title',
         created_by: 'human',
-      });
-    }).toThrow();
+      })
+    ).rejects.toThrow();
   });
 
-  it('rejects title over 200 characters', () => {
-    expect(() => {
+  it('rejects title over 200 characters', async () => {
+    await expect(
       taskService.create({
         title: 'x'.repeat(201),
         description: 'Too long title',
         created_by: 'human',
-      });
-    }).toThrow();
+      })
+    ).rejects.toThrow();
   });
 });
 
 describe('Story creation (simulating API route)', () => {
-  it('creates a story with only title (matching UI dialog payload)', () => {
+  it('creates a story with only title (matching UI dialog payload)', async () => {
     // This is exactly what the CreateStoryDialog sends
     const body: { title: string; description: string; created_by?: string } = {
       title: 'My new story',
       description: '',
     };
 
-    const story = storyService.create({
+    const story = await storyService.create({
       title: body.title,
       description: body.description || '',
       created_by: body.created_by || 'human',
@@ -169,8 +170,8 @@ describe('Story creation (simulating API route)', () => {
     expect(story.tasks).toEqual([]);
   });
 
-  it('creates a story with title and description', () => {
-    const story = storyService.create({
+  it('creates a story with title and description', async () => {
+    const story = await storyService.create({
       title: 'Auth system',
       description: 'Full authentication implementation',
       created_by: 'human',
@@ -181,13 +182,13 @@ describe('Story creation (simulating API route)', () => {
     expect(story.description).toBe('Full authentication implementation');
   });
 
-  it('creates multiple stories with sequential IDs', () => {
-    const s1 = storyService.create({
+  it('creates multiple stories with sequential IDs', async () => {
+    const s1 = await storyService.create({
       title: 'First story',
       description: '',
       created_by: 'human',
     });
-    const s2 = storyService.create({
+    const s2 = await storyService.create({
       title: 'Second story',
       description: '',
       created_by: 'human',
@@ -197,8 +198,8 @@ describe('Story creation (simulating API route)', () => {
     expect(s2.id).toBe('STORY-2');
   });
 
-  it('created story is retrievable via getById', () => {
-    const created = storyService.create({
+  it('created story is retrievable via getById', async () => {
+    const created = await storyService.create({
       title: 'Retrievable story',
       description: 'Should be findable',
       created_by: 'human',
@@ -209,8 +210,8 @@ describe('Story creation (simulating API route)', () => {
     expect(retrieved!.title).toBe('Retrievable story');
   });
 
-  it('created story appears in list', () => {
-    storyService.create({
+  it('created story appears in list', async () => {
+    await storyService.create({
       title: 'Listed story',
       description: 'In the list',
       created_by: 'human',
@@ -221,26 +222,26 @@ describe('Story creation (simulating API route)', () => {
     expect(all[0].title).toBe('Listed story');
   });
 
-  it('rejects empty title via Zod validation', () => {
-    expect(() => {
+  it('rejects empty title via Zod validation', async () => {
+    await expect(
       storyService.create({
         title: '',
         description: 'No title',
         created_by: 'human',
-      });
-    }).toThrow();
+      })
+    ).rejects.toThrow();
   });
 });
 
 describe('Task + Story association', () => {
-  it('creates task with story_id and retrieves it', () => {
-    const story = storyService.create({
+  it('creates task with story_id and retrieves it', async () => {
+    const story = await storyService.create({
       title: 'Parent story',
       description: 'Has tasks',
       created_by: 'human',
     });
 
-    const task = taskService.create({
+    const task = await taskService.create({
       title: 'Child task',
       description: 'Belongs to story',
       story_id: story.id,
@@ -253,20 +254,20 @@ describe('Task + Story association', () => {
     expect(retrieved!.story_id).toBe('STORY-1');
   });
 
-  it('adds task to story and retrieves association', () => {
-    const story = storyService.create({
+  it('adds task to story and retrieves association', async () => {
+    const story = await storyService.create({
       title: 'Story with tasks',
       description: '',
       created_by: 'human',
     });
 
-    const task = taskService.create({
+    const task = await taskService.create({
       title: 'Associated task',
       description: '',
       created_by: 'human',
     });
 
-    storyService.addTask(story.id, task.id);
+    await storyService.addTask(story.id, task.id);
 
     const updated = storyService.getById(story.id);
     expect(updated!.tasks).toContain('TASK-1');

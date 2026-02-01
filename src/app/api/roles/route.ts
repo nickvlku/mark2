@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { ConfigService } from '@/lib/services/config-service';
+import { createConfigService } from '@/lib/services/factory';
 import { RoleSchema } from '@/lib/yaml/schemas';
 import { z } from 'zod';
 
-const service = new ConfigService();
+const service = createConfigService();
 
 export async function GET() {
   try {

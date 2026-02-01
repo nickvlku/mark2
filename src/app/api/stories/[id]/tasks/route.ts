@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { StoryService } from '@/lib/services/story-service';
+import { createStoryService } from '@/lib/services/factory';
 import { isValidStoryId } from '@/lib/utils/route-validation';
 
-const service = new StoryService();
+const service = createStoryService();
 
 export async function POST(
   request: Request,

@@ -40,16 +40,16 @@ describe('tmuxes CLI Integration Tests', () => {
 
       const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
       expect(packageJson.scripts).toHaveProperty('mark2');
-      expect(packageJson.scripts.mark2).toBe('tsx cli/index.ts');
+      expect(packageJson.scripts.mark2).toBe('tsx cli/cli.ts');
     });
 
-    it('should have tmuxes command in CLI index', () => {
-      const cliIndexPath = path.resolve(process.cwd(), 'cli/index.ts');
-      expect(fs.existsSync(cliIndexPath)).toBe(true);
+    it('should have tmuxes command in CLI', () => {
+      const cliPath = path.resolve(process.cwd(), 'cli/cli.ts');
+      expect(fs.existsSync(cliPath)).toBe(true);
 
-      const cliContent = fs.readFileSync(cliIndexPath, 'utf-8');
+      const cliContent = fs.readFileSync(cliPath, 'utf-8');
       expect(cliContent).toContain("case 'tmuxes':");
-      expect(cliContent).toContain("await import('./commands/tmuxes')");
+      expect(cliContent).toContain("tmuxesCommand");
     });
 
     it('should have tmuxes.ts command file', () => {
@@ -277,8 +277,8 @@ mark2-task-123|5|1643726000|attached|90x25`;
       const selectCall = vi.mocked(select).mock.calls[0][0];
       const choices = selectCall.choices;
 
-      const productionChoice = choices.find((c: any) => c.value === 'production-server');
-      const developmentChoice = choices.find((c: any) => c.value === 'development');
+      const productionChoice = choices.find((c: any) => c.value === 'production-server') as { name: string; value: string } | undefined;
+      const developmentChoice = choices.find((c: any) => c.value === 'development') as { name: string; value: string } | undefined;
 
       expect(productionChoice?.name).toContain('(attached)');
       expect(developmentChoice?.name).not.toContain('(attached)');

@@ -9,6 +9,25 @@ import {
 } from '../utils/storage';
 
 /**
+ * Get the mark2 installation directory.
+ * This is where the package is installed (containing src/, cli/, etc.)
+ * When running from a global install, we need to find the correct path.
+ */
+function getMark2InstallDir(): string {
+  // __dirname will be in src/lib/adapters for this file
+  // Go up to find the root of the package
+  const possibleRoot = path.join(__dirname, '..', '..', '..');
+
+  // Verify by checking for server.ts
+  if (fs.existsSync(path.join(possibleRoot, 'server.ts'))) {
+    return possibleRoot;
+  }
+
+  // Fallback: assume cwd is the mark2 install
+  return process.cwd();
+}
+
+/**
  * Adapter for Anthropic's Claude Code CLI.
  *
  * Uses Claude's native CLI flags for clean separation of concerns:
@@ -88,7 +107,11 @@ export class ClaudeCodeAdapter implements CLIAdapter {
    */
   private buildMcpConfig(projectRoot: string, taskId: string, apiBaseUrl: string): object {
     const mark2Dir = path.join(projectRoot, '.mark2');
-    const mcpServerPath = path.join(projectRoot, 'src', 'lib', 'mcp', 'index.ts');
+
+    // Find the MCP server in the mark2 installation directory
+    // This allows mark2 to work when installed globally
+    const installDir = getMark2InstallDir();
+    const mcpServerPath = path.join(installDir, 'src', 'lib', 'mcp', 'index.ts');
 
     return {
       mcpServers: {
@@ -114,8 +137,10 @@ export class ClaudeCodeAdapter implements CLIAdapter {
     const claudeDir = path.join(workingDirectory, '.claude');
     const settingsPath = path.join(claudeDir, 'settings.local.json');
 
-    // Path to the hook script (in the project's cli/hooks directory)
-    const hookScriptPath = path.join(projectRoot, 'cli', 'hooks', 'end-token-hook.ts');
+    // Find the hook script in the mark2 installation directory
+    // This allows mark2 to work when installed globally
+    const installDir = getMark2InstallDir();
+    const hookScriptPath = path.join(installDir, 'cli', 'hooks', 'end-token-hook.ts');
 
     if (!fs.existsSync(claudeDir)) {
       fs.mkdirSync(claudeDir, { recursive: true });

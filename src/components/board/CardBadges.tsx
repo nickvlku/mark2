@@ -84,3 +84,72 @@ export function BlockerBadge({ count }: BlockerBadgeProps) {
     </span>
   );
 }
+
+export interface LockInfo {
+  locked_by: string;
+  email: string;
+  locked_at: string;
+  machine: string;
+}
+
+interface LockBadgeProps {
+  lock: LockInfo;
+  isMine?: boolean;
+  isExpired?: boolean;
+}
+
+export function LockBadge({ lock, isMine, isExpired }: LockBadgeProps) {
+  // Format the lock time as a relative time
+  const lockDate = new Date(lock.locked_at);
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - lockDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  let timeStr: string;
+  if (diffDays === 0) {
+    timeStr = 'today';
+  } else if (diffDays === 1) {
+    timeStr = 'yesterday';
+  } else {
+    timeStr = `${diffDays}d ago`;
+  }
+
+  if (isMine) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-medium text-blue-400"
+        title={`You locked this task ${timeStr}`}
+      >
+        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+        </svg>
+        You
+      </span>
+    );
+  }
+
+  if (isExpired) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded bg-yellow-500/20 px-1.5 py-0.5 text-[10px] font-medium text-yellow-400"
+        title={`Lock expired - was held by ${lock.locked_by}`}
+      >
+        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 1 1 9 0v3.75M3.75 21.75h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H3.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+        </svg>
+        Expired
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded bg-orange-500/20 px-1.5 py-0.5 text-[10px] font-medium text-orange-400"
+      title={`Locked by ${lock.locked_by} (${lock.email}) ${timeStr}`}
+    >
+      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+      </svg>
+      {lock.locked_by}
+    </span>
+  );
+}

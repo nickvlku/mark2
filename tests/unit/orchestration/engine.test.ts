@@ -21,6 +21,8 @@ vi.mock('@/lib/orchestration/tmux-manager', () => ({
     cleanupSessions = vi.fn().mockResolvedValue(0);
     createSession = vi.fn().mockResolvedValue({ name: 'test-session' });
     register = vi.fn();
+    markCompletedByPhase = vi.fn();
+    markFailedByPhase = vi.fn();
   },
 }));
 vi.mock('@/lib/yaml/reader', () => ({
@@ -209,8 +211,8 @@ describe('OrchestrationEngine', () => {
         updated_at: new Date().toISOString(),
         phase_entered_at: new Date().toISOString(),
       };
-      const reader = (engine as any).reader as YamlReader;
-      reader.readTask.mockReturnValue({ data: taskInDesign });
+      const reader = (engine as any).reader;
+      (reader.readTask as ReturnType<typeof vi.fn>).mockReturnValue({ data: taskInDesign });
 
       await engine.processEndToken('TASK-1', 'test-agent', 'design', '[DESIGN_COMPLETED]');
 

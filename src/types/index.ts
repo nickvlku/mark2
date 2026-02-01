@@ -15,8 +15,23 @@ import type {
 
 export type SessionStatus = 'idle' | 'running' | 'completed' | 'failed';
 
+export interface LockInfo {
+  locked_by: string;
+  email: string;
+  locked_at: string;
+  machine: string;
+}
+
 export interface TaskWithSession extends Task {
   session_status: SessionStatus;
+}
+
+export interface TaskWithLock extends Task {
+  lock?: LockInfo;
+}
+
+export interface TaskWithSessionAndLock extends TaskWithSession {
+  lock?: LockInfo;
 }
 
 export interface TaskWithStatus extends Task {
@@ -81,11 +96,19 @@ export interface MergeResult {
   error?: 'merge_conflict' | 'rebase_failed';
 }
 
+export interface SyncResult {
+  success: boolean;
+  updated: boolean;
+  message: string;
+  conflicts?: string[];
+}
+
 export interface ReindexResult {
   tasks_indexed: number;
   stories_indexed: number;
   activities_indexed: number;
   errors: ParseError[];
+  sync_result?: SyncResult;
 }
 
 export interface ParseError {

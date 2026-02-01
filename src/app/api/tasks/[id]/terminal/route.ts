@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { exec as execCb } from 'child_process';
 import path from 'path';
 import fs from 'fs';
+import { getMark2Dir } from '@/lib/utils/mark2-dir';
 import { isValidTaskId } from '@/lib/utils/route-validation';
 
 // ---------------------------------------------------------------------------
@@ -17,8 +18,8 @@ export async function POST(
     if (!isValidTaskId(id)) {
       return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
     }
-    const projectRoot = process.cwd();
-    const clonePath = path.join(projectRoot, '.mark2', 'clones', id);
+    const mark2Dir = getMark2Dir();
+    const clonePath = path.join(mark2Dir, 'clones', id);
 
     // Check if clone directory exists
     if (!fs.existsSync(clonePath)) {

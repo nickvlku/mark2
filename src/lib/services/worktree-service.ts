@@ -2,6 +2,7 @@ import { getDb } from '../db';
 import { worktreeRecords } from '../db/schema';
 import { createWorktree, removeWorktree } from '../utils/git';
 import { eq, and } from 'drizzle-orm';
+import { getMark2Dir } from '../utils/mark2-dir';
 import path from 'path';
 
 export interface WorktreeRecord {
@@ -18,7 +19,7 @@ export class WorktreeService {
   private projectRoot: string;
 
   constructor(mark2Dir?: string) {
-    this.mark2Dir = mark2Dir ?? path.join(process.cwd(), '.mark2');
+    this.mark2Dir = mark2Dir ?? getMark2Dir();
     this.projectRoot = path.dirname(this.mark2Dir);
   }
 

@@ -6,6 +6,7 @@ import YAML from 'yaml';
 import { initializeDatabase, closeDb, getDb } from '@/lib/db';
 import { tasks, stories, activityEntries, idCounters } from '@/lib/db/schema';
 import { ReindexService } from '@/lib/services/reindex-service';
+import { StateBranchService } from '@/lib/services/state-branch-service';
 import { eq } from 'drizzle-orm';
 
 const NOW = '2025-01-15T10:00:00.000Z';
@@ -87,7 +88,8 @@ describe('ReindexService', () => {
       writeTaskYaml('TASK-1', { title: 'First task', phase: 'coding' });
       writeTaskYaml('TASK-2', { title: 'Second task', phase: 'testing' });
 
-      const service = new ReindexService(mark2Dir);
+      const stateBranch = new StateBranchService(mark2Dir, true);
+      const service = new ReindexService(mark2Dir, stateBranch);
       const result = await service.fullReindex();
 
       expect(result.tasks_indexed).toBe(2);
@@ -108,7 +110,8 @@ describe('ReindexService', () => {
       writeStoryYaml('STORY-1', { title: 'Auth Story', tasks: ['TASK-1'] });
       writeStoryYaml('STORY-2', { title: 'API Story' });
 
-      const service = new ReindexService(mark2Dir);
+      const stateBranch = new StateBranchService(mark2Dir, true);
+      const service = new ReindexService(mark2Dir, stateBranch);
       const result = await service.fullReindex();
 
       expect(result.stories_indexed).toBe(2);
@@ -126,7 +129,8 @@ describe('ReindexService', () => {
       writeTaskYaml('TASK-1');
       writeActivityYaml('TASK-1');
 
-      const service = new ReindexService(mark2Dir);
+      const stateBranch = new StateBranchService(mark2Dir, true);
+      const service = new ReindexService(mark2Dir, stateBranch);
       const result = await service.fullReindex();
 
       expect(result.activities_indexed).toBe(1);
@@ -143,7 +147,8 @@ describe('ReindexService', () => {
       writeTaskYaml('TASK-10');
       writeStoryYaml('STORY-3');
 
-      const service = new ReindexService(mark2Dir);
+      const stateBranch = new StateBranchService(mark2Dir, true);
+      const service = new ReindexService(mark2Dir, stateBranch);
       await service.fullReindex();
 
       const db = getDb(mark2Dir);
@@ -162,7 +167,8 @@ describe('ReindexService', () => {
       const corruptPath = path.join(mark2Dir, 'tasks', 'TASK-2.yaml');
       writeFileSync(corruptPath, YAML.stringify({ id: 'INVALID', title: 'bad' }), 'utf-8');
 
-      const service = new ReindexService(mark2Dir);
+      const stateBranch = new StateBranchService(mark2Dir, true);
+      const service = new ReindexService(mark2Dir, stateBranch);
       const result = await service.fullReindex();
 
       expect(result.tasks_indexed).toBe(1);
@@ -174,7 +180,8 @@ describe('ReindexService', () => {
       writeTaskYaml('TASK-1');
       writeTaskYaml('TASK-2');
 
-      const service = new ReindexService(mark2Dir);
+      const stateBranch = new StateBranchService(mark2Dir, true);
+      const service = new ReindexService(mark2Dir, stateBranch);
       await service.fullReindex();
 
       let db = getDb(mark2Dir);

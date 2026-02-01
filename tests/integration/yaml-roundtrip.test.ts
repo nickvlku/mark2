@@ -29,6 +29,7 @@ function makeTask(id: string, overrides: Partial<Task> = {}): Task {
     updated_at: NOW,
     phase_entered_at: NOW,
     loop_count: 0,
+    archived: false,
     ...overrides,
   };
 }

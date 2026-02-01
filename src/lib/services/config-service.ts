@@ -6,6 +6,7 @@ import { YamlReader } from '../yaml/reader';
 import { YamlWriter } from '../yaml/writer';
 import { ConfigSchema, RolesFileSchema } from '../yaml/schemas';
 import type { Config, Role, RolesFile } from '../yaml/schemas';
+import { getMark2Dir } from '../utils/mark2-dir';
 
 export class ConfigService {
   private reader: YamlReader;
@@ -13,7 +14,7 @@ export class ConfigService {
   private mark2Dir: string;
 
   constructor(mark2Dir?: string) {
-    this.mark2Dir = mark2Dir ?? path.join(process.cwd(), '.mark2');
+    this.mark2Dir = mark2Dir ?? getMark2Dir();
     this.reader = new YamlReader(this.mark2Dir);
     this.writer = new YamlWriter(this.mark2Dir);
   }

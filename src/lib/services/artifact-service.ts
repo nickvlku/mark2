@@ -5,6 +5,7 @@ import { YamlWriter } from '../yaml/writer';
 import { TaskArtifact as TaskArtifactSchema } from '../yaml/schemas';
 import type { Task, TaskArtifact, Phase } from '../yaml/schemas';
 import { eq } from 'drizzle-orm';
+import { getMark2Dir } from '../utils/mark2-dir';
 import fs from 'fs';
 import path from 'path';
 
@@ -14,7 +15,7 @@ export class ArtifactService {
   private mark2Dir: string;
 
   constructor(mark2Dir?: string) {
-    this.mark2Dir = mark2Dir ?? path.join(process.cwd(), '.mark2');
+    this.mark2Dir = mark2Dir ?? getMark2Dir();
     this.reader = new YamlReader(this.mark2Dir);
     this.writer = new YamlWriter(this.mark2Dir);
   }

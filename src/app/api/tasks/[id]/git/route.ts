@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
-import { CloneService } from '@/lib/services/clone-service';
-import { TaskService } from '@/lib/services/task-service';
+import { createCloneService, createTaskService } from '@/lib/services/factory';
 import { isValidTaskId } from '@/lib/utils/route-validation';
 
-const cloneService = new CloneService();
-const taskService = new TaskService();
+const cloneService = createCloneService();
+const taskService = createTaskService();
 
 // ---------------------------------------------------------------------------
 // GET /api/tasks/[id]/git — Get git status for task's clone

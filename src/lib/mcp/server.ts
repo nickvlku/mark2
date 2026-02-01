@@ -5,17 +5,11 @@ import fs from 'fs';
 import path from 'path';
 import { YamlReader } from '../yaml/reader';
 import { TaskService } from '../services/task-service';
+import { StoryService } from '../services/story-service';
 import { ActivityService } from '../services/activity-service';
 import { ArtifactService } from '../services/artifact-service';
 import { getTaskStoragePathsFromMark2Dir } from '../utils/storage';
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function getMark2Dir(): string {
-  return process.env.MARK2_DIR ?? path.join(process.cwd(), '.mark2');
-}
+import { getMark2Dir } from '../utils/mark2-dir';
 
 // ---------------------------------------------------------------------------
 // MCP Server Factory
@@ -610,6 +604,102 @@ export function createMcpServer(): McpServer {
       } catch (error) {
         return {
           content: [{ type: 'text' as const, text: `Error: ${error}` }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // ── mark2_create_task ─────────────────────────────────────────────────
+
+  server.tool(
+    'mark2_create_task',
+    'Create a new task in mark2',
+    {
+      title: z.string().describe('Task title'),
+      description: z.string().describe('Task description'),
+      priority: z.enum(['P0', 'P1', 'P2', 'P3']).optional().default('P2').describe('Task priority (P0=critical, P3=low)'),
+      story_id: z.string().optional().describe('Story ID to attach task to'),
+    },
+    async ({ title, description, priority, story_id }) => {
+      const mark2Dir = getMark2Dir();
+      const taskService = new TaskService(mark2Dir);
+
+      try {
+        const task = await taskService.create({
+          title,
+          description,
+          priority,
+          story_id,
+          created_by: 'mcp',
+        });
+
+        // If story_id provided, also add task to story's task list
+        if (story_id) {
+          const storyService = new StoryService(mark2Dir);
+          try {
+            await storyService.addTask(story_id, task.id);
+          } catch (storyError) {
+            // Log warning but don't fail the task creation
+            return {
+              content: [
+                {
+                  type: 'text' as const,
+                  text: `Task created: ${task.id} - ${task.title}\nWarning: Could not add to story ${story_id}: ${storyError}`,
+                },
+              ],
+            };
+          }
+        }
+
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Task created: ${task.id} - ${task.title}`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error creating task: ${error}` }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // ── mark2_create_story ────────────────────────────────────────────────
+
+  server.tool(
+    'mark2_create_story',
+    'Create a new story in mark2',
+    {
+      title: z.string().describe('Story title'),
+      description: z.string().describe('Story description'),
+    },
+    async ({ title, description }) => {
+      const mark2Dir = getMark2Dir();
+      const storyService = new StoryService(mark2Dir);
+
+      try {
+        const story = await storyService.create({
+          title,
+          description,
+          created_by: 'mcp',
+        });
+
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Story created: ${story.id} - ${story.title}`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error creating story: ${error}` }],
           isError: true,
         };
       }

@@ -4,6 +4,7 @@ import { eq, desc } from 'drizzle-orm';
 import { exec } from 'child_process';
 import { isSessionAlive, capturePane } from '@/lib/utils/tmux';
 import { TerminalStream } from '@/lib/ws/terminal-stream';
+import { getMark2Dir } from '@/lib/utils/mark2-dir';
 import { isValidTaskId } from '@/lib/utils/route-validation';
 
 // ---------------------------------------------------------------------------
@@ -21,7 +22,7 @@ export async function GET(
     }
 
     // Get the most recent session from the database (prioritize by started_at)
-    const mark2Dir = process.cwd() + '/.mark2';
+    const mark2Dir = getMark2Dir();
     const db = getDb(mark2Dir);
     const latestSession = db
       .select()
@@ -69,7 +70,7 @@ export async function POST(
     }
 
     // Get the most recent session from the database
-    const mark2Dir = process.cwd() + '/.mark2';
+    const mark2Dir = getMark2Dir();
     const db = getDb(mark2Dir);
     const latestSession = db
       .select()
@@ -177,7 +178,7 @@ export async function PATCH(
     }
 
     // Get the most recent session from the database
-    const mark2Dir = process.cwd() + '/.mark2';
+    const mark2Dir = getMark2Dir();
     const db = getDb(mark2Dir);
     const latestSession = db
       .select()

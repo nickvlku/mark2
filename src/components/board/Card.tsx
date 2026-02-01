@@ -2,14 +2,16 @@
 
 import { useDraggable } from '@dnd-kit/core';
 import type { Task, TaskWithSession, SessionStatus } from '@/types';
-import { PriorityBadge, AgentBadge, StatusIndicator, BlockerBadge } from './CardBadges';
+import { PriorityBadge, AgentBadge, StatusIndicator, BlockerBadge, LockBadge, LockInfo } from './CardBadges';
 
 interface CardProps {
-  task: Task & { session_status?: SessionStatus };
+  task: Task & { session_status?: SessionStatus; lock?: LockInfo };
   onClick: (task: Task) => void;
   onArchive?: (taskId: string) => void;
   onRestore?: (taskId: string) => void;
   onDelete?: (taskId: string) => void;
+  currentUserEmail?: string;
+  lockTimeoutDays?: number;
 }
 
 function getTaskStatus(task: Task & { session_status?: SessionStatus }): string {
@@ -52,11 +54,23 @@ function relativeTime(dateStr: string): string {
   return `${days}d`;
 }
 
-export function Card({ task, onClick, onArchive, onRestore, onDelete }: CardProps) {
+function isLockExpired(lock: LockInfo, timeoutDays: number = 5): boolean {
+  const lockTime = new Date(lock.locked_at).getTime();
+  const now = Date.now();
+  const timeoutMs = timeoutDays * 24 * 60 * 60 * 1000;
+  return now - lockTime > timeoutMs;
+}
+
+export function Card({ task, onClick, onArchive, onRestore, onDelete, currentUserEmail, lockTimeoutDays = 5 }: CardProps) {
+  const taskWithLock = task as Task & { session_status?: SessionStatus; lock?: LockInfo };
+  const lock = taskWithLock.lock;
+  const isMine = lock && currentUserEmail ? lock.email === currentUserEmail : false;
+  const isExpired = lock ? isLockExpired(lock, lockTimeoutDays) : false;
+
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
     data: { task },
-    disabled: task.archived, // Disable dragging for archived tasks
+    disabled: task.archived || (lock && !isMine && !isExpired), // Disable dragging for locked tasks
   });
 
   const style = transform
@@ -79,16 +93,19 @@ export function Card({ task, onClick, onArchive, onRestore, onDelete }: CardProp
       className={`group cursor-pointer rounded-lg border p-3 transition-all ${
         task.archived
           ? 'opacity-60 border-border/50 bg-bg-card/50'
+          : lock && !isMine && !isExpired
+          ? 'border-orange-500/30 bg-bg-card hover:border-orange-500/50 hover:bg-bg-hover'
           : 'border-border bg-bg-card hover:border-accent/50 hover:bg-bg-hover'
       } ${
         isDragging ? 'opacity-50 shadow-xl rotate-2 scale-105' : ''
       }`}
     >
-      {/* Top row: Priority + ID */}
+      {/* Top row: Priority + ID + Lock */}
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2">
           <PriorityBadge priority={task.priority} />
           <span className="text-xs font-mono text-text-secondary">{task.id}</span>
+          {lock && <LockBadge lock={lock} isMine={isMine} isExpired={isExpired} />}
         </div>
         <StatusIndicator status={status} />
       </div>

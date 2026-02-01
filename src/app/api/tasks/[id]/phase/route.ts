@@ -1,17 +1,15 @@
 import { NextResponse } from 'next/server';
-import path from 'path';
-import { TaskService } from '@/lib/services/task-service';
-import { ArtifactService } from '@/lib/services/artifact-service';
-import { ActivityService } from '@/lib/services/activity-service';
+import { createTaskService, createArtifactService, createActivityService } from '@/lib/services/factory';
+import { getMark2Dir, getProjectRoot } from '@/lib/utils/mark2-dir';
 import { OrchestrationEngine } from '@/lib/orchestration/engine';
 import { handleDone } from '@/lib/orchestration/phase-handlers/done';
 import type { Phase } from '@/lib/yaml/schemas';
 import type { PhaseContext } from '@/types';
 import { isValidTaskId } from '@/lib/utils/route-validation';
 
-const taskService = new TaskService();
-const artifactService = new ArtifactService();
-const activityService = new ActivityService();
+const taskService = createTaskService();
+const artifactService = createArtifactService();
+const activityService = createActivityService();
 
 export async function GET(
   request: Request,
@@ -98,14 +96,21 @@ async function handlePhaseTransition(
       );
     }
 
-    const task = taskService.transitionPhase(id, body.phase);
+    // Get the task first to check current phase
+    const existingTask = taskService.getById(id);
+    if (!existingTask) {
+      return NextResponse.json({ error: `Task ${id} not found` }, { status: 404 });
+    }
+    const previousPhase = existingTask.phase;
+
+    // Transition phase (handles lock acquisition/release)
+    const task = await taskService.transitionPhase(id, body.phase);
 
     // Fire-and-forget: kick off orchestration for the new phase
     const newPhase = body.phase as Phase;
-    const previousPhase = task.phase;
 
-    const projectRoot = process.cwd();
-    const mark2Dir = path.join(projectRoot, '.mark2');
+    const mark2Dir = getMark2Dir();
+    const projectRoot = getProjectRoot();
 
     if (newPhase === 'done') {
       // Handle done phase: merge to target branch
@@ -175,6 +180,13 @@ async function handlePhaseTransition(
   } catch (error: any) {
     if (error.message?.includes('not found')) {
       return NextResponse.json({ error: error.message }, { status: 404 });
+    }
+    if (error.message?.includes('locked by')) {
+      // Lock conflict error
+      return NextResponse.json(
+        { error: error.message, locked: true },
+        { status: 409 }, // Conflict
+      );
     }
     if (error.name === 'ZodError' || error.issues) {
       return NextResponse.json(

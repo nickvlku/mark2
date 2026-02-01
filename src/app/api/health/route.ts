@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { TmuxManager } from '@/lib/orchestration/tmux-manager';
-import path from 'path';
+import { getMark2Dir } from '@/lib/utils/mark2-dir';
 
 const startTime = Date.now();
-const mark2Dir = path.join(process.cwd(), '.mark2');
 
 export async function GET() {
   try {
+    const mark2Dir = getMark2Dir();
     const tmuxManager = new TmuxManager(mark2Dir);
     const activeSessions = await tmuxManager.getActiveSessions();
 

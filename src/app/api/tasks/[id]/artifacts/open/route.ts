@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { spawnSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
-import { TaskService } from '@/lib/services/task-service';
+import { createTaskService } from '@/lib/services/factory';
+import { getMark2Dir } from '@/lib/utils/mark2-dir';
 import { resolveArtifactPath, fileExistsSync } from '@/lib/utils/storage';
 import { isValidTaskId } from '@/lib/utils/route-validation';
 
-const taskService = new TaskService();
+const taskService = createTaskService();
 
 // ---------------------------------------------------------------------------
 // POST /api/tasks/[id]/artifacts/open — Open artifact in IDE
@@ -39,7 +40,7 @@ export async function POST(
     const artifact = task.artifacts?.find(a => a.path === artifactPath);
     const phase = artifact?.phase ?? task.phase;
 
-    const mark2Dir = path.join(process.cwd(), '.mark2');
+    const mark2Dir = getMark2Dir();
     const projectRoot = path.dirname(mark2Dir);
 
     let resolvedPath: string | null = null;
