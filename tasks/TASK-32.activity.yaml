@@ -144,3 +144,10 @@ entries:
     metadata:
       token: "[MANUAL_TESTING_READY]"
       phase: manual_testing
+  - timestamp: 2026-02-02T23:58:11.334Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from manual_testing to done
+    metadata:
+      old_phase: manual_testing
+      new_phase: done
