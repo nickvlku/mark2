@@ -62,6 +62,11 @@ artifacts:
     path: design-design-1770068793930-u3tuoi.md
     mime_type: text/markdown
     created_at: 2026-02-02T21:46:33.930Z
+  - name: coding-summary
+    phase: coding
+    path: coding-coding-summary-1770069282187-h7thjc.md
+    mime_type: text/markdown
+    created_at: 2026-02-02T21:54:42.188Z
 ports: []
 worktrees: {}
 created_by: human
@@ -69,7 +74,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-02T21:35:07.966Z
-updated_at: 2026-02-02T21:47:52.200Z
+updated_at: 2026-02-02T21:54:42.188Z
 phase_entered_at: 2026-02-02T21:47:52.199Z
 loop_count: 0
 archived: false
