@@ -1,0 +1,20 @@
+id: TASK-32
+title: Allow uploading of files into a task or story
+description: A task or story should allow files that can be passed into the phases.  Should support drag and drop and file explorer optionality and n number of files.  If they are images we should be able to render them in line and show them in the artifacts folder too as "uploaded by user"
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: human
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-02T21:35:07.966Z
+updated_at: 2026-02-02T21:35:07.966Z
+phase_entered_at: 2026-02-02T21:35:07.966Z
+loop_count: 0
+archived: false
