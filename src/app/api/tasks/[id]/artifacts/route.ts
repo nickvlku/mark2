@@ -5,6 +5,7 @@ import { createArtifactService, createTaskService } from '@/lib/services/factory
 import { getMark2Dir } from '@/lib/utils/mark2-dir';
 import { resolveArtifactPath, fileExistsSync } from '@/lib/utils/storage';
 import { isValidTaskId } from '@/lib/utils/route-validation';
+import { isImageType } from '@/lib/utils/upload';
 
 const service = createArtifactService();
 const taskService = createTaskService();
@@ -55,6 +56,20 @@ export async function GET(
     // Security: ensure the resolved path is within storage
     const storageRoot = path.resolve(path.join(mark2Dir, 'storage', id));
     if (resolvedStorage.startsWith(storageRoot) && fileExistsSync(resolvedStorage)) {
+      const mimeType = artifact?.mime_type || 'application/octet-stream';
+
+      // Serve binary files (especially images) directly
+      if (isImageType(mimeType) || mimeType === 'application/pdf') {
+        const fileBuffer = fs.readFileSync(resolvedStorage);
+        return new NextResponse(fileBuffer, {
+          headers: {
+            'Content-Type': mimeType,
+            'Content-Length': fileBuffer.length.toString(),
+            'Cache-Control': 'private, max-age=3600',
+          },
+        });
+      }
+
       const content = fs.readFileSync(resolvedStorage, 'utf-8');
       return NextResponse.json({ content, path: artifactPath, location: 'storage' });
     }
@@ -67,6 +82,19 @@ export async function GET(
 
     // Security: ensure the resolved path is within the worktree
     if (resolved.startsWith(path.resolve(worktreePath)) && fs.existsSync(resolved)) {
+      const mimeType = artifact?.mime_type || 'application/octet-stream';
+
+      if (isImageType(mimeType) || mimeType === 'application/pdf') {
+        const fileBuffer = fs.readFileSync(resolved);
+        return new NextResponse(fileBuffer, {
+          headers: {
+            'Content-Type': mimeType,
+            'Content-Length': fileBuffer.length.toString(),
+            'Cache-Control': 'private, max-age=3600',
+          },
+        });
+      }
+
       const content = fs.readFileSync(resolved, 'utf-8');
       return NextResponse.json({ content, path: artifactPath, location: 'worktree' });
     }
@@ -76,6 +104,19 @@ export async function GET(
     const flatFullPath = path.join(flatWorktreePath, artifactPath);
     const flatResolved = path.resolve(flatFullPath);
     if (flatResolved.startsWith(path.resolve(flatWorktreePath)) && fs.existsSync(flatResolved)) {
+      const mimeType = artifact?.mime_type || 'application/octet-stream';
+
+      if (isImageType(mimeType) || mimeType === 'application/pdf') {
+        const fileBuffer = fs.readFileSync(flatResolved);
+        return new NextResponse(fileBuffer, {
+          headers: {
+            'Content-Type': mimeType,
+            'Content-Length': fileBuffer.length.toString(),
+            'Cache-Control': 'private, max-age=3600',
+          },
+        });
+      }
+
       const content = fs.readFileSync(flatResolved, 'utf-8');
       return NextResponse.json({ content, path: artifactPath, location: 'worktree-flat' });
     }
@@ -84,6 +125,19 @@ export async function GET(
     const fallbackPath = path.join(mark2Dir, 'artifacts', artifactPath);
     const resolvedFallback = path.resolve(fallbackPath);
     if (resolvedFallback.startsWith(path.resolve(mark2Dir)) && fs.existsSync(resolvedFallback)) {
+      const mimeType = artifact?.mime_type || 'application/octet-stream';
+
+      if (isImageType(mimeType) || mimeType === 'application/pdf') {
+        const fileBuffer = fs.readFileSync(resolvedFallback);
+        return new NextResponse(fileBuffer, {
+          headers: {
+            'Content-Type': mimeType,
+            'Content-Length': fileBuffer.length.toString(),
+            'Cache-Control': 'private, max-age=3600',
+          },
+        });
+      }
+
       const content = fs.readFileSync(resolvedFallback, 'utf-8');
       return NextResponse.json({ content, path: artifactPath, location: 'legacy' });
     }

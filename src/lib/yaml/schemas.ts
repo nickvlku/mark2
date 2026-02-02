@@ -83,6 +83,9 @@ export const TaskArtifact = z.object({
   path: z.string(),
   mime_type: z.string().optional(),
   created_at: z.string().datetime(),
+  source: z.enum(['agent', 'user', 'system']).default('agent'),
+  original_filename: z.string().optional(),
+  file_size: z.number().optional(),
 });
 export type TaskArtifact = z.infer<typeof TaskArtifact>;
 
