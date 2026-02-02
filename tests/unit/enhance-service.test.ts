@@ -22,6 +22,7 @@ const mockTask: Task = {
   description: 'A simple task description',
   phase: 'pending',
   phase_agents: {},
+  phase_overrides: {},
   blockers: [],
   priority: 'P2',
   artifacts: [],
@@ -35,13 +36,15 @@ const mockTask: Task = {
   updated_at: '2025-01-15T10:00:00.000Z',
   phase_entered_at: '2025-01-15T10:00:00.000Z',
   loop_count: 0,
+  archived: false,
 };
 
 const mockStory: Story = {
   id: 'STORY-1',
   title: 'Simple story',
   description: 'A simple story description',
-  status: 'active',
+  tasks: [],
+  created_by: 'human',
   created_at: '2025-01-15T10:00:00.000Z',
   updated_at: '2025-01-15T10:00:00.000Z',
 };

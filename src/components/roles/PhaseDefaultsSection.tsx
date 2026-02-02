@@ -374,6 +374,11 @@ export function PhaseDefaultsSection({ roles }: PhaseDefaultsSectionProps) {
                 </option>
               ))}
             </select>
+            {getCurrentEnhanceConfig().cli_tool !== 'claude-code' && (
+              <p className="mt-1 text-xs text-yellow-400">
+                Note: Only claude-code is currently supported for enhancement
+              </p>
+            )}
           </div>
 
           {/* Model Dropdown */}
