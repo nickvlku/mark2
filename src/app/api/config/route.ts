@@ -1,12 +1,22 @@
 import { NextResponse } from 'next/server';
+import { execSync } from 'child_process';
 import { createConfigService } from '@/lib/services/factory';
 
 const service = createConfigService();
 
+function getGitUserEmail(): string {
+  try {
+    return execSync('git config user.email', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+  } catch {
+    return 'unknown@localhost';
+  }
+}
+
 export async function GET() {
   try {
     const config = service.get();
-    return NextResponse.json({ config });
+    const userEmail = getGitUserEmail();
+    return NextResponse.json({ config, userEmail });
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message ?? 'Failed to get config' },

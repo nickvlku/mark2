@@ -3,6 +3,7 @@ import type { Config } from '@/types';
 
 interface ConfigResponse {
   config: Config;
+  userEmail?: string;
 }
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -33,6 +34,7 @@ export function useConfig() {
 
   return {
     config: data?.config,
+    userEmail: data?.userEmail,
     error,
     isLoading,
     mutate,

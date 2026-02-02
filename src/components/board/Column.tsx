@@ -11,6 +11,7 @@ interface ColumnProps {
   onArchive?: (taskId: string) => void;
   onRestore?: (taskId: string) => void;
   onDelete?: (taskId: string) => void;
+  currentUserEmail?: string;
 }
 
 const phaseLabels: Record<Phase, string> = {
@@ -37,7 +38,7 @@ const phaseColors: Record<Phase, string> = {
   done: 'bg-green-500',
 };
 
-export function Column({ phase, tasks, onCardClick, onArchive, onRestore, onDelete }: ColumnProps) {
+export function Column({ phase, tasks, onCardClick, onArchive, onRestore, onDelete, currentUserEmail }: ColumnProps) {
   const { isOver, setNodeRef } = useDroppable({
     id: phase,
     data: { phase },
@@ -78,6 +79,7 @@ export function Column({ phase, tasks, onCardClick, onArchive, onRestore, onDele
             onArchive={onArchive}
             onRestore={onRestore}
             onDelete={onDelete}
+            currentUserEmail={currentUserEmail}
           />
         ))}
       </div>

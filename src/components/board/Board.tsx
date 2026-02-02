@@ -6,6 +6,7 @@ import type { Task, Phase } from '@/types';
 import { useTasks } from '@/hooks/useTasks';
 import { useStories } from '@/hooks/useStories';
 import { useBoardPan } from '@/hooks/useBoardPan';
+import { useConfig } from '@/hooks/useConfig';
 import { Column } from './Column';
 import { StoryFilter } from './StoryFilter';
 import { ArchiveFilter } from './ArchiveFilter';
@@ -46,6 +47,7 @@ export function Board() {
   };
   const { tasks, mutate: mutateTasks } = useTasks(filters);
   const { stories, mutate: mutateStories } = useStories();
+  const { userEmail } = useConfig();
 
   // Find the task for initial snapshot — TaskDetail fetches its own data after mount
   const selectedTask = selectedTaskId ? tasks.find((t: Task) => t.id === selectedTaskId) ?? null : null;
@@ -227,6 +229,7 @@ export function Board() {
               onArchive={showArchived ? undefined : handleArchiveTask}
               onRestore={showArchived ? handleRestoreTask : undefined}
               onDelete={showArchived ? handleDeleteTask : undefined}
+              currentUserEmail={userEmail}
             />
           ))}
           <DragOverlay>
