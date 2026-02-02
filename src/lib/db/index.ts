@@ -46,7 +46,8 @@ export function closeDb(): void {
 
 export function initializeDatabase(mark2Dir?: string): void {
   if (initialized) return;
-  const database = getDb(mark2Dir);
+  const resolvedMark2Dir = mark2Dir ?? getMark2Dir();
+  const database = getDb(resolvedMark2Dir);
   initialized = true;
   // Create all tables using raw SQL from the schema
   // We'll use drizzle-kit push for migrations, but also support programmatic creation
@@ -208,6 +209,85 @@ export function initializeDatabase(mark2Dir?: string): void {
   const stmt = sqliteInstance.prepare('INSERT OR IGNORE INTO id_counters (entity_type, next_id) VALUES (?, ?)');
   stmt.run('task', 1);
   stmt.run('story', 1);
+
+  // Recalculate counters from state files to prevent ID collisions
+  // This handles the case where the database is recreated but state files exist
+  recalculateIdCountersFromState(resolvedMark2Dir, sqliteInstance);
+}
+
+/**
+ * Recalculate ID counters from existing state files and storage directories.
+ * This prevents ID collisions when the database is recreated
+ * but task/story files already exist in the state directory or storage.
+ */
+function recalculateIdCountersFromState(mark2Dir: string, sqliteInstance: Database.Database): void {
+  const stateDir = path.join(mark2Dir, '.state');
+  const tasksDir = path.join(stateDir, 'tasks');
+  const storiesDir = path.join(stateDir, 'stories');
+  const storageDir = path.join(mark2Dir, 'storage');
+
+  // Find max task ID from state files
+  let maxTaskId = 0;
+  if (fs.existsSync(tasksDir)) {
+    const taskFiles = fs.readdirSync(tasksDir).filter(f => f.match(/^TASK-\d+\.yaml$/));
+    for (const file of taskFiles) {
+      const match = file.match(/^TASK-(\d+)\.yaml$/);
+      if (match) {
+        const id = parseInt(match[1], 10);
+        if (id > maxTaskId) maxTaskId = id;
+      }
+    }
+  }
+
+  // Also check storage directory for existing task data
+  if (fs.existsSync(storageDir)) {
+    const storageDirs = fs.readdirSync(storageDir).filter(f => f.match(/^TASK-\d+$/));
+    for (const dir of storageDirs) {
+      const match = dir.match(/^TASK-(\d+)$/);
+      if (match) {
+        const id = parseInt(match[1], 10);
+        if (id > maxTaskId) maxTaskId = id;
+      }
+    }
+  }
+
+  // Find max story ID from state files
+  let maxStoryId = 0;
+  if (fs.existsSync(storiesDir)) {
+    const storyFiles = fs.readdirSync(storiesDir).filter(f => f.match(/^STORY-\d+\.yaml$/));
+    for (const file of storyFiles) {
+      const match = file.match(/^STORY-(\d+)\.yaml$/);
+      if (match) {
+        const id = parseInt(match[1], 10);
+        if (id > maxStoryId) maxStoryId = id;
+      }
+    }
+  }
+
+  // Update counters if we found higher IDs than what's currently set
+  if (maxTaskId > 0) {
+    const currentTaskCounter = sqliteInstance.prepare(
+      'SELECT next_id FROM id_counters WHERE entity_type = ?'
+    ).get('task') as { next_id: number } | undefined;
+
+    if (!currentTaskCounter || currentTaskCounter.next_id <= maxTaskId) {
+      sqliteInstance.prepare(
+        'UPDATE id_counters SET next_id = ? WHERE entity_type = ?'
+      ).run(maxTaskId + 1, 'task');
+    }
+  }
+
+  if (maxStoryId > 0) {
+    const currentStoryCounter = sqliteInstance.prepare(
+      'SELECT next_id FROM id_counters WHERE entity_type = ?'
+    ).get('story') as { next_id: number } | undefined;
+
+    if (!currentStoryCounter || currentStoryCounter.next_id <= maxStoryId) {
+      sqliteInstance.prepare(
+        'UPDATE id_counters SET next_id = ? WHERE entity_type = ?'
+      ).run(maxStoryId + 1, 'story');
+    }
+  }
 }
 
 export { schema };

@@ -1,6 +1,7 @@
 import { spawn, execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
+import net from 'net';
 import { fileURLToPath } from 'url';
 import YAML from 'yaml';
 
@@ -10,6 +11,7 @@ export interface StartOptions {
   foreground?: boolean;
   logs?: boolean;
   logfile?: string;
+  port?: number;
 }
 
 function getMark2InstallDir(): string {
@@ -37,6 +39,35 @@ function findRunningProcess(mark2Dir: string): { pid: number; port: number } | n
   }
 }
 
+function isPortInUse(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.once('error', (err: NodeJS.ErrnoException) => {
+      if (err.code === 'EADDRINUSE') {
+        resolve(true);
+      } else {
+        resolve(false);
+      }
+    });
+    server.once('listening', () => {
+      server.close();
+      resolve(false);
+    });
+    server.listen(port, '127.0.0.1');
+  });
+}
+
+async function findAvailablePort(startPort: number, maxAttempts: number = 10): Promise<number | null> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const port = startPort + i;
+    const inUse = await isPortInUse(port);
+    if (!inUse) {
+      return port;
+    }
+  }
+  return null;
+}
+
 export async function startCommand(
   projectDir: string = process.cwd(),
   options: StartOptions = {}
@@ -49,7 +80,7 @@ export async function startCommand(
   }
 
   const config = readConfig(mark2Dir);
-  const port = config.server_port || 3100;
+  const requestedPort = options.port || config.server_port || 3100;
   const existing = findRunningProcess(mark2Dir);
 
   if (options.logs) {
@@ -66,6 +97,20 @@ export async function startCommand(
   if (existing) {
     console.log(`Mark2 already running on http://localhost:${existing.port} (PID ${existing.pid})`);
     return;
+  }
+
+  // Check if the requested port is in use
+  const portInUse = await isPortInUse(requestedPort);
+  let port = requestedPort;
+
+  if (portInUse) {
+    console.error(`Error: Port ${requestedPort} is already in use.`);
+    const alternativePort = await findAvailablePort(requestedPort + 1);
+    if (alternativePort) {
+      console.log(`Suggestion: Try running with --port ${alternativePort}`);
+      console.log(`  mark2 start --port ${alternativePort}`);
+    }
+    process.exit(1);
   }
 
   const installDir = getMark2InstallDir();

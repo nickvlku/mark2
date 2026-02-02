@@ -15,6 +15,7 @@ interface ParsedArgs {
     foreground?: boolean;
     logs?: boolean;
     logfile?: string;
+    port?: number;
     // Sync command flags
     push?: boolean;
     // Lock command flags
@@ -51,6 +52,11 @@ function parseArgs(argv: string[]): ParsedArgs {
       flags.logfile = argv[++i];
     } else if (arg.startsWith('--logfile=')) {
       flags.logfile = arg.split('=')[1];
+    } else if (arg === '--port') {
+      const portStr = argv[++i];
+      flags.port = portStr ? parseInt(portStr, 10) : undefined;
+    } else if (arg.startsWith('--port=')) {
+      flags.port = parseInt(arg.split('=')[1], 10);
     } else if (arg === '--push') {
       flags.push = true;
     } else if (arg === '--force') {
@@ -91,6 +97,7 @@ COMMANDS
     -f, --foreground      Run server in foreground
     -l, --logs            View server logs (tail -f)
     --logfile <path>      Write logs to specified file
+    --port <number>       Use a specific port (default: 3100)
   stop                    Stop the Mark2 server
   status                  Show server status and project info
   reindex                 Rebuild the SQLite index from state branch
@@ -170,6 +177,7 @@ async function main() {
         foreground: parsed.flags.foreground,
         logs: parsed.flags.logs,
         logfile: parsed.flags.logfile,
+        port: parsed.flags.port,
       });
       break;
     }
