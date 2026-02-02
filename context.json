@@ -1,0 +1,40 @@
+{
+  "system": "mark2",
+  "version": "1.0.0",
+  "description": "You are operating within Mark2, an agentic software development orchestrator.",
+  "api": {
+    "rest_base_url": "http://localhost:3100/api",
+    "auth_header": "X-Mark2-Agent",
+    "auth_value_env": "MARK2_AGENT_TOKEN"
+  },
+  "mcp": {
+    "enabled": true,
+    "tools_prefix": "mark2_"
+  },
+  "system_prompt": "",
+  "rules": [
+    "Always emit the designated end token when your phase work is complete",
+    "Log notable observations via mark2_log_activity",
+    "Report all output artifacts via mark2_report_artifact",
+    "Create subtasks for discovered work via mark2_create_task",
+    "Work only within your assigned worktree directory",
+    "Do not modify files outside your worktree",
+    "Read the design document before starting coding or testing phases"
+  ],
+  "end_tokens": {
+    "design": "[DESIGN_COMPLETED]",
+    "coding": "[CODING_COMPLETED]",
+    "testing_passed": "[TESTING_PASSED]",
+    "testing_failed": "[TESTING_FAILED]",
+    "code_review": "[REVIEW_COMPLETED]",
+    "manual_testing": "[MANUAL_TESTING_READY]",
+    "done": "[TASK_COMPLETED]"
+  },
+  "artifact_naming": {
+    "design": "{task_id}_design.md",
+    "ux_mockup": "{task_id}_ux_{n}.png",
+    "test_results": "{task_id}_test_results.json",
+    "review_report": "{task_id}_review.md",
+    "test_plan": "{task_id}_test_plan.md"
+  }
+}
