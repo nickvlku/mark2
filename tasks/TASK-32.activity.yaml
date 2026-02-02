@@ -40,3 +40,10 @@ entries:
     metadata:
       token: "[CODING_COMPLETED]"
       phase: coding
+  - timestamp: 2026-02-02T22:01:12.547Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from coding to testing
+    metadata:
+      old_phase: coding
+      new_phase: testing
