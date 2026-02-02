@@ -16,8 +16,9 @@ export class ArtifactService {
 
   constructor(mark2Dir?: string) {
     this.mark2Dir = mark2Dir ?? getMark2Dir();
-    this.reader = new YamlReader(this.mark2Dir);
-    this.writer = new YamlWriter(this.mark2Dir);
+    const stateDir = path.join(this.mark2Dir, '.state');
+    this.reader = new YamlReader(stateDir);
+    this.writer = new YamlWriter(stateDir);
   }
 
   report(

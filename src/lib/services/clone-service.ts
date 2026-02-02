@@ -156,17 +156,17 @@ export class CloneService {
       }
     }
 
-    // Copy task YAML file
+    // Copy task YAML file (from state directory)
     const taskYaml = `${taskId}.yaml`;
-    const taskYamlSrc = path.join(this.mark2Dir, 'tasks', taskYaml);
+    const taskYamlSrc = path.join(this.mark2Dir, '.state', 'tasks', taskYaml);
     const taskYamlDst = path.join(cloneMark2Dir, 'tasks', taskYaml);
     if (fs.existsSync(taskYamlSrc)) {
       fs.copyFileSync(taskYamlSrc, taskYamlDst);
     }
 
-    // Copy task activity file
+    // Copy task activity file (from state directory)
     const activityYaml = `${taskId}.activity.yaml`;
-    const activitySrc = path.join(this.mark2Dir, 'tasks', activityYaml);
+    const activitySrc = path.join(this.mark2Dir, '.state', 'tasks', activityYaml);
     const activityDst = path.join(cloneMark2Dir, 'tasks', activityYaml);
     if (fs.existsSync(activitySrc)) {
       fs.copyFileSync(activitySrc, activityDst);

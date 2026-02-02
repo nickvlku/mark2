@@ -65,8 +65,10 @@ export class OrchestrationEngine {
     this.config = config;
     this.tmuxManager = new TmuxManager(config.mark2Dir);
     this.terminalStream = TerminalStream.getInstance();
-    this.reader = new YamlReader(config.mark2Dir);
-    this.writer = new YamlWriter(config.mark2Dir);
+    // Use the .state directory for reading/writing task YAML files
+    const stateDir = path.join(config.mark2Dir, '.state');
+    this.reader = new YamlReader(stateDir);
+    this.writer = new YamlWriter(stateDir);
 
     // Register adapters
     this.adapters = new Map();

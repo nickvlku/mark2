@@ -13,7 +13,8 @@ export class MergeService {
   constructor(projectRoot: string, mark2Dir?: string) {
     this.projectRoot = projectRoot;
     this.mark2Dir = mark2Dir ?? path.join(projectRoot, '.mark2');
-    this.reader = new YamlReader(this.mark2Dir);
+    const stateDir = path.join(this.mark2Dir, '.state');
+    this.reader = new YamlReader(stateDir);
     this.activityService = new ActivityService(this.mark2Dir);
   }
 

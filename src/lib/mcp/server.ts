@@ -57,7 +57,8 @@ export function createMcpServer(): McpServer {
     },
     async ({ task_id, filename, content }) => {
       const mark2Dir = getMark2Dir();
-      const reader = new YamlReader(mark2Dir);
+      const stateDir = path.join(mark2Dir, '.state');
+      const reader = new YamlReader(stateDir);
       const artifactService = new ArtifactService(mark2Dir);
 
       const { data: task } = reader.readTask(task_id);
@@ -138,7 +139,8 @@ export function createMcpServer(): McpServer {
     },
     async ({ task_id, name, path: artifactPath, mime_type }) => {
       const mark2Dir = getMark2Dir();
-      const reader = new YamlReader(mark2Dir);
+      const stateDir = path.join(mark2Dir, '.state');
+      const reader = new YamlReader(stateDir);
       const artifactService = new ArtifactService(mark2Dir);
 
       const { data: task } = reader.readTask(task_id);

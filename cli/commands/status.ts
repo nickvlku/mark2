@@ -11,7 +11,7 @@ function readConfig(mark2Dir: string): Record<string, any> {
 
 function getStats(mark2Dir: string): { tasks: number; activeTasks: number } {
   let tasks = 0, activeTasks = 0;
-  const tasksDir = path.join(mark2Dir, 'tasks');
+  const tasksDir = path.join(mark2Dir, '.state', 'tasks');
 
   if (fs.existsSync(tasksDir)) {
     const files = fs.readdirSync(tasksDir).filter(f => f.endsWith('.yaml') && !f.includes('.activity'));
