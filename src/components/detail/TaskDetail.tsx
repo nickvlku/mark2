@@ -6,6 +6,7 @@ import type { Task, SessionStatus } from '@/types';
 import { Badge } from '../shared/Badge';
 import { ActionBar } from '../shared/ActionBar';
 import { Dialog } from '../shared/Dialog';
+import { EnhanceDialog } from '../shared/EnhanceDialog';
 import { PhaseTimeline } from './PhaseTimeline';
 import { ArtifactsTab } from './ArtifactsTab';
 import { ActivityTab } from './ActivityTab';
@@ -38,6 +39,17 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
   // Confirmation dialog states
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Enhancement dialog states
+  const [showEnhanceDialog, setShowEnhanceDialog] = useState(false);
+  const [enhanceLoading, setEnhanceLoading] = useState(false);
+  const [enhanceResult, setEnhanceResult] = useState<{
+    original_title: string;
+    original_description: string;
+    enhanced_title: string;
+    enhanced_description: string;
+  } | null>(null);
+  const [enhanceError, setEnhanceError] = useState<string | null>(null);
 
   // Fetch our own copy of the task so parent SWR revalidations don't
   // unmount/remount us and destroy child state (e.g. comment input).
@@ -138,6 +150,54 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
       console.error('Failed to delete task:', error);
     } finally {
       setShowDeleteConfirm(false);
+    }
+  };
+
+  const handleEnhance = async () => {
+    setShowEnhanceDialog(true);
+    setEnhanceLoading(true);
+    setEnhanceError(null);
+    setEnhanceResult(null);
+
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/enhance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}), // Use config defaults
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Enhancement failed');
+      }
+
+      const result = await res.json();
+      setEnhanceResult(result);
+    } catch (err: any) {
+      setEnhanceError(err.message);
+    } finally {
+      setEnhanceLoading(false);
+    }
+  };
+
+  const handleEnhanceRetry = () => {
+    handleEnhance();
+  };
+
+  const confirmEnhancement = async (title: string, description: string) => {
+    try {
+      await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description }),
+      });
+      onUpdate();
+      setShowEnhanceDialog(false);
+      setEnhanceResult(null);
+      setEnhanceError(null);
+    } catch (err) {
+      console.error('Failed to apply enhancement:', err);
+      setEnhanceError('Failed to apply enhancement');
     }
   };
 
@@ -256,6 +316,7 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
           onArchive={handleArchive}
           onRestore={handleRestore}
           onDelete={handleDelete}
+          onEnhance={handleEnhance}
         />
       </div>
 
@@ -278,6 +339,30 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
         confirmLabel="Delete"
         variant="danger"
         onConfirm={confirmDelete}
+      />
+
+      {/* Enhancement Dialog */}
+      <EnhanceDialog
+        open={showEnhanceDialog}
+        onClose={() => {
+          setShowEnhanceDialog(false);
+          setEnhanceResult(null);
+          setEnhanceError(null);
+        }}
+        onConfirm={confirmEnhancement}
+        original={{
+          title: task.title,
+          description: task.description,
+        }}
+        enhanced={enhanceResult ? {
+          title: enhanceResult.enhanced_title,
+          description: enhanceResult.enhanced_description,
+        } : null}
+        loading={enhanceLoading}
+        error={enhanceError}
+        entityType="task"
+        entityId={task.id}
+        onRetry={handleEnhanceRetry}
       />
     </div>
   );

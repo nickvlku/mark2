@@ -28,10 +28,17 @@ interface LocalPhaseDefault {
   auto_advance: boolean;
 }
 
+interface LocalEnhanceConfig {
+  role: string;
+  cli_tool: CLITool;
+  model: string;
+}
+
 export function PhaseDefaultsSection({ roles }: PhaseDefaultsSectionProps) {
   const { config, updateConfig, isLoading } = useConfig();
   const [saving, setSaving] = useState(false);
   const [localDefaults, setLocalDefaults] = useState<Record<string, Partial<LocalPhaseDefault>>>({});
+  const [localEnhanceConfig, setLocalEnhanceConfig] = useState<Partial<LocalEnhanceConfig>>({});
   const [hasChanges, setHasChanges] = useState(false);
 
   // Get the current defaults from config or local state
@@ -97,6 +104,26 @@ export function PhaseDefaultsSection({ roles }: PhaseDefaultsSectionProps) {
     []
   );
 
+  const handleEnhanceChange = useCallback(
+    (field: keyof LocalEnhanceConfig, value: string) => {
+      setLocalEnhanceConfig((prev) => ({
+        ...prev,
+        [field]: value,
+      }));
+      setHasChanges(true);
+    },
+    []
+  );
+
+  const getCurrentEnhanceConfig = useCallback((): LocalEnhanceConfig => {
+    const configured = config?.enhance_config;
+    return {
+      role: localEnhanceConfig.role ?? configured?.role ?? 'task-enhancer',
+      cli_tool: localEnhanceConfig.cli_tool ?? configured?.cli_tool ?? 'claude-code',
+      model: localEnhanceConfig.model ?? configured?.model ?? 'claude-sonnet-4-5',
+    };
+  }, [config, localEnhanceConfig]);
+
   const handleSave = useCallback(async () => {
     if (!config) return;
 
@@ -107,7 +134,7 @@ export function PhaseDefaultsSection({ roles }: PhaseDefaultsSectionProps) {
       // Update each phase that has local changes
       for (const phase of PHASES) {
         const current = getCurrentDefault(phase.id);
-        
+
         // Only save if role is selected (required field)
         if (current.role && current.cli_tool && current.model) {
           const phaseDefault: PhaseDefault = {
@@ -120,18 +147,32 @@ export function PhaseDefaultsSection({ roles }: PhaseDefaultsSectionProps) {
         }
       }
 
-      await updateConfig({ phase_defaults: newPhaseDefaults });
+      // Save enhance config if it has changes
+      const currentEnhance = getCurrentEnhanceConfig();
+      const newEnhanceConfig = {
+        role: currentEnhance.role,
+        cli_tool: currentEnhance.cli_tool,
+        model: currentEnhance.model,
+        timeout_minutes: 30, // Default timeout for enhancement
+      };
+
+      await updateConfig({
+        phase_defaults: newPhaseDefaults,
+        enhance_config: newEnhanceConfig,
+      });
       setLocalDefaults({});
+      setLocalEnhanceConfig({});
       setHasChanges(false);
     } catch (err) {
       console.error('Failed to save phase defaults:', err);
     } finally {
       setSaving(false);
     }
-  }, [config, localDefaults, updateConfig, getCurrentDefault]);
+  }, [config, localDefaults, localEnhanceConfig, updateConfig, getCurrentDefault, getCurrentEnhanceConfig]);
 
   const handleReset = useCallback(() => {
     setLocalDefaults({});
+    setLocalEnhanceConfig({});
     setHasChanges(false);
   }, []);
 
@@ -277,6 +318,81 @@ export function PhaseDefaultsSection({ roles }: PhaseDefaultsSectionProps) {
             </div>
           );
         })}
+      </div>
+
+      {/* Enhancement Settings Section */}
+      <div className="rounded-lg border border-purple-500/30 bg-bg-card p-4 mt-6">
+        <div className="flex items-center gap-2 mb-4">
+          <svg className="h-5 w-5 text-purple-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
+          </svg>
+          <div>
+            <h2 className="text-lg font-semibold text-text-primary">Enhancement Settings</h2>
+            <p className="text-sm text-text-secondary mt-1">
+              Configure the AI role used to enhance task and story descriptions
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          {/* Role Dropdown */}
+          <div>
+            <label className="block text-xs text-text-secondary mb-1">Role</label>
+            <select
+              value={getCurrentEnhanceConfig().role}
+              onChange={(e) => handleEnhanceChange('role', e.target.value)}
+              className="w-full rounded-md border border-border bg-bg-input px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent [&>option]:bg-gray-800 [&>option]:text-white"
+            >
+              <option value="">Select role...</option>
+              {roles.map((role) => (
+                <option key={role.name} value={role.name}>
+                  {role.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* CLI Tool Dropdown */}
+          <div>
+            <label className="block text-xs text-text-secondary mb-1">CLI Tool</label>
+            <select
+              value={getCurrentEnhanceConfig().cli_tool}
+              onChange={(e) => {
+                const newCLI = e.target.value as CLITool;
+                handleEnhanceChange('cli_tool', newCLI);
+                // Reset model when CLI changes
+                const newModels = MODELS_BY_CLI[newCLI];
+                if (newModels.length > 0) {
+                  handleEnhanceChange('model', newModels[0].id);
+                }
+              }}
+              className="w-full rounded-md border border-border bg-bg-input px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent [&>option]:bg-gray-800 [&>option]:text-white"
+            >
+              {CLI_TOOLS.map((cli) => (
+                <option key={cli} value={cli}>
+                  {cli}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Model Dropdown */}
+          <div>
+            <label className="block text-xs text-text-secondary mb-1">Model</label>
+            <select
+              value={getCurrentEnhanceConfig().model}
+              onChange={(e) => handleEnhanceChange('model', e.target.value)}
+              className="w-full rounded-md border border-border bg-bg-input px-3 py-2 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent [&>option]:bg-gray-800 [&>option]:text-white"
+            >
+              <option value="">Select model...</option>
+              {getModelsForCLI(getCurrentEnhanceConfig().cli_tool).map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -36,6 +36,17 @@ export const CLIToolEnum = z.enum(['claude-code', 'codex-cli', 'gemini-cli', 'op
 export type CLITool = z.infer<typeof CLIToolEnum>;
 
 
+// ── Enhancement Config ─────────────────────────────────────────────────
+
+export const EnhanceConfigSchema = z.object({
+  role: z.string().optional().default('task-enhancer'),
+  cli_tool: CLIToolEnum.optional().default('claude-code'),
+  model: z.string().optional().default('claude-sonnet-4-5'),
+  timeout_minutes: z.number().int().positive().optional().default(30),
+}).strict();
+export type EnhanceConfig = z.infer<typeof EnhanceConfigSchema>;
+
+
 // ── Role Definition (new decoupled model) ──────────────────────────────
 
 export const RoleSchema = z.object({
@@ -184,6 +195,7 @@ export const ConfigSchema = z.object({
   server_port: z.number().int().default(3100),
   merge_strategy: MergeStrategy.default('squash'),
   ide_commands: z.array(z.string()).default(['code', 'cursor', 'windsurf']),
+  enhance_config: EnhanceConfigSchema.optional(),
 });
 export type Config = z.infer<typeof ConfigSchema>;
 
