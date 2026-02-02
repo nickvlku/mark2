@@ -1,6 +1,56 @@
 id: TASK-32
-title: Allow uploading of files into a task or story
-description: A task or story should allow files that can be passed into the phases.  Should support drag and drop and file explorer optionality and n number of files.  If they are images we should be able to render them in line and show them in the artifacts folder too as "uploaded by user"
+title: Add file upload support to tasks/stories with drag-and-drop functionality
+description: |-
+  ## Overview
+  Implement file upload capability for tasks and stories, allowing users to attach files that can be referenced and used during execution phases. Files should be accessible throughout the task lifecycle and properly tracked in the artifacts system.
+
+  ## Requirements
+
+  ### Upload Methods
+  - Support drag-and-drop file upload interface
+  - Provide file explorer/browser selection option
+  - Allow multiple files to be uploaded simultaneously (n files)
+  - Handle common file types (images, documents, code files, etc.)
+
+  ### Image Handling
+  - Render image files inline within the task/story interface
+  - Display image previews for quick reference
+  - Store images in the artifacts folder with "uploaded by user" attribution
+  - Support common image formats (PNG, JPG, GIF, SVG, WebP)
+
+  ### File Management
+  - Make uploaded files available to all execution phases
+  - Store files in the artifacts folder with clear metadata
+  - Track upload timestamp and user attribution
+  - Provide ability to view list of uploaded files
+  - Support file removal/deletion if needed
+
+  ### Technical Considerations
+  - Implement file size limits to prevent storage issues
+  - Validate file types for security
+  - Handle upload errors gracefully with user feedback
+  - Ensure files persist across phase transitions
+  - Consider file naming conflicts (multiple files with same name)
+
+  ## Acceptance Criteria
+  - [ ] Users can drag and drop files onto task/story interface
+  - [ ] Users can select files via file explorer dialog
+  - [ ] Multiple files can be uploaded in a single operation
+  - [ ] Uploaded images render inline in the task/story view
+  - [ ] All uploaded files appear in artifacts folder with "uploaded by user" label
+  - [ ] Files are accessible during task execution phases
+  - [ ] Upload progress is visible for larger files
+  - [ ] Error messages display for failed uploads
+  - [ ] File type validation prevents unsupported formats
+
+  ## Edge Cases
+  - Very large files (>10MB, >100MB)
+  - Files with special characters or spaces in names
+  - Duplicate file names in same task
+  - Uploading while task is actively executing
+  - Network interruption during upload
+  - Unsupported or corrupted file types
+  - Maximum file count limits
 phase: pending
 phase_agents: {}
 phase_overrides: {}
@@ -14,7 +64,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-02T21:35:07.966Z
-updated_at: 2026-02-02T21:35:07.966Z
+updated_at: 2026-02-02T21:43:50.209Z
 phase_entered_at: 2026-02-02T21:35:07.966Z
 loop_count: 0
 archived: false
