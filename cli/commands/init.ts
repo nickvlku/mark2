@@ -231,10 +231,11 @@ state_sync:
   console.log('   ℹ Database is rebuilt from state branch on each startup');
   console.log('');
 
-  // Step 5: Update .gitignore
+  // Step 5: Update .gitignore and clean up git index
   console.log('📝 Updating .gitignore...');
   const gitignorePath = path.join(projectDir, '.gitignore');
   updateGitignore(gitignorePath);
+  cleanupGitIndex(projectDir);
   console.log('');
 
   // Done!
@@ -263,17 +264,93 @@ function updateGitignore(gitignorePath: string): void {
     content = fs.readFileSync(gitignorePath, 'utf-8');
   }
 
-  // Check if .mark2/ is already ignored
-  if (content.includes('.mark2/') || content.includes('.mark2')) {
+  const lines = content.split('\n');
+
+  // Check if .mark2/ is fully ignored (not just partial entries)
+  const hasFullIgnore = lines.some(line => {
+    const trimmed = line.trim();
+    return trimmed === '.mark2/' || trimmed === '.mark2' || trimmed === '.mark2/**';
+  });
+
+  if (hasFullIgnore) {
     console.log('   · .gitignore already ignores .mark2/');
     return;
   }
 
-  // Add the gitignore block
+  // Check for partial entries (old-style ignores like .mark2/mark2.db)
+  const hasPartialIgnore = lines.some(line => {
+    const trimmed = line.trim();
+    return trimmed.startsWith('.mark2/') && trimmed !== '.mark2/';
+  });
+
+  if (hasPartialIgnore) {
+    console.log('   ⚠ Found partial .mark2 ignores, upgrading to full ignore...');
+    // Remove old partial entries and add the full block
+    const newLines = lines.filter(line => {
+      const trimmed = line.trim();
+      // Keep lines that aren't mark2-related or are comments about mark2
+      return !trimmed.startsWith('.mark2/') || trimmed.startsWith('#');
+    });
+
+    // Also remove any "# Mark2" comment lines that precede the old entries
+    const finalLines: string[] = [];
+    for (let i = 0; i < newLines.length; i++) {
+      const line = newLines[i];
+      const trimmed = line.trim().toLowerCase();
+      // Skip Mark2 comment headers (they'll be re-added with the new block)
+      if (trimmed === '# mark2' || trimmed === '# mark2 local files') {
+        continue;
+      }
+      finalLines.push(line);
+    }
+
+    let newContent = finalLines.join('\n');
+    if (newContent.length > 0 && !newContent.endsWith('\n')) {
+      newContent += '\n';
+    }
+    newContent += GITIGNORE_BLOCK;
+    fs.writeFileSync(gitignorePath, newContent);
+    console.log('   ✓ Upgraded to full .mark2/ ignore');
+    return;
+  }
+
+  // No mark2 entries at all, add the block
   if (content.length > 0 && !content.endsWith('\n')) {
     fs.appendFileSync(gitignorePath, '\n');
   }
   fs.appendFileSync(gitignorePath, GITIGNORE_BLOCK);
   console.log('   ✓ Added .mark2/ to .gitignore');
   console.log('   ℹ State is now stored on orphan branch, not in .mark2/');
+}
+
+function cleanupGitIndex(projectDir: string): void {
+  // Check if .mark2 or .mark2/.state is in the git index
+  try {
+    const result = spawnSync('git', ['ls-files', '--cached', '.mark2'], {
+      cwd: projectDir,
+      encoding: 'utf-8',
+    });
+
+    if (result.status === 0 && result.stdout.trim()) {
+      const stagedFiles = result.stdout.trim().split('\n').filter(Boolean);
+      if (stagedFiles.length > 0) {
+        console.log('   ⚠ Found .mark2 files in git index, removing...');
+
+        // Remove from index (not from disk)
+        const rmResult = spawnSync('git', ['rm', '--cached', '-r', '.mark2'], {
+          cwd: projectDir,
+          encoding: 'utf-8',
+        });
+
+        if (rmResult.status === 0) {
+          console.log(`   ✓ Removed ${stagedFiles.length} files from git index`);
+          console.log('   ℹ The .mark2/ directory is now properly ignored');
+        } else {
+          console.log('   ⚠ Could not remove .mark2 from index:', rmResult.stderr?.trim());
+        }
+      }
+    }
+  } catch {
+    // Not a critical error, just skip
+  }
 }
