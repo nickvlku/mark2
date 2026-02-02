@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
-import fs from 'fs';
+import { mkdir, writeFile } from 'fs/promises';
 import { createArtifactService, createTaskService } from '@/lib/services/factory';
 import { getMark2Dir } from '@/lib/utils/mark2-dir';
 import { getTaskStoragePathsFromMark2Dir } from '@/lib/utils/storage';
 import { isValidTaskId } from '@/lib/utils/route-validation';
 import { UPLOAD_CONFIG } from '@/lib/constants/upload';
-import { validateFileUpload, sanitizeFilename, getMimeType } from '@/lib/utils/upload';
+import { validateFileUpload, sanitizeFilename, getMimeType, formatFileSize } from '@/lib/utils/upload';
 import type { TaskArtifact, Phase } from '@/lib/yaml/schemas';
 import type { UploadError } from '@/lib/utils/upload';
 
@@ -48,12 +48,20 @@ export async function POST(
       }, { status: 400 });
     }
 
+    // Validate total upload size
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    if (totalSize > UPLOAD_CONFIG.MAX_TOTAL_SIZE) {
+      return NextResponse.json({
+        error: `Total upload size exceeds ${formatFileSize(UPLOAD_CONFIG.MAX_TOTAL_SIZE)} limit`
+      }, { status: 400 });
+    }
+
     const mark2Dir = getMark2Dir();
     const storagePaths = getTaskStoragePathsFromMark2Dir(mark2Dir, taskId);
     const artifactService = createArtifactService();
 
     // Ensure artifacts directory exists
-    fs.mkdirSync(storagePaths.artifacts, { recursive: true });
+    await mkdir(storagePaths.artifacts, { recursive: true });
 
     const artifacts: TaskArtifact[] = [];
     const errors: UploadError[] = [];
@@ -81,7 +89,7 @@ export async function POST(
         // Write file
         const buffer = Buffer.from(await file.arrayBuffer());
         const filepath = path.join(storagePaths.artifacts, uniqueFilename);
-        fs.writeFileSync(filepath, buffer);
+        await writeFile(filepath, buffer);
 
         // Register artifact
         const artifact = artifactService.reportUpload(taskId, {
