@@ -186,18 +186,25 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
 
   const confirmEnhancement = async (title: string, description: string) => {
     try {
-      await fetch(`/api/tasks/${task.id}`, {
+      const res = await fetch(`/api/tasks/${task.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, description }),
       });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to apply enhancement');
+      }
+
       onUpdate();
+      // Only close dialog and clear state on success
       setShowEnhanceDialog(false);
       setEnhanceResult(null);
       setEnhanceError(null);
-    } catch (err) {
-      console.error('Failed to apply enhancement:', err);
-      setEnhanceError('Failed to apply enhancement');
+    } catch (err: any) {
+      // Keep dialog open so user sees the error and can retry
+      setEnhanceError(err.message || 'Failed to apply enhancement');
     }
   };
 

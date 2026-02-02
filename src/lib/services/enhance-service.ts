@@ -106,21 +106,26 @@ Please enhance this ${entityType}. Remember to output ONLY valid JSON with enhan
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mark2-enhance-'));
 
     try {
-      // Create a prompt file
+      // Write prompt to a file to avoid shell escaping issues
       const promptFile = path.join(tempDir, 'prompt.txt');
       fs.writeFileSync(promptFile, prompt, 'utf-8');
 
-      // Build Claude Code command
+      // Build Claude Code command - use --print for non-interactive output
       const timeoutMs = config.timeout_minutes * 60 * 1000;
-      const command = `claude "${prompt}" --model ${config.model} --dangerously-skip-permissions`;
+      const command = `claude --print --model ${config.model} --dangerously-skip-permissions < "${promptFile}"`;
 
-      // Execute the command
+      // Execute the command using system default shell for cross-platform compatibility
       const result = execSync(command, {
         cwd: tempDir,
         timeout: timeoutMs,
         encoding: 'utf-8',
         maxBuffer: 10 * 1024 * 1024, // 10MB
+        shell: process.platform === 'win32' ? process.env.ComSpec || 'cmd.exe' : '/bin/sh',
       });
+
+      if (!result || result.trim() === '') {
+        throw new Error('AI_ERROR: Empty response from Claude');
+      }
 
       return result;
     } catch (error: any) {
@@ -138,29 +143,81 @@ Please enhance this ${entityType}. Remember to output ONLY valid JSON with enhan
     enhanced_title: string;
     enhanced_description: string;
   } {
-    // Extract JSON from the response (handle markdown code blocks)
-    const jsonMatch = result.match(/```json\n?([\s\S]*?)\n?```/)
-      || result.match(/\{[\s\S]*"enhanced_title"[\s\S]*"enhanced_description"[\s\S]*\}/);
+    // Try multiple extraction strategies
 
-    if (!jsonMatch) {
-      throw new Error('PARSE_ERROR: Could not find JSON in AI response');
-    }
-
-    const jsonStr = jsonMatch[1] || jsonMatch[0];
-
-    try {
-      const parsed = JSON.parse(jsonStr);
-
-      if (!parsed.enhanced_title || !parsed.enhanced_description) {
-        throw new Error('PARSE_ERROR: Missing required fields in response');
+    // Strategy 1: JSON in markdown code block
+    const codeBlockMatch = result.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+    if (codeBlockMatch) {
+      try {
+        const parsed = JSON.parse(codeBlockMatch[1].trim());
+        if (parsed.enhanced_title && parsed.enhanced_description) {
+          return {
+            enhanced_title: String(parsed.enhanced_title).slice(0, 200),
+            enhanced_description: String(parsed.enhanced_description),
+          };
+        }
+      } catch {
+        // Continue to next strategy
       }
-
-      return {
-        enhanced_title: String(parsed.enhanced_title).slice(0, 200), // Enforce max length
-        enhanced_description: String(parsed.enhanced_description),
-      };
-    } catch (error: any) {
-      throw new Error(`PARSE_ERROR: Invalid JSON in response - ${error.message}`);
     }
+
+    // Strategy 2: Find JSON object with balanced braces
+    const jsonObjects = this.extractJsonObjects(result);
+    for (const jsonStr of jsonObjects) {
+      try {
+        const parsed = JSON.parse(jsonStr);
+        if (parsed.enhanced_title && parsed.enhanced_description) {
+          return {
+            enhanced_title: String(parsed.enhanced_title).slice(0, 200),
+            enhanced_description: String(parsed.enhanced_description),
+          };
+        }
+      } catch {
+        // Try next object
+      }
+    }
+
+    // Strategy 3: Look for the fields individually as a last resort
+    const titleMatch = result.match(/"enhanced_title"\s*:\s*"([^"]+)"/);
+    const descMatch = result.match(/"enhanced_description"\s*:\s*"([\s\S]*?)(?:"\s*[,}])/);
+    if (titleMatch && descMatch) {
+      return {
+        enhanced_title: titleMatch[1].slice(0, 200),
+        enhanced_description: descMatch[1],
+      };
+    }
+
+    throw new Error('PARSE_ERROR: Could not find JSON in AI response');
+  }
+
+  /**
+   * Extracts potential JSON objects from text using brace counting.
+   *
+   * Note: This is a simple extraction method that doesn't handle braces inside
+   * JSON string values (e.g., `{"text": "use {templates} here"}`). However, this
+   * is mitigated because:
+   * 1. Strategy 1 (code block extraction) handles well-formatted responses correctly
+   * 2. All extracted candidates are validated with JSON.parse() which rejects invalid JSON
+   * 3. This serves as a fallback for responses that aren't in code blocks
+   */
+  private extractJsonObjects(text: string): string[] {
+    const objects: string[] = [];
+    let depth = 0;
+    let start = -1;
+
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === '{') {
+        if (depth === 0) start = i;
+        depth++;
+      } else if (text[i] === '}') {
+        depth--;
+        if (depth === 0 && start !== -1) {
+          objects.push(text.slice(start, i + 1));
+          start = -1;
+        }
+      }
+    }
+
+    return objects;
   }
 }

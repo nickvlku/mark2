@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createStoryService, createEnhanceService } from '@/lib/services/factory';
+import { isValidStoryId } from '@/lib/utils/route-validation';
 
 const storyService = createStoryService();
 const enhanceService = createEnhanceService();
@@ -12,7 +13,7 @@ export async function POST(
     const { id } = await params;
 
     // Validate story ID format
-    if (!id.match(/^STORY-\d+$/)) {
+    if (!isValidStoryId(id)) {
       return NextResponse.json(
         { error: 'Invalid story ID' },
         { status: 400 }

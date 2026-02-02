@@ -65,22 +65,28 @@ export function EnhanceDialog({
   const handleConfirm = () => {
     if (enhanced && editedTitle && editedDescription) {
       onConfirm(editedTitle, editedDescription);
-      onClose();
+      // Note: Parent component (TaskDetail/StoryDetail) handles closing the dialog
+      // after the confirmation action succeeds. Do not call onClose() here.
     }
   };
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="enhance-dialog-title"
+      className="fixed inset-0 z-50 flex items-center justify-center"
+    >
       <div
         className="fade-in absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
       <div className="fade-in relative w-full max-w-5xl max-h-[85vh] overflow-y-auto rounded-xl border border-border bg-bg-secondary p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-text-primary">
-            Enhance {entityType === 'task' ? entityId : entityId}
+          <h2 id="enhance-dialog-title" className="text-lg font-semibold text-text-primary">
+            Enhance {entityId}
           </h2>
           <button
             onClick={onClose}
