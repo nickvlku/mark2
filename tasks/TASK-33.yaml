@@ -1,6 +1,37 @@
 id: TASK-33
-title: Browser notifications when a task needs attention from the user
-description: When a task is awaiting a user we should send a browser notification
+title: Send browser notifications when tasks require user input or approval
+description: |-
+  ## Overview
+  Implement browser notifications to alert users when a task enters a state that requires their attention or action.
+
+  ## Requirements
+  - Trigger browser notifications when a task transitions to a "waiting for user" state
+  - Request notification permissions from the user if not already granted
+  - Display relevant task information in the notification (task title, context)
+  - Allow users to click the notification to navigate directly to the task
+  - Support dismissing notifications without action
+
+  ## Acceptance Criteria
+  - [ ] Browser requests notification permission on first relevant event
+  - [ ] Notification appears when task status changes to awaiting user input/approval
+  - [ ] Notification includes task title and brief context
+  - [ ] Clicking notification focuses the application and navigates to the task
+  - [ ] Notifications work across major browsers (Chrome, Firefox, Safari, Edge)
+  - [ ] User can opt-out of notifications via settings
+  - [ ] Notifications respect browser Do Not Disturb settings
+
+  ## Technical Considerations
+  - Use the Notifications API with proper permission handling
+  - Handle cases where notifications are blocked or unavailable
+  - Consider notification frequency limits to avoid spam
+  - Ensure notifications clear/update appropriately when task state changes
+  - Test behavior when application is in background vs. foreground
+
+  ## Edge Cases
+  - User has notifications disabled at OS or browser level
+  - Multiple tasks require attention simultaneously
+  - User is already viewing the task when notification would trigger
+  - Browser doesn't support Notifications API (graceful degradation)
 phase: pending
 phase_agents: {}
 phase_overrides: {}
@@ -14,7 +45,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-02T21:48:54.276Z
-updated_at: 2026-02-02T21:48:54.276Z
+updated_at: 2026-02-02T23:48:20.567Z
 phase_entered_at: 2026-02-02T21:48:54.276Z
 loop_count: 0
 archived: false
