@@ -1,4 +1,5 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { execSync, spawnSync } from 'child_process';
 import YAML from 'yaml';
@@ -93,7 +94,7 @@ export class StateBranchService {
   getUserIdentity(): { name: string; email: string; machine: string } {
     const name = this.getGitConfig('user.name') || 'Unknown';
     const email = this.getGitConfig('user.email') || 'unknown@localhost';
-    const machine = require('os').hostname();
+    const machine = os.hostname();
     return { name, email, machine };
   }
 

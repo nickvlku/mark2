@@ -58,15 +58,14 @@ next-env.d.ts
 
 # Mark2 - Derived/recreatable data
 # Database files (derived from YAML source files)
-.mark2/mark2.db
-.mark2/mark2.db-shm
-.mark2/mark2.db-wal
 
 # Git clones for task isolation (can be recreated)
-.mark2/clones/
 
 # Deprecated worktrees folder (replaced by clones)
 .worktrees/
 
 # claude and AI
 .claude
+
+# Mark2 - All local data (state is stored on orphan branch 'mark2-state')
+.mark2/
