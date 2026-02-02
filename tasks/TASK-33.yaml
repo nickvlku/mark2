@@ -1,0 +1,20 @@
+id: TASK-33
+title: Browser notifications when a task needs attention from the user
+description: When a task is awaiting a user we should send a browser notification
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: human
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-02T21:48:54.276Z
+updated_at: 2026-02-02T21:48:54.276Z
+phase_entered_at: 2026-02-02T21:48:54.276Z
+loop_count: 0
+archived: false
