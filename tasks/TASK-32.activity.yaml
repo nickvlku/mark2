@@ -129,3 +129,18 @@ entries:
     metadata:
       old_phase: final_testing
       new_phase: manual_testing
+  - timestamp: 2026-02-02T23:50:59.555Z
+    source: agent
+    type: note
+    message: "[Starting] Setting up development server for manual testing"
+  - timestamp: 2026-02-02T23:52:57.855Z
+    source: agent
+    type: note
+    message: "[Ready for Testing] Development server running on port 3132. Test plan created with 21 test cases covering upload zone, drag-and-drop, file validation, image preview, error handling, and edge cases."
+  - timestamp: 2026-02-02T23:53:01.143Z
+    source: hook
+    type: phase_change
+    message: End token "[MANUAL_TESTING_READY]" detected via Claude Code hook
+    metadata:
+      token: "[MANUAL_TESTING_READY]"
+      phase: manual_testing

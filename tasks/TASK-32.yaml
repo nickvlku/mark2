@@ -82,6 +82,11 @@ artifacts:
     path: code_review-review-1770076135795-fq7eo6.md
     mime_type: text/markdown
     created_at: 2026-02-02T23:48:55.795Z
+  - name: test-plan
+    phase: manual_testing
+    path: manual_testing-test-plan-1770076373222-odysuw.md
+    mime_type: text/markdown
+    created_at: 2026-02-02T23:52:53.222Z
 ports: []
 worktrees: {}
 created_by: human
@@ -89,7 +94,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-02T21:35:07.966Z
-updated_at: 2026-02-02T23:50:42.250Z
+updated_at: 2026-02-02T23:52:53.222Z
 phase_entered_at: 2026-02-02T23:50:42.249Z
 loop_count: 0
 archived: false
