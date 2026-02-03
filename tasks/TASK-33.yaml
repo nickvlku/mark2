@@ -32,12 +32,17 @@ description: |-
   - Multiple tasks require attention simultaneously
   - User is already viewing the task when notification would trigger
   - Browser doesn't support Notifications API (graceful degradation)
-phase: design
+phase: coding
 phase_agents: {}
 phase_overrides: {}
 blockers: []
 priority: P2
-artifacts: []
+artifacts:
+  - name: design
+    phase: design
+    path: design-design-1770088497701-97b30v.md
+    mime_type: text/markdown
+    created_at: 2026-02-03T03:14:57.702Z
 ports: []
 worktrees: {}
 created_by: human
@@ -45,7 +50,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-02T21:48:54.276Z
-updated_at: 2026-02-03T03:12:50.184Z
-phase_entered_at: 2026-02-03T03:12:50.184Z
+updated_at: 2026-02-03T03:20:10.137Z
+phase_entered_at: 2026-02-03T03:20:10.136Z
 loop_count: 0
 archived: false
