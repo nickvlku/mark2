@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { Task, Phase } from '@/types';
 import { useTasks } from '@/hooks/useTasks';
 import { useStories } from '@/hooks/useStories';
 import { useBoardPan } from '@/hooks/useBoardPan';
 import { useConfig } from '@/hooks/useConfig';
+import { useNotifications } from '@/hooks/useNotifications';
 import { Column } from './Column';
 import { StoryFilter } from './StoryFilter';
 import { ArchiveFilter } from './ArchiveFilter';
@@ -51,6 +52,45 @@ export function Board() {
 
   // Find the task for initial snapshot — TaskDetail fetches its own data after mount
   const selectedTask = selectedTaskId ? tasks.find((t: Task) => t.id === selectedTaskId) ?? null : null;
+
+  // Monitor window focus state for notifications
+  const [isWindowFocused, setIsWindowFocused] = useState(true);
+
+  useEffect(() => {
+    const handleFocus = () => setIsWindowFocused(true);
+    const handleBlur = () => setIsWindowFocused(false);
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, []);
+
+  // Initialize browser notifications
+  useNotifications({
+    tasks,
+    selectedTaskId,
+    isWindowFocused,
+  });
+
+  // Handle notification clicks - navigate to the task
+  useEffect(() => {
+    const handleNotificationClick = (event: Event) => {
+      const customEvent = event as CustomEvent<{ taskId: string }>;
+      if (customEvent.detail?.taskId) {
+        setSelectedTaskId(customEvent.detail.taskId);
+      }
+    };
+
+    window.addEventListener('mark2:notification-click', handleNotificationClick);
+
+    return () => {
+      window.removeEventListener('mark2:notification-click', handleNotificationClick);
+    };
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
