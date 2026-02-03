@@ -29,7 +29,7 @@ describe('Pipeline State Machine', () => {
         'code_review',
         'fix_review',
         'final_testing',
-        'manual_testing',
+        'run_test_plan',
         'done',
       ]);
     });
@@ -65,8 +65,8 @@ describe('Pipeline State Machine', () => {
       expect(phaseIndex('final_testing')).toBe(6);
     });
 
-    it('returns 7 for manual_testing', () => {
-      expect(phaseIndex('manual_testing')).toBe(7);
+    it('returns 7 for run_test_plan', () => {
+      expect(phaseIndex('run_test_plan')).toBe(7);
     });
 
     it('returns 8 for done', () => {
@@ -95,15 +95,15 @@ describe('Pipeline State Machine', () => {
       expect(result).toHaveLength(2);
     });
 
-    it('code_review -> [manual_testing, coding] (two paths)', () => {
+    it('code_review -> [run_test_plan, coding] (two paths)', () => {
       const result = getValidTransitions('code_review');
-      expect(result).toContain('manual_testing');
+      expect(result).toContain('run_test_plan');
       expect(result).toContain('coding');
       expect(result).toHaveLength(2);
     });
 
-    it('manual_testing -> [done]', () => {
-      expect(getValidTransitions('manual_testing')).toEqual(['done']);
+    it('run_test_plan -> [done]', () => {
+      expect(getValidTransitions('run_test_plan')).toEqual(['done']);
     });
 
     it('done -> [done] (self-transition)', () => {
@@ -174,14 +174,14 @@ describe('Pipeline State Machine', () => {
       expect(t!.to).toBe('testing');
     });
 
-    it('finds [REVIEW_COMPLETED] from code_review -> manual_testing', () => {
+    it('finds [REVIEW_COMPLETED] from code_review -> run_test_plan', () => {
       const t = findTransitionByTrigger('code_review', '[REVIEW_COMPLETED]');
       expect(t).toBeDefined();
-      expect(t!.to).toBe('manual_testing');
+      expect(t!.to).toBe('run_test_plan');
     });
 
-    it('finds [MANUAL_TESTING_READY] from manual_testing -> done', () => {
-      const t = findTransitionByTrigger('manual_testing', '[MANUAL_TESTING_READY]');
+    it('finds [RUN_TEST_PLAN_PASSED] from run_test_plan -> done', () => {
+      const t = findTransitionByTrigger('run_test_plan', '[RUN_TEST_PLAN_PASSED]');
       expect(t).toBeDefined();
       expect(t!.to).toBe('done');
     });

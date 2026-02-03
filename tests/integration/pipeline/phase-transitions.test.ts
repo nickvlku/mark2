@@ -41,7 +41,7 @@ const mockPhaseHandlers = vi.hoisted(() => ({
   handleCoding: vi.fn().mockResolvedValue({ tmuxSession: 'mock-coding-session' }),
   handleTesting: vi.fn().mockResolvedValue({ tmuxSession: 'mock-testing-session' }),
   handleCodeReview: vi.fn().mockResolvedValue({ tmuxSession: 'mock-review-session' }),
-  handleManualTesting: vi.fn().mockResolvedValue({ tmuxSession: 'mock-manual-session' }),
+  handleRunTestPlan: vi.fn().mockResolvedValue({ tmuxSession: 'mock-run-test-plan-session' }),
   handleDone: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -100,8 +100,8 @@ vi.mock('@/lib/orchestration/phase-handlers/code-review', () => ({
   handleCodeReview: mockPhaseHandlers.handleCodeReview,
 }));
 
-vi.mock('@/lib/orchestration/phase-handlers/manual-testing', () => ({
-  handleManualTesting: mockPhaseHandlers.handleManualTesting,
+vi.mock('@/lib/orchestration/phase-handlers/run-test-plan', () => ({
+  handleRunTestPlan: mockPhaseHandlers.handleRunTestPlan,
 }));
 
 vi.mock('@/lib/orchestration/phase-handlers/done', () => ({
@@ -163,7 +163,7 @@ describe('Phase Transitions Integration', () => {
     mockPhaseHandlers.handleCoding.mockResolvedValue({ tmuxSession: 'mock-coding-session' });
     mockPhaseHandlers.handleTesting.mockResolvedValue({ tmuxSession: 'mock-testing-session' });
     mockPhaseHandlers.handleCodeReview.mockResolvedValue({ tmuxSession: 'mock-review-session' });
-    mockPhaseHandlers.handleManualTesting.mockResolvedValue({ tmuxSession: 'mock-manual-session' });
+    mockPhaseHandlers.handleRunTestPlan.mockResolvedValue({ tmuxSession: 'mock-run-test-plan-session' });
     mockPhaseHandlers.handleDone.mockResolvedValue(undefined);
     mockTmuxUtils.capturePane.mockResolvedValue('');
     mockTmuxManager.reconcile.mockResolvedValue([]);
@@ -356,15 +356,15 @@ describe('Phase Transitions Integration', () => {
 
       // Complete review (no autofix)
       await engine.processEndToken(TEST_TASK_ID, 'test-reviewer', 'code_review', '[REVIEW_COMPLETED]');
-      expect(db.select().from(tasks).where(eq(tasks.id, TEST_TASK_ID)).get()?.phase).toBe('manual_testing');
+      expect(db.select().from(tasks).where(eq(tasks.id, TEST_TASK_ID)).get()?.phase).toBe('run_test_plan');
 
-      // Update YAML for manual testing phase
-      const taskForManual = yamlReader.readTask(TEST_TASK_ID).data!;
-      taskForManual.phase = 'manual_testing';
-      yamlWriter.writeTask(taskForManual);
+      // Update YAML for run_test_plan phase
+      const taskForRunTestPlan = yamlReader.readTask(TEST_TASK_ID).data!;
+      taskForRunTestPlan.phase = 'run_test_plan';
+      yamlWriter.writeTask(taskForRunTestPlan);
 
-      // Complete manual testing
-      await engine.processEndToken(TEST_TASK_ID, 'test-manual', 'manual_testing', '[MANUAL_TESTING_READY]');
+      // Complete run_test_plan
+      await engine.processEndToken(TEST_TASK_ID, 'test-manual', 'run_test_plan', '[RUN_TEST_PLAN_PASSED]');
       expect(db.select().from(tasks).where(eq(tasks.id, TEST_TASK_ID)).get()?.phase).toBe('done');
     });
   });
