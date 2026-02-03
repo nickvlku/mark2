@@ -95,15 +95,19 @@ describe('Pipeline State Machine', () => {
       expect(result).toHaveLength(2);
     });
 
-    it('code_review -> [run_test_plan, coding] (two paths)', () => {
+    it('code_review -> [final_testing, fix_review, coding] (three paths)', () => {
       const result = getValidTransitions('code_review');
-      expect(result).toContain('run_test_plan');
+      expect(result).toContain('final_testing');
+      expect(result).toContain('fix_review');
       expect(result).toContain('coding');
-      expect(result).toHaveLength(2);
+      expect(result).toHaveLength(3);
     });
 
-    it('run_test_plan -> [done]', () => {
-      expect(getValidTransitions('run_test_plan')).toEqual(['done']);
+    it('run_test_plan -> [done, fix_review] (two paths)', () => {
+      const result = getValidTransitions('run_test_plan');
+      expect(result).toContain('done');
+      expect(result).toContain('fix_review');
+      expect(result).toHaveLength(2);
     });
 
     it('done -> [done] (self-transition)', () => {
@@ -174,10 +178,10 @@ describe('Pipeline State Machine', () => {
       expect(t!.to).toBe('testing');
     });
 
-    it('finds [REVIEW_COMPLETED] from code_review -> run_test_plan', () => {
+    it('finds [REVIEW_COMPLETED] from code_review -> final_testing', () => {
       const t = findTransitionByTrigger('code_review', '[REVIEW_COMPLETED]');
       expect(t).toBeDefined();
-      expect(t!.to).toBe('run_test_plan');
+      expect(t!.to).toBe('final_testing');
     });
 
     it('finds [RUN_TEST_PLAN_PASSED] from run_test_plan -> done', () => {

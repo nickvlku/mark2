@@ -41,6 +41,8 @@ const mockPhaseHandlers = vi.hoisted(() => ({
   handleCoding: vi.fn().mockResolvedValue({ tmuxSession: 'mock-coding-session' }),
   handleTesting: vi.fn().mockResolvedValue({ tmuxSession: 'mock-testing-session' }),
   handleCodeReview: vi.fn().mockResolvedValue({ tmuxSession: 'mock-review-session' }),
+  handleFixReview: vi.fn().mockResolvedValue({ tmuxSession: 'mock-fix-review-session' }),
+  handleFinalTesting: vi.fn().mockResolvedValue({ tmuxSession: 'mock-final-testing-session' }),
   handleRunTestPlan: vi.fn().mockResolvedValue({ tmuxSession: 'mock-run-test-plan-session' }),
   handleDone: vi.fn().mockResolvedValue(undefined),
 }));
@@ -98,6 +100,14 @@ vi.mock('@/lib/orchestration/phase-handlers/testing', () => ({
 
 vi.mock('@/lib/orchestration/phase-handlers/code-review', () => ({
   handleCodeReview: mockPhaseHandlers.handleCodeReview,
+}));
+
+vi.mock('@/lib/orchestration/phase-handlers/fix-review', () => ({
+  handleFixReview: mockPhaseHandlers.handleFixReview,
+}));
+
+vi.mock('@/lib/orchestration/phase-handlers/final-testing', () => ({
+  handleFinalTesting: mockPhaseHandlers.handleFinalTesting,
 }));
 
 vi.mock('@/lib/orchestration/phase-handlers/run-test-plan', () => ({
@@ -163,6 +173,8 @@ describe('Phase Transitions Integration', () => {
     mockPhaseHandlers.handleCoding.mockResolvedValue({ tmuxSession: 'mock-coding-session' });
     mockPhaseHandlers.handleTesting.mockResolvedValue({ tmuxSession: 'mock-testing-session' });
     mockPhaseHandlers.handleCodeReview.mockResolvedValue({ tmuxSession: 'mock-review-session' });
+    mockPhaseHandlers.handleFixReview.mockResolvedValue({ tmuxSession: 'mock-fix-review-session' });
+    mockPhaseHandlers.handleFinalTesting.mockResolvedValue({ tmuxSession: 'mock-final-testing-session' });
     mockPhaseHandlers.handleRunTestPlan.mockResolvedValue({ tmuxSession: 'mock-run-test-plan-session' });
     mockPhaseHandlers.handleDone.mockResolvedValue(undefined);
     mockTmuxUtils.capturePane.mockResolvedValue('');
@@ -176,7 +188,8 @@ describe('Phase Transitions Integration', () => {
     // Create test directories
     fs.mkdirSync(TEST_PROJECT_ROOT, { recursive: true });
     fs.mkdirSync(TEST_MARK2_DIR, { recursive: true });
-    fs.mkdirSync(path.join(TEST_MARK2_DIR, 'tasks'), { recursive: true });
+    fs.mkdirSync(path.join(TEST_MARK2_DIR, '.state'), { recursive: true });
+    fs.mkdirSync(path.join(TEST_MARK2_DIR, '.state', 'tasks'), { recursive: true });
     fs.mkdirSync(path.join(TEST_PROJECT_ROOT, '.worktrees'), { recursive: true });
 
     config = {
@@ -189,8 +202,10 @@ describe('Phase Transitions Integration', () => {
       maxLoopCount: 3,
     };
 
-    yamlWriter = new YamlWriter(TEST_MARK2_DIR);
-    yamlReader = new YamlReader(TEST_MARK2_DIR);
+    // Use .state subdirectory for YAML (matches engine's behavior)
+    const stateDir = path.join(TEST_MARK2_DIR, '.state');
+    yamlWriter = new YamlWriter(stateDir);
+    yamlReader = new YamlReader(stateDir);
 
     // Create test task
     const testTask: Task = {
@@ -354,8 +369,17 @@ describe('Phase Transitions Integration', () => {
       task.phase = 'code_review';
       yamlWriter.writeTask(task);
 
-      // Complete review (no autofix)
+      // Complete review (no autofix) -> goes to final_testing
       await engine.processEndToken(TEST_TASK_ID, 'test-reviewer', 'code_review', '[REVIEW_COMPLETED]');
+      expect(db.select().from(tasks).where(eq(tasks.id, TEST_TASK_ID)).get()?.phase).toBe('final_testing');
+
+      // Update YAML for final_testing phase
+      const taskForFinalTesting = yamlReader.readTask(TEST_TASK_ID).data!;
+      taskForFinalTesting.phase = 'final_testing';
+      yamlWriter.writeTask(taskForFinalTesting);
+
+      // Complete final_testing -> goes to run_test_plan
+      await engine.processEndToken(TEST_TASK_ID, 'test-tester', 'final_testing', '[FINAL_TESTING_PASSED]');
       expect(db.select().from(tasks).where(eq(tasks.id, TEST_TASK_ID)).get()?.phase).toBe('run_test_plan');
 
       // Update YAML for run_test_plan phase
@@ -363,7 +387,7 @@ describe('Phase Transitions Integration', () => {
       taskForRunTestPlan.phase = 'run_test_plan';
       yamlWriter.writeTask(taskForRunTestPlan);
 
-      // Complete run_test_plan
+      // Complete run_test_plan -> goes to done
       await engine.processEndToken(TEST_TASK_ID, 'test-manual', 'run_test_plan', '[RUN_TEST_PLAN_PASSED]');
       expect(db.select().from(tasks).where(eq(tasks.id, TEST_TASK_ID)).get()?.phase).toBe('done');
     });

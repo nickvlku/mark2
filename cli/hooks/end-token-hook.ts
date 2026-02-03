@@ -24,7 +24,7 @@ const END_TOKENS: Record<string, string[]> = {
   coding: ['[CODING_COMPLETED]'],
   testing: ['[TESTING_PASSED]', '[TESTING_FAILED]'],
   code_review: ['[REVIEW_COMPLETED]'],
-  run_test_plan: ['[RUN_TEST_PLAN_COMPLETED]'],
+  run_test_plan: ['[RUN_TEST_PLAN_PASSED]', '[RUN_TEST_PLAN_FAILED]'],
   done: ['[TASK_COMPLETED]'],
 };
 
