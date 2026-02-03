@@ -33,10 +33,14 @@ export interface UseNotificationsResult {
   pendingAttention: Task[];
 }
 
+// Constants for notification logic
+export const DEFAULT_MAX_LOOP_COUNT = 5;
+
 /**
  * Determine if a task needs user attention based on its state
+ * Exported for testing purposes
  */
-function taskNeedsAttention(
+export function taskNeedsAttention(
   task: Task & { session_status?: SessionStatus; loop_count?: number },
   maxLoopCount: number = 5
 ): boolean {
@@ -65,8 +69,9 @@ function taskNeedsAttention(
 
 /**
  * Get the reason why a task needs attention
+ * Exported for testing purposes
  */
-function getAttentionReason(
+export function getAttentionReason(
   task: Task & { session_status?: SessionStatus; loop_count?: number },
   maxLoopCount: number = 5
 ): 'awaiting_approval' | 'failed' | 'blocked' | 'stuck' | null {
@@ -209,6 +214,10 @@ export function useNotifications(options: UseNotificationsOptions): UseNotificat
       // Skip if user is already viewing this task
       if (selectedTaskId === task.id) continue;
 
+      // Skip if window is focused (user is actively using the app)
+      // This prevents notification spam while the user is already engaged
+      if (isWindowFocused) continue;
+
       // Skip if this task was already notified in this session
       if (NotificationService.hasBeenNotified(task.id)) continue;
 
@@ -227,8 +236,8 @@ export function useNotifications(options: UseNotificationsOptions): UseNotificat
         tag: `mark2-task-${task.id}`,
       });
 
-      if (shown) {
-        console.log(`Notification shown for task ${task.id}: ${reason}`);
+      if (shown && process.env.NODE_ENV === 'development') {
+        console.log(`[Notification] Task ${task.id}: ${reason}`);
       }
     }
 
