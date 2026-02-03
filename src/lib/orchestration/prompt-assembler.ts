@@ -152,11 +152,18 @@ If no fixes needed: mark2_signal_complete(task_id, token: "[REVIEW_COMPLETED]")
 If fixes are required: mark2_signal_complete(task_id, token: "[REVIEW_NEEDS_FIXES]")`,
 
   fix_review: `You are in the FIX REVIEW phase. Your job is to:
-1. Get the MOST RECENT review feedback: use mark2_get_latest_artifact(task_id, "review") - this automatically returns only the latest review, ignoring older ones that were already addressed
-2. If tests failed, also get test results: mark2_get_latest_artifact(task_id, "test")
-3. Address all P0 and P1 issues from the review
+1. Get the MOST RECENT feedback to address:
+   - First check for test execution report: mark2_get_latest_artifact(task_id, "test-execution-report")
+   - If no test execution report, get code review: mark2_get_latest_artifact(task_id, "review")
+2. If test failures exist, also get historical context:
+   - Previous fix artifacts: mark2_get_latest_artifact(task_id, "fix")
+   - Original review comments: mark2_get_latest_artifact(task_id, "review")
+3. Focus EXCLUSIVELY on the most recent issue:
+   - If test-execution-report exists: Fix the failing manual tests
+   - Otherwise: Address P0 and P1 code review issues
 4. Make the necessary code changes
-5. Commit your fixes: mark2_git_commit(task_id, message: "fix: address code review feedback")
+5. Commit your fixes: mark2_git_commit(task_id, message: "fix: address feedback from [source]")
+6. Save a summary of what was fixed: mark2_save_artifact(task_id, filename: "fix-summary.md", content: "...")
 
 When done, signal: mark2_signal_complete(task_id, token: "[FIX_REVIEW_COMPLETED]")`,
 
