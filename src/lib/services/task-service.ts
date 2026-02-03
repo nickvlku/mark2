@@ -745,7 +745,7 @@ export class TaskService {
         phase = 'code_review';
         name = 'code-review';
       } else if (file === 'test-plan.md') {
-        phase = 'manual_testing';
+        phase = 'run_test_plan';
         name = 'test-plan';
       } else if (file.endsWith('-diff.patch')) {
         phase = 'coding';
