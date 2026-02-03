@@ -26,7 +26,7 @@ phase_defaults:
     cli_tool: claude-code
     model: claude-opus-4-5
     auto_advance: false
-  manual_testing:
+  run_test_plan:
     role: expert-style-reviewer
     cli_tool: claude-code
     model: claude-opus-4-5

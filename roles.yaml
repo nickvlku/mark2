@@ -249,7 +249,7 @@ roles:
 
       Be thorough and systematic. Document everything. Focus on user-facing behavior and real-world scenarios.
     suggested_phases:
-      - manual_testing
+      - run_test_plan
     timeout_minutes: 60
   - name: expert-accessibility-tester
     uuid: 2b6105fb-1144-4596-96bd-6bdcbfbe3da7
@@ -267,5 +267,5 @@ roles:
 
       Focus on real user experiences. Test with actual assistive technologies when possible. Prioritize impact.
     suggested_phases:
-      - manual_testing
+      - run_test_plan
     timeout_minutes: 45
