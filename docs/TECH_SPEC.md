@@ -278,7 +278,7 @@ export const Phase = z.enum([
   "coding",
   "testing",
   "code_review",
-  "manual_testing",
+  "run_test_plan",
   "done",
 ]);
 export type Phase = z.infer<typeof Phase>;
@@ -1019,17 +1019,17 @@ const TRANSITIONS: PhaseTransition[] = [
   },
   {
     from: "code_review",
-    to: "manual_testing",
+    to: "run_test_plan",
     trigger: "end_token",                      // Agent emits [REVIEW_COMPLETED] with no actionable findings
     guard: (task) => reviewPassedCleanly(task),
     action: async (task) => {
-      await spawnAgent(task, "manual_testing"); // Generates test plan, spins up services
+      await spawnAgent(task, "run_test_plan"); // Generates test plan, spins up services
       await allocatePorts(task);
       await startServices(task);
     },
   },
   {
-    from: "manual_testing",
+    from: "run_test_plan",
     to: "done",
     trigger: "manual",                         // Human approves
     action: async (task) => {
@@ -1061,7 +1061,7 @@ const TRANSITIONS: PhaseTransition[] = [
     },
   },
   {
-    from: "manual_testing",
+    from: "run_test_plan",
     to: "coding",
     trigger: "manual",                         // Human leaves revision comments
     action: async (task) => {
@@ -1086,7 +1086,7 @@ const END_TOKENS: Record<Phase, string[]> = {
   coding: ["[CODING_COMPLETED]"],
   testing: ["[TESTING_PASSED]", "[TESTING_FAILED]"],
   code_review: ["[REVIEW_COMPLETED]"],
-  manual_testing: ["[MANUAL_TESTING_READY]"],
+  run_test_plan: ["[RUN_TEST_PLAN_PASSED]"],
   done: ["[TASK_COMPLETED]"],
 };
 
@@ -1153,7 +1153,7 @@ Each loop-back carries context from the failing phase to the coding agent:
 |-----------|-------------------------------|
 | Testing → Coding | Test failure output: stack traces, assertion errors, failed test names. Appended to the task prompt as a `## Test Failures` section. |
 | Code Review → Coding | Review report markdown with P0/P1/P2 findings, file/line references, and suggested fixes. Appended as `## Code Review Findings`. |
-| Manual Testing → Coding | Human comments from the UI. Appended as `## Revision Comments`. |
+| Run Test Plan → Coding | Human comments from the UI. Appended as `## Revision Comments`. |
 
 **Max loop count:** Configured in `config.yaml` (default: 5). After exceeding the max, the task is flagged as `stuck` in the activity log and the human is notified. The task remains in its current phase until manually resolved.
 
@@ -1167,11 +1167,11 @@ What happens at each transition:
 | Design → Coding | 1. (Worktree already exists.) 2. Assemble prompt with design doc. 3. Spawn coding agent in TMUX. 4. Start end-token watcher. |
 | Coding → Testing | 1. (Same worktree.) 2. Assemble prompt with task + design context. 3. Spawn testing agent. 4. Start watcher for `TESTING_PASSED` / `TESTING_FAILED`. |
 | Testing → Code Review | 1. Assemble prompt with diff against main. 2. Spawn review agent (ideally different model). 3. Start watcher for `REVIEW_COMPLETED`. |
-| Code Review → Manual Testing | 1. Generate test plan via agent. 2. Allocate ports (deterministic formula). 3. Start services in worktree on allocated ports. 4. Emit `task:updated` WebSocket event. |
-| Manual Testing → Done | 1. Rebase worktree branch onto latest main. 2. Resolve conflicts via LLM agent. 3. Squash merge (or preserve-commits merge). 4. Delete worktree + branch. 5. Release ports. 6. Unblock dependent tasks. 7. Emit `task:updated`. |
+| Code Review → Run Test Plan | 1. Generate test plan via agent. 2. Allocate ports (deterministic formula). 3. Start services in worktree on allocated ports. 4. Emit `task:updated` WebSocket event. |
+| Run Test Plan → Done | 1. Rebase worktree branch onto latest main. 2. Resolve conflicts via LLM agent. 3. Squash merge (or preserve-commits merge). 4. Delete worktree + branch. 5. Release ports. 6. Unblock dependent tasks. 7. Emit `task:updated`. |
 | Testing → Coding (loop) | 1. Capture test failure output. 2. Increment `loop_count`. 3. Assemble prompt with failure context. 4. Spawn coding agent. |
 | Code Review → Coding (loop) | 1. Capture review report. 2. Determine which findings to fix (P0 always, P1/P2 per config). 3. Increment `loop_count`. 4. Assemble prompt with review comments. 5. Spawn coding agent. |
-| Manual Testing → Coding (loop) | 1. Capture human comments from UI. 2. Stop running services. 3. Increment `loop_count`. 4. Assemble prompt with human feedback. 5. Spawn coding agent. |
+| Run Test Plan → Coding (loop) | 1. Capture human comments from UI. 2. Stop running services. 3. Increment `loop_count`. 4. Assemble prompt with human feedback. 5. Spawn coding agent. |
 
 ---
 
@@ -1473,7 +1473,7 @@ Report it via mark2_report_artifact.
 
 When complete, emit: [REVIEW_COMPLETED]`,
 
-      manual_testing: `
+      run_test_plan: `
 Generate a manual test plan with:
 - Prerequisites / setup steps
 - Test scenarios with expected outcomes
@@ -1482,7 +1482,7 @@ Generate a manual test plan with:
 
 Save as {task_id}_test_plan.md and report via mark2_report_artifact.
 
-When complete, emit: [MANUAL_TESTING_READY]`,
+When complete, emit: [RUN_TEST_PLAN_PASSED]`,
 
       done: `
 Merge the worktree branch into main:
@@ -1886,7 +1886,7 @@ The detail panel is a slide-over that opens from the right side of the board.
 | Coding | "Open Terminal" (for observation) |
 | Testing | (automated — no actions, shows progress) |
 | Code Review | "Accept Review" / "Request Fixes" / "Open Terminal" |
-| Manual Testing | "Approve & Merge" / "Request Revisions" (with comment box) |
+| Run Test Plan | "Approve & Merge" / "Request Revisions" (with comment box) |
 | Done | "View Merge Commit" |
 
 **Tabs:**
@@ -2017,7 +2017,7 @@ phase_defaults:
     default_agent: codex-reviewer      # Different model for review
     timeout_minutes: 30
     auto_advance: true
-  manual_testing:
+  run_test_plan:
     default_agent: claude-architect    # Generates test plan
     timeout_minutes: 15
     auto_advance: false     # Require human approval
@@ -2117,7 +2117,7 @@ This is the compact manifest that every agent reads at the start of invocation. 
     "testing_passed": "[TESTING_PASSED]",
     "testing_failed": "[TESTING_FAILED]",
     "code_review": "[REVIEW_COMPLETED]",
-    "manual_testing": "[MANUAL_TESTING_READY]",
+    "run_test_plan": "[RUN_TEST_PLAN_PASSED]",
     "done": "[TASK_COMPLETED]"
   },
 

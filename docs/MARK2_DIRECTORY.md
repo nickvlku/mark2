@@ -265,7 +265,7 @@ entries:
 - `code_review` - Code review
 - `fix_review` - Fixing review issues
 - `final_testing` - Final test run
-- `manual_testing` - Human QA
+- `run_test_plan` - Human QA
 - `done` - Completed
 
 ---

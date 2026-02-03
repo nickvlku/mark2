@@ -149,7 +149,7 @@ The pipeline is a linear sequence of phases with well-defined entry criteria, ag
 
 ```
 ┌──────────┐   ┌────────┐   ┌────────┐   ┌─────────┐   ┌─────────────┐   ┌────────────────┐   ┌──────┐
-│ Pending  │──▶│ Design │──▶│ Coding │──▶│ Testing │──▶│ Code Review │──▶│ Manual Testing │──▶│ Done │
+│ Pending  │──▶│ Design │──▶│ Coding │──▶│ Testing │──▶│ Code Review │──▶│ Run Test Plan │──▶│ Done │
 └──────────┘   └────────┘   └────────┘   └─────────┘   └─────────────┘   └────────────────┘   └──────┘
                                 ▲              │              │                    │
                                 │              ▼              │                    │
@@ -284,13 +284,13 @@ The pipeline is a linear sequence of phases with well-defined entry criteria, ag
 | Fix recommendations | Inline comments | Specific suggested changes |
 
 **Exit criteria:**
-- **No findings (or only P2s that user configured to skip)** → move to Manual Testing
+- **No findings (or only P2s that user configured to skip)** → move to Run Test Plan
 - **P0s exist** → always loop back to Coding with review comments. Coding → Testing → Code Review cycle repeats.
 - **P1s/P2s exist** → loop back to Coding if user has configured auto-fix for that severity level. Otherwise, user decides in UI.
 
 **End token:** `[REVIEW_COMPLETED]`
 
-### 5.6 Phase: Manual Testing
+### 5.6 Phase: Run Test Plan
 
 **Purpose:** Human QA. The user manually tests the feature in a running environment.
 
@@ -316,15 +316,15 @@ The pipeline is a linear sequence of phases with well-defined entry criteria, ag
 
 **Exit criteria:** Human reviews and either:
 1. **Approves** → move to Done
-2. **Leaves comments** → loop back to Coding with the human's feedback. Full cycle repeats (Coding → Testing → Code Review → Manual Testing).
+2. **Leaves comments** → loop back to Coding with the human's feedback. Full cycle repeats (Coding → Testing → Code Review → Run Test Plan).
 
-**End token:** `[MANUAL_TESTING_READY]`
+**End token:** `[RUN_TEST_PLAN_PASSED]`
 
 ### 5.7 Phase: Done
 
 **Purpose:** Merge to main and clean up.
 
-**Entry criteria:** Human approved in Manual Testing.
+**Entry criteria:** Human approved in Run Test Plan.
 
 **System behavior:**
 - Use an LLM agent to perform the merge to main (handle conflicts, write merge commit message)
@@ -469,7 +469,7 @@ The following operations must be available to agents via both interfaces:
 The primary UI is a **Kanban-style board** in dark mode, similar to Linear or JIRA.
 
 **Columns** correspond to pipeline phases:
-- Pending | Design | Coding | Testing | Code Review | Manual Testing | Done
+- Pending | Design | Coding | Testing | Code Review | Run Test Plan | Done
 
 **Cards** represent tasks and show:
 - Task ID and title
@@ -521,8 +521,8 @@ The UI must clearly surface moments where human input is needed:
 | Pending → Design | Approve to start (or auto-start if configured) |
 | Design → Coding | Review and approve design artifacts |
 | Code Review → Coding | Decide on P1/P2 auto-fix (if not pre-configured) |
-| Manual Testing → Done | Approve or leave revision comments |
-| Manual Testing → Coding | Leave comments triggering revision |
+| Run Test Plan → Done | Approve or leave revision comments |
+| Run Test Plan → Coding | Leave comments triggering revision |
 
 These should be surfaced as **prominent action buttons** on the card and in the detail panel, plus optional notifications (browser, email, Slack webhook — future).
 
@@ -672,7 +672,7 @@ The SQLite database (`.mark2/mark2.db`) is:
     │   │   └── TASK-1_test_results.json
     │   ├── review/
     │   │   └── TASK-1_review.md
-    │   └── manual_testing/
+    │   └── run_test_plan/
     │       └── TASK-1_test_plan.md
     └── TASK-2/
         └── ...
@@ -761,7 +761,7 @@ These are explicitly **not** in scope for the initial build but are anticipated 
 Mark2 V1 is successful if:
 
 1. A user can create a task, assign an agent, and watch it progress through all phases to merge
-2. Human approval gates work correctly at Design, Code Review, and Manual Testing
+2. Human approval gates work correctly at Design, Code Review, and Run Test Plan
 3. The coding → testing → code review loop functions automatically until quality gates pass
 4. Bake-offs produce isolated outputs that can be compared side by side
 5. Multiple tasks can run concurrently without worktree or port conflicts
