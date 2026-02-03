@@ -10,15 +10,15 @@ export const Phase = z.enum([
   'code_review',
   'fix_review',
   'final_testing',
-  'manual_testing',
+  'run_test_plan',
   'done',
 ]);
 export type Phase = z.infer<typeof Phase>;
 
 // Phases that can have roles assigned to them
-export const AssignablePhase = z.enum(['design', 'coding', 'testing', 'code_review', 'fix_review', 'final_testing', 'manual_testing']);
+export const AssignablePhase = z.enum(['design', 'coding', 'testing', 'code_review', 'fix_review', 'final_testing', 'run_test_plan']);
 export type AssignablePhase = z.infer<typeof AssignablePhase>;
-export const ASSIGNABLE_PHASES: AssignablePhase[] = ['design', 'coding', 'testing', 'code_review', 'fix_review', 'final_testing', 'manual_testing'];
+export const ASSIGNABLE_PHASES: AssignablePhase[] = ['design', 'coding', 'testing', 'code_review', 'fix_review', 'final_testing', 'run_test_plan'];
 
 export const Priority = z.enum(['P0', 'P1', 'P2', 'P3']);
 export type Priority = z.infer<typeof Priority>;
