@@ -16,7 +16,7 @@ const PHASE_OPTIONS: { id: AssignablePhase; label: string }[] = [
   { id: 'coding', label: 'Coding' },
   { id: 'testing', label: 'Testing' },
   { id: 'code_review', label: 'Code Review' },
-  { id: 'manual_testing', label: 'Manual Testing' },
+  { id: 'run_test_plan', label: 'Run Test Plan' },
 ];
 
 export function EditRoleDialog({

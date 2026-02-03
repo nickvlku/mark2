@@ -14,7 +14,7 @@ const PHASES: { id: AssignablePhase; label: string }[] = [
   { id: 'code_review', label: 'Code Review' },
   { id: 'fix_review', label: 'Fix Review' },
   { id: 'final_testing', label: 'Final Testing' },
-  { id: 'manual_testing', label: 'Manual Testing' },
+  { id: 'run_test_plan', label: 'Run Test Plan' },
 ];
 
 interface PhaseDefaultsSectionProps {

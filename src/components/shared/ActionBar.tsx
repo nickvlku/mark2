@@ -46,11 +46,11 @@ const phaseActions: Record<Phase, PhaseButton[]> = {
     { label: 'Restart Phase', variant: 'danger', target: { restart: true } },
   ],
   final_testing: [
-    { label: 'Tests Passing', variant: 'success', target: { phase: 'manual_testing' } },
+    { label: 'Tests Passing', variant: 'success', target: { phase: 'run_test_plan' } },
     { label: 'Tests Failed', variant: 'secondary', target: { phase: 'fix_review' } },
     { label: 'Restart Phase', variant: 'danger', target: { restart: true } },
   ],
-  manual_testing: [
+  run_test_plan: [
     { label: 'Approve & Merge', variant: 'success', target: { phase: 'done' } },
     { label: 'Request Revisions', variant: 'secondary', target: { phase: 'fix_review' } },
   ],
@@ -70,7 +70,7 @@ const variantStyles: Record<string, string> = {
 function isForwardTransition(btn: PhaseButton, currentPhase: Phase): boolean {
   if ('restart' in btn.target) return false;
   // "Request Fixes" and "Request Revisions" go backward — not forward
-  const phaseOrder: Phase[] = ['pending', 'design', 'coding', 'testing', 'code_review', 'fix_review', 'final_testing', 'manual_testing', 'done'];
+  const phaseOrder: Phase[] = ['pending', 'design', 'coding', 'testing', 'code_review', 'fix_review', 'final_testing', 'run_test_plan', 'done'];
   const currentIdx = phaseOrder.indexOf(currentPhase);
   const targetIdx = phaseOrder.indexOf(btn.target.phase);
   return targetIdx > currentIdx;

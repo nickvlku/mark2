@@ -10,7 +10,7 @@ interface ArtifactsTabProps {
 }
 
 const phaseOrder: Phase[] = [
-  'pending', 'design', 'coding', 'testing', 'code_review', 'manual_testing', 'done',
+  'pending', 'design', 'coding', 'testing', 'code_review', 'run_test_plan', 'done',
 ];
 
 export function ArtifactsTab({ task }: ArtifactsTabProps) {

@@ -31,7 +31,7 @@ export function ImportRolesDialog({
       coding: [],
       testing: [],
       code_review: [],
-      manual_testing: [],
+      run_test_plan: [],
     };
 
     for (const template of availableTemplates) {
