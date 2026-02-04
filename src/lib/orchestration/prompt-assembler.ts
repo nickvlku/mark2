@@ -157,6 +157,11 @@ If fixes are required: mark2_signal_complete(task_id, token: "[REVIEW_NEEDS_FIXE
 3. Address all P0 and P1 issues from the review
 4. Make the necessary code changes
 5. Commit your fixes: mark2_git_commit(task_id, message: "fix: address code review feedback")
+6. Save a fixes summary artifact documenting what you fixed:
+   - List each issue from the review and how you addressed it
+   - Note any P2 issues you chose to defer and why
+   - Verification steps you performed
+   Example: mark2_save_artifact(task_id, filename: "fixes-applied.md", content: "...")
 
 When done, signal: mark2_signal_complete(task_id, token: "[FIX_REVIEW_COMPLETED]")`,
 
@@ -282,11 +287,11 @@ export class PromptAssembler {
     let orchestrationInstructions: string[];
 
     // Only include artifact instructions for phases that produce artifacts
-    const artifactPhases: Phase[] = ['design', 'coding', 'testing', 'code_review', 'manual_testing'];
+    const artifactPhases: Phase[] = ['design', 'coding', 'testing', 'code_review', 'fix_review', 'manual_testing'];
     const includeArtifacts = artifactPhases.includes(phase);
 
-    // Include git instructions for coding phase
-    const includeGit = phase === 'coding';
+    // Include git instructions for phases that make code changes
+    const includeGit = phase === 'coding' || phase === 'fix_review';
 
     if (!task.auto_advance) {
       // If auto_advance is disabled, don't signal completion
