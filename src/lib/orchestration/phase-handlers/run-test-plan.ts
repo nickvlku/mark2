@@ -116,7 +116,6 @@ export async function handleRunTestPlan(
         agent: agent.name,
         tmux_session: tmuxSession,
         ports: allocatedPorts,
-        has_test_plan: !!testPlan,
       }),
     })
     .run();

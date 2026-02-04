@@ -345,7 +345,7 @@ export class PromptAssembler {
     let orchestrationInstructions: string[];
 
     // Only include artifact instructions for phases that produce artifacts
-    const artifactPhases: Phase[] = ['design', 'coding', 'testing', 'code_review', 'final_testing', 'run_test_plan'];
+    const artifactPhases: Phase[] = ['design', 'coding', 'testing', 'code_review', 'fix_review', 'final_testing', 'run_test_plan'];
     const includeArtifacts = artifactPhases.includes(phase);
 
     // Include git instructions for coding phase

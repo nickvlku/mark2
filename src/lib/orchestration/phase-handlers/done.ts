@@ -43,8 +43,8 @@ export async function handleDone(
     cleanedUp: false,
   };
 
-  const branchName = `mark2/${task.id}/design`;
-  const worktreePath = path.join(projectRoot, '.worktrees', task.id, 'design');
+  const branchName = `mark2/${task.id}`;
+  const worktreePath = path.join(mark2Dir, 'clones', task.id);
 
   // Step 1: Create PR instead of local merge
   try {

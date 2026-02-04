@@ -102,9 +102,9 @@ export async function handleCoding(
         agent: agent.name,
         tmux_session: tmuxSession,
         loop_count: task.loop_count,
-        has_test_failures: !!loopContext?.testFailures,
-        has_review_comments: !!loopContext?.reviewComments,
-        has_human_comments: !!loopContext?.humanComments,
+        has_test_failures: !!_loopContext?.testFailures,
+        has_review_comments: !!_loopContext?.reviewComments,
+        has_human_comments: !!_loopContext?.humanComments,
       }),
     })
     .run();
