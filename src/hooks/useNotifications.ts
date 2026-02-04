@@ -142,18 +142,20 @@ function formatNotification(
 export function useNotifications(options: UseNotificationsOptions): UseNotificationsResult {
   const { tasks, selectedTaskId, isWindowFocused = true } = options;
 
-  // Permission state
-  const [permission, setPermission] = useState<NotificationPermission>(
-    NotificationService.getPermission()
-  );
-
-  // Enabled state
-  const [enabled, setEnabledState] = useState<boolean>(
-    NotificationService.isEnabled()
-  );
+  // Use safe defaults for SSR - will be hydrated on client
+  const [permission, setPermission] = useState<NotificationPermission>('default');
+  const [enabled, setEnabledState] = useState<boolean>(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   // Track previous task states to detect changes
   const previousTaskStatesRef = useRef<Map<string, string>>(new Map());
+
+  // Hydrate state on client mount
+  useEffect(() => {
+    setPermission(NotificationService.getPermission());
+    setEnabledState(NotificationService.isEnabled());
+    setIsHydrated(true);
+  }, []);
 
   // Request permission handler
   const requestPermission = useCallback(async () => {
@@ -176,10 +178,27 @@ export function useNotifications(options: UseNotificationsOptions): UseNotificat
 
   // Monitor task state changes and trigger notifications
   useEffect(() => {
-    // Skip if notifications are not supported, enabled, or permitted
-    if (!NotificationService.isSupported() || !enabled || permission !== 'granted') {
+    // Skip until client-side hydration is complete
+    if (!isHydrated) {
+      console.debug('[Notifications] Skipping - not hydrated yet');
       return;
     }
+
+    // Skip if notifications are not supported, enabled, or permitted
+    if (!NotificationService.isSupported()) {
+      console.debug('[Notifications] Skipping - not supported');
+      return;
+    }
+    if (!enabled) {
+      console.debug('[Notifications] Skipping - not enabled');
+      return;
+    }
+    if (permission !== 'granted') {
+      console.debug('[Notifications] Skipping - permission not granted:', permission);
+      return;
+    }
+
+    console.debug('[Notifications] Checking tasks:', tasks.length, 'isWindowFocused:', isWindowFocused);
 
     const currentTaskStates = new Map<string, string>();
     const maxLoopCount = 5;
@@ -208,25 +227,41 @@ export function useNotifications(options: UseNotificationsOptions): UseNotificat
       // Skip if state hasn't changed
       if (!stateChanged) continue;
 
+      console.debug(`[Notifications] ${task.id} state changed:`, {
+        session_status: taskWithStatus.session_status,
+        auto_approve: task.auto_approve,
+        needsAttention: taskNeedsAttention(taskWithStatus, maxLoopCount),
+      });
+
       // Skip if task doesn't need attention
-      if (!taskNeedsAttention(taskWithStatus, maxLoopCount)) continue;
+      if (!taskNeedsAttention(taskWithStatus, maxLoopCount)) {
+        console.debug(`[Notifications] ${task.id} - skipping, doesn't need attention`);
+        continue;
+      }
 
-      // Skip if user is already viewing this task
-      if (selectedTaskId === task.id) continue;
-
-      // Skip if window is focused (user is actively using the app)
-      // This prevents notification spam while the user is already engaged
-      if (isWindowFocused) continue;
+      // Skip if user is actively viewing this task (window focused AND task selected)
+      if (isWindowFocused && selectedTaskId === task.id) {
+        console.debug(`[Notifications] ${task.id} - skipping, user is actively viewing it`);
+        continue;
+      }
 
       // Skip if this task was already notified in this session
-      if (NotificationService.hasBeenNotified(task.id)) continue;
+      if (NotificationService.hasBeenNotified(task.id)) {
+        console.debug(`[Notifications] ${task.id} - skipping, already notified this session`);
+        continue;
+      }
 
       // Get the reason for attention
       const reason = getAttentionReason(taskWithStatus, maxLoopCount);
-      if (!reason) continue;
+      if (!reason) {
+        console.debug(`[Notifications] ${task.id} - skipping, no reason found`);
+        continue;
+      }
 
       // Format the notification
       const { title, body } = formatNotification(taskWithStatus, reason);
+
+      console.debug(`[Notifications] ${task.id} - SENDING notification:`, { reason, title });
 
       // Show the notification
       const shown = NotificationService.show({
@@ -236,14 +271,14 @@ export function useNotifications(options: UseNotificationsOptions): UseNotificat
         tag: `mark2-task-${task.id}`,
       });
 
-      if (shown && process.env.NODE_ENV === 'development') {
+      if (shown) {
         console.log(`[Notification] Task ${task.id}: ${reason}`);
       }
     }
 
     // Update the previous states reference
     previousTaskStatesRef.current = currentTaskStates;
-  }, [tasks, selectedTaskId, isWindowFocused, enabled, permission]);
+  }, [tasks, selectedTaskId, isWindowFocused, enabled, permission, isHydrated]);
 
   return {
     permission,
