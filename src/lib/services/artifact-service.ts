@@ -38,6 +38,62 @@ export class ArtifactService {
       path: artifact.path,
       mime_type: artifact.mime_type,
       created_at: now,
+      source: 'agent',
+    });
+
+    // Read current task from YAML
+    const { data: task } = this.reader.readTask(taskId);
+    if (!task) {
+      throw new Error(`Task ${taskId} not found`);
+    }
+
+    // Add artifact to task
+    const updatedArtifacts = [...task.artifacts, entry];
+    const updatedTask: Task = {
+      ...task,
+      artifacts: updatedArtifacts,
+      updated_at: now,
+    };
+
+    // Write YAML
+    this.writer.writeTask(updatedTask);
+
+    // Update SQLite
+    const db = getDb(this.mark2Dir);
+    db.update(tasks)
+      .set({
+        artifacts_json: JSON.stringify(updatedArtifacts),
+        updated_at: now,
+      })
+      .where(eq(tasks.id, taskId))
+      .run();
+
+    return entry;
+  }
+
+  reportUpload(
+    taskId: string,
+    artifact: {
+      name: string;
+      phase: Phase;
+      path: string;
+      mime_type?: string;
+      source: 'user';
+      original_filename: string;
+      file_size: number;
+    },
+  ): TaskArtifact {
+    const now = new Date().toISOString();
+
+    const entry = TaskArtifactSchema.parse({
+      name: artifact.name,
+      phase: artifact.phase,
+      path: artifact.path,
+      mime_type: artifact.mime_type,
+      created_at: now,
+      source: artifact.source,
+      original_filename: artifact.original_filename,
+      file_size: artifact.file_size,
     });
 
     // Read current task from YAML
