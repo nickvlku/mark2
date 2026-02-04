@@ -1,0 +1,20 @@
+id: TASK-50
+title: Cancel Edit Test 1770177667845
+description: Testing cancel functionality
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: human
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-04T04:01:09.086Z
+updated_at: 2026-02-04T04:01:09.086Z
+phase_entered_at: 2026-02-04T04:01:09.086Z
+loop_count: 0
+archived: false
