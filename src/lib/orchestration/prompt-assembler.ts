@@ -117,12 +117,13 @@ const PHASE_INSTRUCTIONS: Record<Phase, string> = {
 When done, signal: mark2_signal_complete(task_id, token: "[DESIGN_COMPLETED]")`,
 
   coding: `You are in the CODING phase. Your job is to:
-1. Implement the changes described in the design document
-2. Follow the project's coding conventions and style
-3. Write clean, well-documented code
-4. Ensure the code compiles/builds without errors
-5. Commit your changes: mark2_git_commit(task_id, message: "...")
-6. Save a coding summary artifact documenting your work:
+1. Get the design document: mark2_get_design(task_id) or mark2_get_latest_artifact(task_id, "design")
+2. Implement the changes described in the design document
+3. Follow the project's coding conventions and style
+4. Write clean, well-documented code
+5. Ensure the code compiles/builds without errors
+6. Commit your changes: mark2_git_commit(task_id, message: "...")
+7. Save a coding summary artifact documenting your work:
    - Technical details of the implementation
    - Architecture diagrams (mermaid) if the changes are complex
    - List of all files created/modified with brief descriptions of changes
@@ -133,10 +134,11 @@ When done, signal: mark2_signal_complete(task_id, token: "[DESIGN_COMPLETED]")`,
 When done, signal: mark2_signal_complete(task_id, token: "[CODING_COMPLETED]")`,
 
   testing: `You are in the TESTING phase. Your job is to:
-1. Run the existing test suite and verify it passes
-2. Write new tests covering the changes made in the coding phase
-3. Ensure adequate test coverage for edge cases
-4. Run all tests and save results: mark2_save_artifact(task_id, filename: "test-results.md", content: "...")
+1. Get context if needed: mark2_get_design(task_id) for design, mark2_get_latest_artifact(task_id, "coding") for coding summary
+2. Run the existing test suite and verify it passes
+3. Write new tests covering the changes made in the coding phase
+4. Ensure adequate test coverage for edge cases
+5. Run all tests and save results: mark2_save_artifact(task_id, filename: "test-results.md", content: "...")
 
 If all tests pass: mark2_signal_complete(task_id, token: "[TESTING_PASSED]")
 If any tests fail: mark2_signal_complete(task_id, token: "[TESTING_FAILED]")`,
@@ -404,13 +406,9 @@ export class PromptAssembler {
       task.description,
     ];
 
-    // Include design document for phases after design
-    if (context?.designDocument && phase !== 'design') {
-      parts.push('', '## Design Document', context.designDocument);
-    }
-
-    // Note: For code_review and fix_review phases, the agent fetches large artifacts
-    // (diff, review comments, test failures) via MCP tools to avoid shell escaping issues
+    // Don't embed large artifacts (design docs, diffs, reviews) in the prompt.
+    // Agents should fetch them via MCP tools (mark2_get_design, mark2_get_latest_artifact, etc.)
+    // This keeps prompts small and avoids shell escaping issues.
 
     // Include loop count info (small, safe to include inline)
     if (context?.loopCount && context.loopCount > 0) {

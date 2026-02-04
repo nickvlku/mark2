@@ -1,4 +1,3 @@
-import fs from 'fs';
 import type { Task } from '../../yaml/schemas';
 import type { RoleConfig } from './run-phase';
 import { CloneService } from '../../services/clone-service';
@@ -17,7 +16,7 @@ export interface TestingResult {
 /**
  * Handle the testing phase for a task.
  *
- * Assembles the testing prompt and spawns the testing agent.
+ * Spawns the testing agent. Agent fetches context via MCP tools.
  */
 export async function handleTesting(
   task: Task,
@@ -40,20 +39,8 @@ export async function handleTesting(
     await cloneService.createClone(task.id);
   }
 
-  // Try to read the design document for context
-  let designDocument: string | undefined;
-  const designPath = `${clonePath}/design.md`;
-  try {
-    if (fs.existsSync(designPath)) {
-      designDocument = fs.readFileSync(designPath, 'utf-8');
-    }
-  } catch {
-    // Design doc may not exist
-  }
-
-  const promptContext: PromptContext = {
-    designDocument,
-  };
+  // Agent fetches design doc and other context via MCP tools
+  const promptContext: PromptContext = {};
 
   // Assemble the prompts with split parts for CLI flags
   const assembler = new PromptAssembler(mark2Dir);

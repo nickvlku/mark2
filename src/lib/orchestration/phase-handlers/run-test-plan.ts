@@ -1,7 +1,6 @@
 import type { Task } from '../../yaml/schemas';
 import type { RoleConfig } from './run-phase';
 import { CloneService } from '../../services/clone-service';
-import { ArtifactService } from '../../services/artifact-service';
 import { allocatePortsForTask } from '../../utils/port-allocator';
 import { getDb } from '../../db';
 import { activityEntries, portAllocations } from '../../db/schema';
@@ -66,14 +65,8 @@ export async function handleRunTestPlan(
     await cloneService.createClone(task.id);
   }
 
-  // Get design document and test plan for context
-  const artifactService = new ArtifactService(mark2Dir);
-  const { content: designDocument } = artifactService.getMostRecentContent(task.id, 'design');
-  const { content: testPlan } = artifactService.getMostRecentContent(task.id, 'test-plan');
-
-  const promptContext: PromptContext = {
-    designDocument,
-  };
+  // Agent fetches test plan and other context via MCP tools
+  const promptContext: PromptContext = {};
 
   // Assemble the prompts with split parts for CLI flags
   const assembler = new PromptAssembler(mark2Dir);
