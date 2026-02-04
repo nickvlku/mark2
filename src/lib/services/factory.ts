@@ -10,6 +10,7 @@ import { WorktreeService } from './worktree-service';
 import { PRService } from './pr-service';
 import { MergeService } from './merge-service';
 import { StateBranchService } from './state-branch-service';
+import { EnhanceService } from './enhance-service';
 import path from 'path';
 
 /**
@@ -89,4 +90,9 @@ export function createMergeService(projectRoot?: string, mark2Dir?: string) {
 
 export function createStateBranchService(mark2Dir?: string) {
   return new StateBranchService(mark2Dir ?? getMark2Dir());
+}
+
+export function createEnhanceService(mark2Dir?: string) {
+  const configService = createConfigService(mark2Dir);
+  return new EnhanceService(configService);
 }
