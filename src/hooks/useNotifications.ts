@@ -171,7 +171,7 @@ export function useNotifications(options: UseNotificationsOptions): UseNotificat
   const pendingAttention = tasks.filter((task) => {
     // Use max_loop_count from config if available, default to 5
     const maxLoopCount = 5; // TODO: get from config if needed
-    return taskNeedsAttention(task as any, maxLoopCount);
+    return taskNeedsAttention(task as Task & { session_status?: SessionStatus; loop_count?: number }, maxLoopCount);
   });
 
   // Monitor task state changes and trigger notifications
