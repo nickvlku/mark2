@@ -83,7 +83,7 @@ artifacts:
     mime_type: text/markdown
     created_at: 2026-02-02T23:48:55.795Z
   - name: test-plan
-    phase: manual_testing
+    phase: run_test_plan
     path: manual_testing-test-plan-1770076373222-odysuw.md
     mime_type: text/markdown
     created_at: 2026-02-02T23:52:53.222Z
