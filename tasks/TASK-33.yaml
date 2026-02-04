@@ -32,7 +32,7 @@ description: |-
   - Multiple tasks require attention simultaneously
   - User is already viewing the task when notification would trigger
   - Browser doesn't support Notifications API (graceful degradation)
-phase: fix_review
+phase: final_testing
 phase_agents: {}
 phase_overrides: {}
 blockers: []
@@ -58,6 +58,11 @@ artifacts:
     path: code_review-review-1770092164287-9pll80.md
     mime_type: text/markdown
     created_at: 2026-02-03T04:16:04.287Z
+  - name: fix-summary
+    phase: fix_review
+    path: fix_review-fix-summary-1770092385825-9btdcu.md
+    mime_type: text/markdown
+    created_at: 2026-02-03T04:19:45.825Z
 ports: []
 worktrees: {}
 created_by: human
@@ -65,7 +70,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-02T21:48:54.276Z
-updated_at: 2026-02-03T04:17:50.769Z
-phase_entered_at: 2026-02-03T04:17:50.769Z
+updated_at: 2026-02-04T02:46:18.323Z
+phase_entered_at: 2026-02-04T02:46:18.323Z
 loop_count: 0
 archived: false
