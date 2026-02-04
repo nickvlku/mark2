@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import useSWR from 'swr';
 import type { Task, ActivityEntry } from '@/types';
+import { useFormattedTimestamp } from '@/hooks/useRelativeTime';
 
 interface ActivityTabProps {
   task: Task;
@@ -26,17 +27,10 @@ const typeColors: Record<string, string> = {
   comment: 'bg-amber-500/20 text-amber-400',
 };
 
-function formatTimestamp(ts: string): string {
-  const d = new Date(ts);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-
-  if (diffMins < 1) return 'just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+/** Wrapper component to use the timestamp hook inside a list */
+function ActivityTimestamp({ timestamp }: { timestamp: string }) {
+  const formatted = useFormattedTimestamp(timestamp);
+  return <>{formatted}</>;
 }
 
 export function ActivityTab({ task }: ActivityTabProps) {
@@ -109,7 +103,7 @@ export function ActivityTab({ task }: ActivityTabProps) {
                   {entry.source}
                 </span>
                 <span className="text-[10px] text-text-secondary">
-                  {formatTimestamp(entry.timestamp)}
+                  <ActivityTimestamp timestamp={entry.timestamp} />
                 </span>
               </div>
               <p className="text-sm text-text-secondary leading-relaxed">

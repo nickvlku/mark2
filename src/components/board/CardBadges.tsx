@@ -1,6 +1,7 @@
 'use client';
 
 import type { Priority } from '@/types';
+import { useLockAge } from '@/hooks/useRelativeTime';
 
 interface PriorityBadgeProps {
   priority: Priority;
@@ -99,19 +100,8 @@ interface LockBadgeProps {
 }
 
 export function LockBadge({ lock, isMine, isExpired }: LockBadgeProps) {
-  // Format the lock time as a relative time
-  const lockDate = new Date(lock.locked_at);
-  const now = new Date();
-  const diffDays = Math.floor((now.getTime() - lockDate.getTime()) / (1000 * 60 * 60 * 24));
-
-  let timeStr: string;
-  if (diffDays === 0) {
-    timeStr = 'today';
-  } else if (diffDays === 1) {
-    timeStr = 'yesterday';
-  } else {
-    timeStr = `${diffDays}d ago`;
-  }
+  // Use hook to calculate lock age (client-side only to avoid hydration mismatch)
+  const timeStr = useLockAge(lock.locked_at);
 
   if (isMine) {
     return (

@@ -7,7 +7,7 @@
 
 'use client';
 
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { NotificationService, NotificationPermission } from '@/lib/notifications';
 
 interface NotificationContextValue {
@@ -33,13 +33,17 @@ interface NotificationProviderProps {
  * Provider component that wraps the app and provides notification context
  */
 export function NotificationProvider({ children }: NotificationProviderProps) {
-  const [permission, setPermission] = useState<NotificationPermission>(
-    NotificationService.getPermission()
-  );
+  // Use safe defaults for SSR - will be updated on client
+  const [permission, setPermission] = useState<NotificationPermission>('default');
+  const [enabled, setEnabledState] = useState<boolean>(false);
+  const [isSupported, setIsSupported] = useState<boolean>(false);
 
-  const [enabled, setEnabledState] = useState<boolean>(
-    NotificationService.isEnabled()
-  );
+  // Hydrate state on client mount to avoid SSR mismatch
+  useEffect(() => {
+    setIsSupported(NotificationService.isSupported());
+    setPermission(NotificationService.getPermission());
+    setEnabledState(NotificationService.isEnabled());
+  }, []);
 
   const requestPermission = useCallback(async () => {
     const newPermission = await NotificationService.requestPermission();
@@ -62,7 +66,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     enabled,
     requestPermission,
     setEnabled,
-    isSupported: NotificationService.isSupported(),
+    isSupported,
   };
 
   return (

@@ -3,6 +3,7 @@
 import { useDraggable } from '@dnd-kit/core';
 import type { Task, TaskWithSession, SessionStatus } from '@/types';
 import { PriorityBadge, AgentBadge, StatusIndicator, BlockerBadge, LockBadge, LockInfo } from './CardBadges';
+import { useRelativeTime, useIsLockExpired } from '@/hooks/useRelativeTime';
 
 interface CardProps {
   task: Task & { session_status?: SessionStatus; lock?: LockInfo };
@@ -41,31 +42,12 @@ function getTaskStatus(task: Task & { session_status?: SessionStatus }): string 
   return 'idle';
 }
 
-function relativeTime(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diff = now - then;
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  return `${days}d`;
-}
-
-function isLockExpired(lock: LockInfo, timeoutDays: number = 5): boolean {
-  const lockTime = new Date(lock.locked_at).getTime();
-  const now = Date.now();
-  const timeoutMs = timeoutDays * 24 * 60 * 60 * 1000;
-  return now - lockTime > timeoutMs;
-}
-
 export function Card({ task, onClick, onArchive, onRestore, onDelete, currentUserEmail, lockTimeoutDays = 5 }: CardProps) {
   const taskWithLock = task as Task & { session_status?: SessionStatus; lock?: LockInfo };
   const lock = taskWithLock.lock;
   const isMine = lock && currentUserEmail ? lock.email === currentUserEmail : false;
-  const isExpired = lock ? isLockExpired(lock, lockTimeoutDays) : false;
+  const isExpired = useIsLockExpired(lock?.locked_at, lockTimeoutDays);
+  const phaseTime = useRelativeTime(task.phase_entered_at);
 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
@@ -124,7 +106,7 @@ export function Card({ task, onClick, onArchive, onRestore, onDelete, currentUse
           <BlockerBadge count={task.blockers.length} />
         </div>
         <span className="text-[10px] text-text-secondary shrink-0 ml-2">
-          {relativeTime(task.phase_entered_at)}
+          {phaseTime}
         </span>
       </div>
 
