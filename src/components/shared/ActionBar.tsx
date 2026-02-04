@@ -42,7 +42,8 @@ const phaseActions: Record<Phase, PhaseButton[]> = {
     { label: 'Restart Phase', variant: 'danger', target: { restart: true } },
   ],
   fix_review: [
-    { label: 'Re-review Code', variant: 'primary', target: { phase: 'code_review' } },
+    { label: 'Move to Final Testing', variant: 'success', target: { phase: 'final_testing' } },
+    { label: 'Re-review Code', variant: 'secondary', target: { phase: 'code_review' } },
     { label: 'Restart Phase', variant: 'danger', target: { restart: true } },
   ],
   final_testing: [
