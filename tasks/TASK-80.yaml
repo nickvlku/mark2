@@ -1,0 +1,20 @@
+id: TASK-80
+title: Details Tab Test 1770178735612
+description: Testing the Details tab default behavior
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: human
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-04T04:18:58.535Z
+updated_at: 2026-02-04T04:18:58.535Z
+phase_entered_at: 2026-02-04T04:18:58.535Z
+loop_count: 0
+archived: false
