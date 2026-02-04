@@ -63,6 +63,16 @@ artifacts:
     path: fix_review-fix-summary-1770092385825-9btdcu.md
     mime_type: text/markdown
     created_at: 2026-02-03T04:19:45.825Z
+  - name: final-test-results
+    phase: final_testing
+    path: final_testing-final-test-results-1770173463100-pbtssa.md
+    mime_type: text/markdown
+    created_at: 2026-02-04T02:51:03.100Z
+  - name: test-plan
+    phase: final_testing
+    path: final_testing-test-plan-1770173548781-oegopt.md
+    mime_type: text/markdown
+    created_at: 2026-02-04T02:52:28.781Z
 ports: []
 worktrees: {}
 created_by: human
@@ -70,7 +80,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-02T21:48:54.276Z
-updated_at: 2026-02-04T02:48:35.894Z
-phase_entered_at: 2026-02-04T02:48:35.894Z
+updated_at: 2026-02-04T02:52:48.906Z
+phase_entered_at: 2026-02-04T02:52:48.905Z
 loop_count: 0
 archived: false
