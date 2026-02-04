@@ -1,21 +1,6 @@
 id: TASK-87
-title: Very Long Task Title That Would Normally Be Truncated In The Sidebar Header Display And Must Be Fully Visible
-description: |-
-  # Test Description
-
-  This task has **multiple paragraphs** with _markdown formatting_.
-
-  - Bullet point 1
-  - Bullet point 2
-  - Bullet point 3
-
-  ## Code example
-
-  ```javascript
-  console.log("Hello World");
-  ```
-
-  [Link to test](https://example.com)
+title: API Updated Title
+description: Description updated via API
 phase: pending
 phase_agents: {}
 phase_overrides: {}
@@ -29,7 +14,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-04T04:24:45.542Z
-updated_at: 2026-02-04T04:24:45.542Z
+updated_at: 2026-02-04T04:26:17.824Z
 phase_entered_at: 2026-02-04T04:24:45.542Z
 loop_count: 0
 archived: false
