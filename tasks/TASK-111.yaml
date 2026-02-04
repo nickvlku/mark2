@@ -1,0 +1,21 @@
+id: TASK-111
+title: Task with Badge 1770213973435
+description: ""
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: human
+story_id: STORY-24
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-04T14:06:14.227Z
+updated_at: 2026-02-04T14:06:14.227Z
+phase_entered_at: 2026-02-04T14:06:14.227Z
+loop_count: 0
+archived: false
