@@ -8,6 +8,7 @@ import { ActionBar } from '../shared/ActionBar';
 import { Dialog } from '../shared/Dialog';
 import { EnhanceDialog } from '../shared/EnhanceDialog';
 import { PhaseTimeline } from './PhaseTimeline';
+import { DetailsTab } from './DetailsTab';
 import { ArtifactsTab } from './ArtifactsTab';
 import { ActivityTab } from './ActivityTab';
 import { CodeTab } from './CodeTab';
@@ -23,9 +24,10 @@ interface TaskDetailProps {
   onUpdate: () => void;
 }
 
-type TabId = 'artifacts' | 'activity' | 'code' | 'terminal' | 'overrides';
+type TabId = 'details' | 'artifacts' | 'activity' | 'code' | 'terminal' | 'overrides';
 
 const tabs: { id: TabId; label: string }[] = [
+  { id: 'details', label: 'Details' },
   { id: 'artifacts', label: 'Artifacts' },
   { id: 'activity', label: 'Activity' },
   { id: 'code', label: 'Code' },
@@ -34,7 +36,7 @@ const tabs: { id: TabId; label: string }[] = [
 ];
 
 export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailProps) {
-  const [activeTab, setActiveTab] = useState<TabId>('activity');
+  const [activeTab, setActiveTab] = useState<TabId>('details');
 
   // Confirmation dialog states
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
@@ -232,33 +234,10 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
                 )}
               </div>
 
-              {/* Title */}
-              <h2 className="text-lg font-semibold text-text-primary leading-tight">
+              {/* Title - truncated to single line */}
+              <h2 className="text-base font-semibold text-text-primary leading-tight truncate">
                 {task.title}
               </h2>
-
-              {/* Description */}
-              {task.description && (
-                <p className="mt-1 text-sm text-text-secondary line-clamp-2">
-                  {task.description}
-                </p>
-              )}
-
-              {/* Phase Overrides */}
-              {task.phase_overrides && Object.keys(task.phase_overrides).length > 0 && (
-                <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                  <span className="text-xs text-text-secondary">Overrides:</span>
-                  {Object.entries(task.phase_overrides).map(([phase, override]) => {
-                    const parts = [];
-                    if (override.role) parts.push(override.role);
-                    if (override.cli_tool) parts.push(override.cli_tool);
-                    if (override.model) parts.push(override.model);
-                    return parts.length > 0 ? (
-                      <Badge key={phase} variant="agent" value={`${phase}: ${parts.join(', ')}`} />
-                    ) : null;
-                  })}
-                </div>
-              )}
             </div>
 
             {/* Close button */}
@@ -303,6 +282,7 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
 
         {/* Tab Content */}
         <div className="flex-1 min-h-0 overflow-hidden">
+          {activeTab === 'details' && <DetailsTab task={task} onUpdate={onUpdate} />}
           {activeTab === 'artifacts' && <ArtifactsTab task={task} />}
           {activeTab === 'activity' && <ActivityTab task={task} />}
           {activeTab === 'code' && <CodeTab task={task} />}
