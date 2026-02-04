@@ -768,6 +768,7 @@ export class TaskService {
         path: file,
         mime_type,
         created_at: now,
+        source: 'agent',
       });
       updated = true;
     }
