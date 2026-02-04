@@ -1,7 +1,7 @@
 id: TASK-41
 title: When you click on a task with a large amount of description and title you can't read it all in the sidebar
 description: The task and description are mega tiny in the sidebar (just above the phaase diagram)  We should place the description in a seperate tab of the sidebar all the way to the left.
-phase: testing
+phase: code_review
 phase_agents: {}
 phase_overrides: {}
 blockers: []
@@ -19,6 +19,18 @@ artifacts:
     mime_type: text/markdown
     created_at: 2026-02-04T03:55:14.958Z
     source: agent
+  - name: test-results
+    phase: testing
+    path: testing-test-results-1770177865069-v4svv2.md
+    mime_type: text/markdown
+    created_at: 2026-02-04T04:04:25.069Z
+    source: agent
+  - name: testing-summary
+    phase: testing
+    path: testing-testing-summary-1770177890020-00ptn2.md
+    mime_type: text/markdown
+    created_at: 2026-02-04T04:04:50.020Z
+    source: agent
 ports: []
 worktrees: {}
 created_by: human
@@ -26,7 +38,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-04T03:46:37.884Z
-updated_at: 2026-02-04T03:58:28.381Z
-phase_entered_at: 2026-02-04T03:58:28.381Z
+updated_at: 2026-02-04T04:07:15.882Z
+phase_entered_at: 2026-02-04T04:07:15.881Z
 loop_count: 0
 archived: false
