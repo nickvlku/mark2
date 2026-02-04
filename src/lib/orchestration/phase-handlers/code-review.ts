@@ -1,4 +1,3 @@
-import fs from 'fs';
 import type { Task } from '../../yaml/schemas';
 import type { RoleConfig } from './run-phase';
 import { CloneService } from '../../services/clone-service';
@@ -17,8 +16,8 @@ export interface CodeReviewResult {
 /**
  * Handle the code review phase for a task.
  *
- * Assembles the review prompt including the full diff from origin/main,
- * then spawns the review agent.
+ * Spawns the review agent. Agent fetches diff and design doc via MCP tools
+ * (mark2_get_diff, mark2_get_latest_artifact).
  */
 export async function handleCodeReview(
   task: Task,
@@ -41,30 +40,8 @@ export async function handleCodeReview(
     await cloneService.createClone(task.id);
   }
 
-  // Get the diff for review using CloneService
-  let diff = '';
-  try {
-    const result = await cloneService.getDiff(task.id);
-    diff = result.diff || '(No changes)';
-  } catch {
-    diff = '(Unable to generate diff)';
-  }
-
-  // Read the design document for context
-  let designDocument: string | undefined;
-  const designPath = `${clonePath}/design.md`;
-  try {
-    if (fs.existsSync(designPath)) {
-      designDocument = fs.readFileSync(designPath, 'utf-8');
-    }
-  } catch {
-    // Design doc may not exist
-  }
-
-  const promptContext: PromptContext = {
-    designDocument,
-    diff,
-  };
+  // Agent fetches diff and design doc via MCP tools
+  const promptContext: PromptContext = {};
 
   // Assemble the prompts with split parts for CLI flags
   const assembler = new PromptAssembler(mark2Dir);
@@ -113,7 +90,6 @@ export async function handleCodeReview(
       metadata_json: JSON.stringify({
         agent: agent.name,
         tmux_session: tmuxSession,
-        diff_length: diff.length,
       }),
     })
     .run();

@@ -1,8 +1,6 @@
 import type { Task } from '../../yaml/schemas';
-import { ArtifactService } from '../../services/artifact-service';
 import type { CLIAdapter } from '../../adapters/types';
 import { runPhase, type RoleConfig } from './run-phase';
-import type { PromptContext } from '../prompt-assembler';
 
 export interface FinalTestingResult {
   tmuxSession: string;
@@ -14,6 +12,7 @@ export interface FinalTestingResult {
  *
  * This phase runs after code review approval to verify all tests still pass.
  * If tests fail, the task goes to fix_review instead of looping back to coding.
+ * The agent fetches any needed context (design doc, etc.) via MCP tools.
  */
 export async function handleFinalTesting(
   task: Task,
@@ -25,12 +24,7 @@ export async function handleFinalTesting(
   agentToken: string,
 ): Promise<FinalTestingResult> {
   const result = await runPhase(task, role, adapter, mark2Dir, apiBaseUrl, agentToken, 'final_testing', {
-    getPromptContext: async (clonePath, task) => {
-      const artifactService = new ArtifactService(mark2Dir);
-      const { content } = artifactService.getMostRecentContent(task.id, 'design');
-      const promptContext: PromptContext = { designDocument: content || undefined };
-      return promptContext;
-    },
+    getPromptContext: () => ({}), // Agent fetches context via MCP tools
     activityMessage: () => `Final testing phase started after code review approval`,
     activityMetadata: (ctx) => ({
       role: ctx.role.name,

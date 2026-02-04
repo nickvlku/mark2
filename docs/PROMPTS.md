@@ -17,7 +17,7 @@ This document contains all the built-in prompts that Mark2 uses to instruct AI a
   - [Code Review Phase](#code-review-phase)
   - [Fix Review Phase](#fix-review-phase)
   - [Final Testing Phase](#final-testing-phase)
-  - [Manual Testing Phase](#manual-testing-phase)
+  - [Run Test Plan Phase](#manual-testing-phase)
   - [Done Phase](#done-phase)
 
 ---
@@ -245,7 +245,7 @@ If fixes are required: mark2_signal_complete(task_id, token: "[REVIEW_NEEDS_FIXE
 - `review.md` - Code review with categorized issues
 
 **Transitions:**
-- `[REVIEW_COMPLETED]` → manual_testing
+- `[REVIEW_COMPLETED]` → run_test_plan
 - `[REVIEW_NEEDS_FIXES]` → fix_review
 
 ---
@@ -295,15 +295,15 @@ If any tests fail: mark2_signal_complete(task_id, token: "[FINAL_TESTING_FAILED]
 - `final-test-results.md` - Final test execution results
 
 **Transitions:**
-- `[FINAL_TESTING_PASSED]` → manual_testing
+- `[FINAL_TESTING_PASSED]` → run_test_plan
 - `[FINAL_TESTING_FAILED]` → fix_review
 
 ---
 
 <a id="manual-testing-phase"></a>
-### Manual Testing Phase
+### Run Test Plan Phase
 
-**End Token:** `[MANUAL_TESTING_READY]`
+**End Token:** `[RUN_TEST_PLAN_PASSED]`
 
 ```markdown
 You are in the MANUAL TESTING phase. Your job is to:
@@ -312,14 +312,14 @@ You are in the MANUAL TESTING phase. Your job is to:
 3. Save the test plan: mark2_save_artifact(task_id, filename: "test-plan.md", content: "...")
 4. Report which ports are in use
 
-When ready, signal: mark2_signal_complete(task_id, token: "[MANUAL_TESTING_READY]")
+When ready, signal: mark2_signal_complete(task_id, token: "[RUN_TEST_PLAN_PASSED]")
 ```
 
 **Expected Artifacts:**
 - `test-plan.md` - Manual testing instructions for humans
 
 **Transitions:**
-- `[MANUAL_TESTING_READY]` → done
+- `[RUN_TEST_PLAN_PASSED]` → done
 
 ---
 

@@ -19,7 +19,7 @@ const PHASE_LABELS: Record<AssignablePhase, string> = {
   code_review: 'Code Review',
   fix_review: 'Fix Review',
   final_testing: 'Final Testing',
-  manual_testing: 'Manual Testing',
+  run_test_plan: 'Run Test Plan',
 };
 
 const PHASE_DESCRIPTIONS: Record<AssignablePhase, string> = {
@@ -29,7 +29,7 @@ const PHASE_DESCRIPTIONS: Record<AssignablePhase, string> = {
   code_review: 'Override role, CLI tool, or model for the code review phase',
   fix_review: 'Override role, CLI tool, or model for fixing review issues',
   final_testing: 'Override role, CLI tool, or model for the final testing phase',
-  manual_testing: 'Override role, CLI tool, or model for the manual testing phase',
+  run_test_plan: 'Override role, CLI tool, or model for the run test plan phase',
 };
 
 interface LocalOverride {

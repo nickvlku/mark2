@@ -1,5 +1,8 @@
 import { exec as execCb } from 'child_process';
 import { promisify } from 'util';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 
 const exec = promisify(execCb);
 
@@ -12,10 +15,26 @@ export async function createSession(name: string, workingDir: string): Promise<v
 }
 
 export async function sendCommand(name: string, command: string): Promise<void> {
-  // Use single quotes to prevent shell expansion of $(), backticks, etc.
-  // Escape any single quotes within the command by ending the quote, adding escaped quote, starting new quote
-  const escaped = command.replace(/'/g, "'\\''");
-  await exec(`tmux send-keys -t "${name}" '${escaped}' Enter`);
+  // For short, simple commands (like export statements), use inline send-keys
+  const isSimple = command.startsWith('export ') && !command.includes('\n') && command.length < 500;
+
+  if (isSimple) {
+    // Simple command - escape single quotes and send inline
+    const escaped = command.replace(/'/g, "'\\''");
+    await exec(`tmux send-keys -t "${name}" '${escaped}' Enter`);
+  } else {
+    // Complex/long command - write to temp file and source it
+    const tmpDir = path.join(os.tmpdir(), 'mark2-tmux');
+    fs.mkdirSync(tmpDir, { recursive: true });
+    const tmpFile = path.join(tmpDir, `cmd-${Date.now()}-${Math.random().toString(36).slice(2)}.sh`);
+
+    // Write the command to a temp file (the command itself, not a script)
+    fs.writeFileSync(tmpFile, command, 'utf-8');
+
+    // Tell tmux to eval the file contents, then remove it
+    // Using $(<file) to read file contents avoids argument length limits
+    await exec(`tmux send-keys -t "${name}" 'eval "$(<${tmpFile})" ; rm -f "${tmpFile}"' Enter`);
+  }
 }
 
 export async function capturePane(name: string, lines: number = 50): Promise<string> {

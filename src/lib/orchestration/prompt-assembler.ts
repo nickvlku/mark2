@@ -117,12 +117,13 @@ const PHASE_INSTRUCTIONS: Record<Phase, string> = {
 When done, signal: mark2_signal_complete(task_id, token: "[DESIGN_COMPLETED]")`,
 
   coding: `You are in the CODING phase. Your job is to:
-1. Implement the changes described in the design document
-2. Follow the project's coding conventions and style
-3. Write clean, well-documented code
-4. Ensure the code compiles/builds without errors
-5. Commit your changes: mark2_git_commit(task_id, message: "...")
-6. Save a coding summary artifact documenting your work:
+1. Get the design document: mark2_get_design(task_id) or mark2_get_latest_artifact(task_id, "design")
+2. Implement the changes described in the design document
+3. Follow the project's coding conventions and style
+4. Write clean, well-documented code
+5. Ensure the code compiles/builds without errors
+6. Commit your changes: mark2_git_commit(task_id, message: "...")
+7. Save a coding summary artifact documenting your work:
    - Technical details of the implementation
    - Architecture diagrams (mermaid) if the changes are complex
    - List of all files created/modified with brief descriptions of changes
@@ -133,10 +134,11 @@ When done, signal: mark2_signal_complete(task_id, token: "[DESIGN_COMPLETED]")`,
 When done, signal: mark2_signal_complete(task_id, token: "[CODING_COMPLETED]")`,
 
   testing: `You are in the TESTING phase. Your job is to:
-1. Run the existing test suite and verify it passes
-2. Write new tests covering the changes made in the coding phase
-3. Ensure adequate test coverage for edge cases
-4. Run all tests and save results: mark2_save_artifact(task_id, filename: "test-results.md", content: "...")
+1. Get context if needed: mark2_get_design(task_id) for design, mark2_get_latest_artifact(task_id, "coding") for coding summary
+2. Run the existing test suite and verify it passes
+3. Write new tests covering the changes made in the coding phase
+4. Ensure adequate test coverage for edge cases
+5. Run all tests and save results: mark2_save_artifact(task_id, filename: "test-results.md", content: "...")
 
 If all tests pass: mark2_signal_complete(task_id, token: "[TESTING_PASSED]")
 If any tests fail: mark2_signal_complete(task_id, token: "[TESTING_FAILED]")`,
@@ -152,29 +154,94 @@ If no fixes needed: mark2_signal_complete(task_id, token: "[REVIEW_COMPLETED]")
 If fixes are required: mark2_signal_complete(task_id, token: "[REVIEW_NEEDS_FIXES]")`,
 
   fix_review: `You are in the FIX REVIEW phase. Your job is to:
-1. Get the MOST RECENT review feedback: use mark2_get_latest_artifact(task_id, "review") - this automatically returns only the latest review, ignoring older ones that were already addressed
-2. If tests failed, also get test results: mark2_get_latest_artifact(task_id, "test")
-3. Address all P0 and P1 issues from the review
+1. Get the MOST RECENT feedback to address:
+   - First check for test execution report: mark2_get_latest_artifact(task_id, "test-execution-report")
+   - If no test execution report, get code review: mark2_get_latest_artifact(task_id, "review")
+2. If test failures exist, also get historical context:
+   - Previous fix artifacts: mark2_get_latest_artifact(task_id, "fix")
+   - Original review comments: mark2_get_latest_artifact(task_id, "review")
+3. Focus EXCLUSIVELY on the most recent issue:
+   - If test-execution-report exists: Fix the failing manual tests
+   - Otherwise: Address P0 and P1 code review issues
 4. Make the necessary code changes
 5. Commit your fixes: mark2_git_commit(task_id, message: "fix: address code review feedback")
+6. Save a fixes summary artifact documenting what you fixed:
+   - List each issue from the review and how you addressed it
+   - Note any P2 issues you chose to defer and why
+   - Verification steps you performed
+   Example: mark2_save_artifact(task_id, filename: "fixes-summary.md", content: "...")
 
 When done, signal: mark2_signal_complete(task_id, token: "[FIX_REVIEW_COMPLETED]")`,
 
   final_testing: `You are in the FINAL TESTING phase. Your job is to:
 1. Run the complete test suite after code review approval
 2. Verify that all tests still pass after any review-related changes
-3. Save results: mark2_save_artifact(task_id, filename: "final-test-results.md", content: "...")
+3. Save test results: mark2_save_artifact(task_id, filename: "final-test-results.md", content: "...")
 
-If all tests pass: mark2_signal_complete(task_id, token: "[FINAL_TESTING_PASSED]")
-If any tests fail: mark2_signal_complete(task_id, token: "[FINAL_TESTING_FAILED]")`,
+If any tests fail: mark2_signal_complete(task_id, token: "[FINAL_TESTING_FAILED]")
 
-  manual_testing: `You are in the MANUAL TESTING phase. Your job is to:
+If all tests pass, create a manual test plan:
+4. Analyze what was implemented and what needs manual verification
+5. Create a human-readable test plan that a product manager could follow
+6. Include browser tests (login flows, UI interactions) and API tests (endpoint verification)
+7. Save the test plan: mark2_save_artifact(task_id, filename: "test-plan.md", content: "...")
+
+Test plan format:
+\`\`\`markdown
+# Manual Test Plan for {TASK_ID}
+
+## Summary
+Brief description of what was implemented and needs testing.
+
+## Prerequisites
+- Development server running on port XXXX
+- Any required test accounts or setup
+
+## Test Cases
+
+### 1. [Test Name]
+1. Step one
+2. Step two
+**Expected:** What should happen
+\`\`\`
+
+After creating the test plan: mark2_signal_complete(task_id, token: "[FINAL_TESTING_PASSED]")`,
+
+  run_test_plan: `You are in the RUN TEST PLAN phase. Your job is to:
 1. Start any development servers needed to test the changes
-2. Generate a test plan with specific steps a human tester should follow
-3. Save the test plan: mark2_save_artifact(task_id, filename: "test-plan.md", content: "...")
-4. Report which ports are in use
+2. Get the test plan: use mark2_get_latest_artifact(task_id, "test-plan") to retrieve it
+3. Execute each test case in the plan:
+   - For browser/UI tests: Use Playwright to automate the steps
+   - For API tests: Use curl commands to verify endpoints
+   - Use the allocated dev ports for all requests
+4. Mark each test as passed (✅) or failed (❌)
+5. For failed tests, capture error details and screenshots if applicable
+6. Save the execution report: mark2_save_artifact(task_id, filename: "test-execution-report.md", content: "...")
 
-When ready, signal: mark2_signal_complete(task_id, token: "[MANUAL_TESTING_READY]")`,
+Report format:
+\`\`\`markdown
+# Test Execution Report for {TASK_ID}
+
+## Summary
+- **Total:** X tests
+- **Passed:** Y ✅
+- **Failed:** Z ❌
+
+## Results
+
+### 1. [Test Name] ✅
+- Executed via: Playwright/curl
+- Result: Passed
+
+### 2. [Test Name] ❌
+- Executed via: Playwright/curl
+- Result: Failed
+- **Error:** Description of what went wrong
+- **Details:** Stack trace, response body, or screenshot reference
+\`\`\`
+
+If all tests pass: mark2_signal_complete(task_id, token: "[RUN_TEST_PLAN_PASSED]")
+If any tests fail: mark2_signal_complete(task_id, token: "[RUN_TEST_PLAN_FAILED]")`,
 
   done: `The task is complete. Signal: mark2_signal_complete(task_id, token: "[TASK_COMPLETED]")`,
 };
@@ -282,11 +349,11 @@ export class PromptAssembler {
     let orchestrationInstructions: string[];
 
     // Only include artifact instructions for phases that produce artifacts
-    const artifactPhases: Phase[] = ['design', 'coding', 'testing', 'code_review', 'manual_testing'];
+    const artifactPhases: Phase[] = ['design', 'coding', 'testing', 'code_review', 'fix_review', 'final_testing', 'run_test_plan'];
     const includeArtifacts = artifactPhases.includes(phase);
 
-    // Include git instructions for coding phase
-    const includeGit = phase === 'coding';
+    // Include git instructions for phases that make code changes
+    const includeGit = phase === 'coding' || phase === 'fix_review';
 
     if (!task.auto_advance) {
       // If auto_advance is disabled, don't signal completion
@@ -343,13 +410,9 @@ export class PromptAssembler {
       task.description,
     ];
 
-    // Include design document for phases after design
-    if (context?.designDocument && phase !== 'design') {
-      parts.push('', '## Design Document', context.designDocument);
-    }
-
-    // Note: For code_review and fix_review phases, the agent fetches large artifacts
-    // (diff, review comments, test failures) via MCP tools to avoid shell escaping issues
+    // Don't embed large artifacts (design docs, diffs, reviews) in the prompt.
+    // Agents should fetch them via MCP tools (mark2_get_design, mark2_get_latest_artifact, etc.)
+    // This keeps prompts small and avoids shell escaping issues.
 
     // Include loop count info (small, safe to include inline)
     if (context?.loopCount && context.loopCount > 0) {

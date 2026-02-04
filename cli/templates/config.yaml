@@ -21,6 +21,6 @@ phase_defaults:
   code_review:
     timeout_minutes: 30
     auto_advance: true
-  manual_testing:
+  run_test_plan:
     timeout_minutes: 15
     auto_advance: false

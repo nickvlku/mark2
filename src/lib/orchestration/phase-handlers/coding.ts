@@ -1,4 +1,3 @@
-import fs from 'fs';
 import type { Task } from '../../yaml/schemas';
 import type { RoleConfig } from './run-phase';
 import { CloneService } from '../../services/clone-service';
@@ -17,8 +16,8 @@ export interface CodingResult {
 /**
  * Handle the coding phase for a task.
  *
- * Assembles the coding prompt (with optional loop-back context from test
- * failures or review comments) and spawns the coding agent.
+ * Spawns the coding agent. The agent fetches design document and any
+ * needed context via MCP tools (mark2_get_design, mark2_get_latest_artifact).
  */
 export async function handleCoding(
   task: Task,
@@ -28,7 +27,7 @@ export async function handleCoding(
   mark2Dir: string,
   apiBaseUrl: string,
   agentToken: string,
-  loopContext?: {
+  _loopContext?: {
     testFailures?: string;
     reviewComments?: string;
     humanComments?: string;
@@ -46,23 +45,8 @@ export async function handleCoding(
     await cloneService.createClone(task.id);
   }
 
-  // Try to read the design document if it exists
-  let designDocument: string | undefined;
-  const designPath = `${clonePath}/design.md`;
-  try {
-    if (fs.existsSync(designPath)) {
-      designDocument = fs.readFileSync(designPath, 'utf-8');
-    }
-  } catch {
-    // Design doc may not exist yet
-  }
-
-  // Build prompt context
+  // Build prompt context - agent fetches large artifacts via MCP tools
   const promptContext: PromptContext = {
-    designDocument,
-    testFailures: loopContext?.testFailures,
-    reviewComments: loopContext?.reviewComments,
-    humanComments: loopContext?.humanComments,
     loopCount: task.loop_count > 0 ? task.loop_count : undefined,
   };
 
@@ -118,9 +102,9 @@ export async function handleCoding(
         agent: agent.name,
         tmux_session: tmuxSession,
         loop_count: task.loop_count,
-        has_test_failures: !!loopContext?.testFailures,
-        has_review_comments: !!loopContext?.reviewComments,
-        has_human_comments: !!loopContext?.humanComments,
+        has_test_failures: !!_loopContext?.testFailures,
+        has_review_comments: !!_loopContext?.reviewComments,
+        has_human_comments: !!_loopContext?.humanComments,
       }),
     })
     .run();

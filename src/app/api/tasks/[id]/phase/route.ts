@@ -113,21 +113,20 @@ async function handlePhaseTransition(
     const projectRoot = getProjectRoot();
 
     if (newPhase === 'done') {
-      // Handle done phase: merge to target branch
+      // Handle done phase: create PR and cleanup
       const targetBranch = body.target_branch ?? 'main';
-      const updatedTask = taskService.getById(id);
-      if (updatedTask) {
-        try {
-          const result = await handleDone(updatedTask, projectRoot, mark2Dir, targetBranch);
-          return NextResponse.json({ task: updatedTask, merge_result: result });
-        } catch (err: any) {
-          return NextResponse.json(
-            { task: updatedTask, error: err.message ?? 'Merge failed' },
-            { status: 500 },
-          );
-        }
+      try {
+        const result = await handleDone(task, projectRoot, mark2Dir, targetBranch);
+        return NextResponse.json({ task, merge_result: result });
+      } catch (err: any) {
+        return NextResponse.json(
+          { task, error: err.message ?? 'PR creation failed' },
+          { status: 500 },
+        );
       }
-    } else if (newPhase !== 'pending') {
+    }
+
+    if (newPhase !== 'pending') {
       try {
         const engine = OrchestrationEngine.getInstance({
           projectRoot,
@@ -156,13 +155,15 @@ async function handlePhaseTransition(
               loopContext = { testFailures: content };
             }
           }
-          // Coming back from manual_testing - include human feedback
-          else if (previousPhase === 'manual_testing') {
-            // Look for artifacts with "test-plan" in the name
-            const { content } = artifactService.getMostRecentContent(id, 'test-plan');
-            if (content) {
-              loopContext = { humanComments: content };
-            }
+          // Coming back from run_test_plan - include test execution report
+          else if (previousPhase === 'run_test_plan') {
+            // Get accumulated context
+            const { content: reviewComments } = artifactService.getMostRecentContent(id, 'review');
+            const { content: testExecutionReport } = artifactService.getMostRecentContent(id, 'test-execution-report');
+            loopContext = {
+              reviewComments: reviewComments || undefined,
+              testFailures: testExecutionReport || undefined,
+            };
           }
         }
 

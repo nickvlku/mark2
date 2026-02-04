@@ -1,13 +1,36 @@
 import { NextResponse } from 'next/server';
 import path from 'path';
-import fs from 'fs';
+import { readFile } from 'fs/promises';
+import { existsSync } from 'fs';
 import { createArtifactService, createTaskService } from '@/lib/services/factory';
 import { getMark2Dir } from '@/lib/utils/mark2-dir';
 import { resolveArtifactPath, fileExistsSync } from '@/lib/utils/storage';
 import { isValidTaskId } from '@/lib/utils/route-validation';
+import { isImageType } from '@/lib/utils/upload';
 
 const service = createArtifactService();
 const taskService = createTaskService();
+
+/**
+ * Serve a binary file (image/PDF) with proper headers
+ */
+async function serveBinaryFile(filepath: string, mimeType: string): Promise<NextResponse> {
+  const fileBuffer = await readFile(filepath);
+  return new NextResponse(fileBuffer, {
+    headers: {
+      'Content-Type': mimeType,
+      'Content-Length': fileBuffer.length.toString(),
+      'Cache-Control': 'private, max-age=3600',
+    },
+  });
+}
+
+/**
+ * Check if a file should be served as binary (images and PDFs)
+ */
+function shouldServeBinary(mimeType: string): boolean {
+  return isImageType(mimeType) || mimeType === 'application/pdf';
+}
 
 export async function GET(
   request: Request,
@@ -55,7 +78,14 @@ export async function GET(
     // Security: ensure the resolved path is within storage
     const storageRoot = path.resolve(path.join(mark2Dir, 'storage', id));
     if (resolvedStorage.startsWith(storageRoot) && fileExistsSync(resolvedStorage)) {
-      const content = fs.readFileSync(resolvedStorage, 'utf-8');
+      const mimeType = artifact?.mime_type || 'application/octet-stream';
+
+      // Serve binary files (especially images) directly
+      if (shouldServeBinary(mimeType)) {
+        return serveBinaryFile(resolvedStorage, mimeType);
+      }
+
+      const content = await readFile(resolvedStorage, 'utf-8');
       return NextResponse.json({ content, path: artifactPath, location: 'storage' });
     }
 
@@ -66,8 +96,14 @@ export async function GET(
     const resolved = path.resolve(fullPath);
 
     // Security: ensure the resolved path is within the worktree
-    if (resolved.startsWith(path.resolve(worktreePath)) && fs.existsSync(resolved)) {
-      const content = fs.readFileSync(resolved, 'utf-8');
+    if (resolved.startsWith(path.resolve(worktreePath)) && existsSync(resolved)) {
+      const mimeType = artifact?.mime_type || 'application/octet-stream';
+
+      if (shouldServeBinary(mimeType)) {
+        return serveBinaryFile(resolved, mimeType);
+      }
+
+      const content = await readFile(resolved, 'utf-8');
       return NextResponse.json({ content, path: artifactPath, location: 'worktree' });
     }
 
@@ -75,16 +111,28 @@ export async function GET(
     const flatWorktreePath = path.join(projectRoot, '.worktrees', id);
     const flatFullPath = path.join(flatWorktreePath, artifactPath);
     const flatResolved = path.resolve(flatFullPath);
-    if (flatResolved.startsWith(path.resolve(flatWorktreePath)) && fs.existsSync(flatResolved)) {
-      const content = fs.readFileSync(flatResolved, 'utf-8');
+    if (flatResolved.startsWith(path.resolve(flatWorktreePath)) && existsSync(flatResolved)) {
+      const mimeType = artifact?.mime_type || 'application/octet-stream';
+
+      if (shouldServeBinary(mimeType)) {
+        return serveBinaryFile(flatResolved, mimeType);
+      }
+
+      const content = await readFile(flatResolved, 'utf-8');
       return NextResponse.json({ content, path: artifactPath, location: 'worktree-flat' });
     }
 
     // 4. FALLBACK: Try legacy .mark2/artifacts/ directory
     const fallbackPath = path.join(mark2Dir, 'artifacts', artifactPath);
     const resolvedFallback = path.resolve(fallbackPath);
-    if (resolvedFallback.startsWith(path.resolve(mark2Dir)) && fs.existsSync(resolvedFallback)) {
-      const content = fs.readFileSync(resolvedFallback, 'utf-8');
+    if (resolvedFallback.startsWith(path.resolve(mark2Dir)) && existsSync(resolvedFallback)) {
+      const mimeType = artifact?.mime_type || 'application/octet-stream';
+
+      if (shouldServeBinary(mimeType)) {
+        return serveBinaryFile(resolvedFallback, mimeType);
+      }
+
+      const content = await readFile(resolvedFallback, 'utf-8');
       return NextResponse.json({ content, path: artifactPath, location: 'legacy' });
     }
 

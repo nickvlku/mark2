@@ -307,7 +307,7 @@ function RoleCard({ role, onEdit, onDelete }: RoleCardProps) {
         return 'bg-orange-500/20 text-orange-300';
       case 'code_review':
         return 'bg-cyan-500/20 text-cyan-300';
-      case 'manual_testing':
+      case 'run_test_plan':
         return 'bg-pink-500/20 text-pink-300';
       default:
         return 'bg-gray-500/20 text-gray-300';

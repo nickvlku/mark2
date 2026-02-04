@@ -32,7 +32,7 @@ import { handleTesting } from './phase-handlers/testing';
 import { handleCodeReview } from './phase-handlers/code-review';
 import { handleFixReview } from './phase-handlers/fix-review';
 import { handleFinalTesting } from './phase-handlers/final-testing';
-import { handleManualTesting } from './phase-handlers/manual-testing';
+import { handleRunTestPlan } from './phase-handlers/run-test-plan';
 import { handleDone } from './phase-handlers/done';
 import { ArtifactService } from '../services/artifact-service';
 import { getTaskStoragePaths, ensureTaskStorageExistsSync, resolveArtifactPath, fileExistsSync } from '../utils/storage';
@@ -272,6 +272,19 @@ export class OrchestrationEngine {
       loopContext = { testFailures: output };
     }
 
+    // New flow: run_test_plan -> fix_review (manual tests failed)
+    if (token === '[RUN_TEST_PLAN_FAILED]' && nextPhase === 'fix_review') {
+      const artifactService = new ArtifactService(this.config.mark2Dir);
+      // Get review comments (historical context)
+      const { content: reviewComments } = artifactService.getMostRecentContent(taskId, 'review');
+      // Get test execution report (what to focus on)
+      const { content: testExecutionReport } = artifactService.getMostRecentContent(taskId, 'test-execution-report');
+      loopContext = {
+        reviewComments: reviewComments || undefined,
+        testFailures: testExecutionReport || undefined,
+      };
+    }
+
     // New flow: fix_review -> code_review (re-review after fixes)
     if (token === '[FIX_REVIEW_COMPLETED]' && nextPhase === 'code_review') {
       loopContext = { isReReview: true };
@@ -375,8 +388,8 @@ export class OrchestrationEngine {
         break;
       }
 
-      case 'manual_testing': {
-        const result = await handleManualTesting(
+      case 'run_test_plan': {
+        const result = await handleRunTestPlan(
           task, role, adapter, projectRoot, mark2Dir, apiBaseUrl, agentToken,
           this.config.basePort, this.config.portsPerTask,
         );
@@ -687,8 +700,8 @@ export class OrchestrationEngine {
       const shouldIncrementLoop =
         // Legacy: coding from testing/code_review
         (newPhase === 'coding' && (task.phase === 'testing' || task.phase === 'code_review')) ||
-        // New: fix_review from code_review or final_testing
-        (newPhase === 'fix_review' && (task.phase === 'code_review' || task.phase === 'final_testing'));
+        // New: fix_review from code_review, final_testing, or run_test_plan
+        (newPhase === 'fix_review' && (task.phase === 'code_review' || task.phase === 'final_testing' || task.phase === 'run_test_plan'));
 
       const updatedTask: Task = {
         ...task,
@@ -709,8 +722,8 @@ export class OrchestrationEngine {
       const shouldIncrementLoop =
         // Legacy: coding from testing/code_review
         (newPhase === 'coding' && (taskRow.phase === 'testing' || taskRow.phase === 'code_review')) ||
-        // New: fix_review from code_review or final_testing
-        (newPhase === 'fix_review' && (taskRow.phase === 'code_review' || taskRow.phase === 'final_testing'));
+        // New: fix_review from code_review, final_testing, or run_test_plan
+        (newPhase === 'fix_review' && (taskRow.phase === 'code_review' || taskRow.phase === 'final_testing' || taskRow.phase === 'run_test_plan'));
 
       db.update(tasks)
         .set({

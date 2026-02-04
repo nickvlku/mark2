@@ -413,7 +413,7 @@ Signal phase completion with an end token. This triggers the phase transition.
 | `code_review` | `[REVIEW_COMPLETED]`, `[REVIEW_NEEDS_FIXES]` |
 | `fix_review` | `[FIX_REVIEW_COMPLETED]` |
 | `final_testing` | `[FINAL_TESTING_PASSED]`, `[FINAL_TESTING_FAILED]` |
-| `manual_testing` | `[MANUAL_TESTING_READY]` |
+| `run_test_plan` | `[RUN_TEST_PLAN_PASSED]` |
 | `done` | `[TASK_COMPLETED]` |
 
 **Behavior:**

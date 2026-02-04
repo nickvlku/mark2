@@ -223,7 +223,7 @@ npm run mark2 restart <taskId> [phase]
 - `code_review`
 - `fix_review`
 - `final_testing`
-- `manual_testing`
+- `run_test_plan`
 - `done`
 
 **Examples:**
@@ -374,7 +374,7 @@ phase_defaults:
   code_review:
     timeout_minutes: 30
     auto_advance: true
-  manual_testing:
+  run_test_plan:
     timeout_minutes: 15
     auto_advance: false        # Require human testing
 ```

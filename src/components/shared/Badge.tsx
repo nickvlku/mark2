@@ -33,7 +33,7 @@ const phaseStyles: Record<string, string> = {
   coding: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   testing: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
   code_review: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-  manual_testing: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  run_test_plan: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
   done: 'bg-green-500/20 text-green-400 border-green-500/30',
 };
 

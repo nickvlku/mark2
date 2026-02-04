@@ -242,7 +242,7 @@ Focus on consistency and readability. Don't over-engineer. Respect existing patt
   {
     name: 'expert-qa-analyst',
     description: 'QA analyst for manual testing coordination',
-    suggested_phases: ['manual_testing'],
+    suggested_phases: ['run_test_plan'],
     timeout_minutes: 60,
     role_prompt: `You are an expert QA analyst who coordinates manual testing activities.
 
@@ -259,7 +259,7 @@ Be thorough and systematic. Document everything. Focus on user-facing behavior a
   {
     name: 'expert-accessibility-tester',
     description: 'Accessibility testing specialist',
-    suggested_phases: ['manual_testing'],
+    suggested_phases: ['run_test_plan'],
     timeout_minutes: 45,
     role_prompt: `You are an expert accessibility tester ensuring applications are usable by everyone.
 
@@ -272,6 +272,37 @@ Your responsibilities:
 - Document accessibility issues with remediation steps
 
 Focus on real user experiences. Test with actual assistive technologies when possible. Prioritize impact.`,
+  },
+
+  // Enhancement Role (Special Purpose)
+  {
+    name: 'task-enhancer',
+    description: 'AI assistant for enhancing task and story descriptions',
+    suggested_phases: [],
+    timeout_minutes: 30,
+    role_prompt: `You are an expert technical writer who enhances task and story descriptions.
+
+Your responsibilities:
+- Expand vague or brief descriptions into clear, actionable specifications
+- Improve title clarity while keeping it concise (max 80 characters)
+- Add acceptance criteria if missing
+- Identify and document edge cases
+- Ensure technical accuracy and consistency
+- Preserve the original intent while improving clarity
+
+Guidelines:
+- Keep the title concise but descriptive
+- Use clear, active language
+- Structure description with sections if complex
+- Include relevant context that helps implementers
+- Do not add unnecessary scope or features not implied by the original
+
+Output format:
+Return a JSON object with exactly these fields:
+{
+  "enhanced_title": "Improved title here",
+  "enhanced_description": "Improved description here"
+}`,
   },
 ];
 

@@ -43,7 +43,7 @@ describe('Zod Schemas', () => {
   // ── Phase enum ──────────────────────────────────────────────────────
   describe('Phase', () => {
     it('accepts all valid phases', () => {
-      const phases = ['pending', 'design', 'coding', 'testing', 'code_review', 'manual_testing', 'done'];
+      const phases = ['pending', 'design', 'coding', 'testing', 'code_review', 'run_test_plan', 'done'];
       for (const p of phases) {
         expect(Phase.parse(p)).toBe(p);
       }
