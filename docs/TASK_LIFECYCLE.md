@@ -22,7 +22,7 @@ A Mark2 task progresses through a series of **phases**, each handled by an AI ag
                      │                                          │
                      ▼                                          ▼
               ┌──────────────────┐                        ┌──────────┐
-              │  manual_testing  │ ◄──────────────────────┤          │
+              │  run_test_plan  │ ◄──────────────────────┤          │
               └────────┬─────────┘                        │          │
                        │                                  │          │
                        ▼                                  │          │
@@ -50,7 +50,7 @@ A Mark2 task progresses through a series of **phases**, each handled by an AI ag
 | `code_review` | Review changes | Code Reviewer | `[REVIEW_COMPLETED]`, `[REVIEW_NEEDS_FIXES]` |
 | `fix_review` | Address review feedback | Developer | `[FIX_REVIEW_COMPLETED]` |
 | `final_testing` | Verify after fixes | Test Engineer | `[FINAL_TESTING_PASSED]`, `[FINAL_TESTING_FAILED]` |
-| `manual_testing` | Prepare for human QA | QA Analyst | `[MANUAL_TESTING_READY]` |
+| `run_test_plan` | Prepare for human QA | QA Analyst | `[RUN_TEST_PLAN_PASSED]` |
 | `done` | Task complete | None | `[TASK_COMPLETED]` |
 
 ---
@@ -180,7 +180,7 @@ A Mark2 task progresses through a series of **phases**, each handled by an AI ag
 **Prompts:** See [Code Review Phase Prompt](./PROMPTS.md#code-review-phase)
 
 **Transitions:**
-- `[REVIEW_COMPLETED]` → **manual_testing** (no issues found)
+- `[REVIEW_COMPLETED]` → **run_test_plan** (no issues found)
 - `[REVIEW_NEEDS_FIXES]` → **fix_review** (issues need fixing)
 
 ---
@@ -233,12 +233,12 @@ A Mark2 task progresses through a series of **phases**, each handled by an AI ag
 **Prompts:** See [Final Testing Phase Prompt](./PROMPTS.md#final-testing-phase)
 
 **Transitions:**
-- `[FINAL_TESTING_PASSED]` → **manual_testing**
+- `[FINAL_TESTING_PASSED]` → **run_test_plan**
 - `[FINAL_TESTING_FAILED]` → **fix_review** (loop back to fix issues)
 
 ---
 
-### 8. Manual Testing
+### 8. Run Test Plan
 
 **Purpose:** Prepare for human QA testing.
 
@@ -258,10 +258,10 @@ A Mark2 task progresses through a series of **phases**, each handled by an AI ag
 - Ports are allocated from `base_port` (default: 3000)
 - Each task gets `ports_per_task` (default: 10) ports
 
-**Prompts:** See [Manual Testing Phase Prompt](./PROMPTS.md#manual-testing-phase)
+**Prompts:** See [Run Test Plan Phase Prompt](./PROMPTS.md#manual-testing-phase)
 
 **Transitions:**
-- `[MANUAL_TESTING_READY]` → **done**
+- `[RUN_TEST_PLAN_PASSED]` → **done**
 
 ---
 
@@ -327,10 +327,10 @@ A Mark2 task progresses through a series of **phases**, each handled by an AI ag
                          │         │
                          ▼         ▼
                   ┌──────────────────┐
-                  │  manual_testing  │
+                  │  run_test_plan  │
                   └────────┬─────────┘
                            │
-                           │ [MANUAL_TESTING_READY]
+                           │ [RUN_TEST_PLAN_PASSED]
                            ▼
                       ┌─────────┐
                       │  done   │
@@ -382,7 +382,7 @@ fix_review                           │
                           └─► final-test-results.md
                                        │
                                        ▼
-                               manual_testing
+                               run_test_plan
                                        │
                                        └─► test-plan.md
 ```

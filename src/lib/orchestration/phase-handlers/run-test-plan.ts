@@ -1,7 +1,7 @@
-import fs from 'fs';
 import type { Task } from '../../yaml/schemas';
 import type { RoleConfig } from './run-phase';
 import { CloneService } from '../../services/clone-service';
+import { ArtifactService } from '../../services/artifact-service';
 import { allocatePortsForTask } from '../../utils/port-allocator';
 import { getDb } from '../../db';
 import { activityEntries, portAllocations } from '../../db/schema';
@@ -10,20 +10,20 @@ import { PromptAssembler, type PromptContext } from '../prompt-assembler';
 import type { CLIAdapter } from '../../adapters/types';
 import type { AgentInvocationParams } from '../../../types';
 
-export interface ManualTestingResult {
+export interface RunTestPlanResult {
   tmuxSession: string;
   allocatedPorts: number[];
   promptFile?: string;
 }
 
 /**
- * Handle the manual testing phase for a task.
+ * Handle the run_test_plan phase for a task.
  *
  * 1. Allocate ports for the task's dev server
- * 2. Assemble the manual testing prompt
+ * 2. Assemble the run_test_plan prompt
  * 3. Spawn the agent to set up the test environment
  */
-export async function handleManualTesting(
+export async function handleRunTestPlan(
   task: Task,
   agent: RoleConfig,
   adapter: CLIAdapter,
@@ -33,7 +33,7 @@ export async function handleManualTesting(
   agentToken: string,
   basePort: number = 3000,
   portsPerTask: number = 10,
-): Promise<ManualTestingResult> {
+): Promise<RunTestPlanResult> {
   const db = getDb(mark2Dir);
   const now = new Date().toISOString();
 
@@ -66,16 +66,10 @@ export async function handleManualTesting(
     await cloneService.createClone(task.id);
   }
 
-  // Read the design document for context
-  let designDocument: string | undefined;
-  const designPath = `${clonePath}/design.md`;
-  try {
-    if (fs.existsSync(designPath)) {
-      designDocument = fs.readFileSync(designPath, 'utf-8');
-    }
-  } catch {
-    // Design doc may not exist
-  }
+  // Get design document and test plan for context
+  const artifactService = new ArtifactService(mark2Dir);
+  const { content: designDocument } = artifactService.getMostRecentContent(task.id, 'design');
+  const { content: testPlan } = artifactService.getMostRecentContent(task.id, 'test-plan');
 
   const promptContext: PromptContext = {
     designDocument,
@@ -83,7 +77,7 @@ export async function handleManualTesting(
 
   // Assemble the prompts with split parts for CLI flags
   const assembler = new PromptAssembler(mark2Dir);
-  const prompts = assembler.buildAgentAndTaskPrompts(task, agent, 'manual_testing', promptContext);
+  const prompts = assembler.buildAgentAndTaskPrompts(task, agent, 'run_test_plan', promptContext);
 
   // Build invocation params with split prompts
   const params: AgentInvocationParams = {
@@ -96,7 +90,7 @@ export async function handleManualTesting(
     agentName: agent.name,
     model: agent.model,
     taskId: task.id,
-    phase: 'manual_testing',
+    phase: 'run_test_plan',
     apiBaseUrl,
     agentToken,
     timeoutMinutes: agent.timeout_minutes,
@@ -111,7 +105,7 @@ export async function handleManualTesting(
   const tmuxSession = await tmuxManager.spawnAgent({
     taskId: task.id,
     agentName: agent.name,
-    phase: 'manual_testing',
+    phase: 'run_test_plan',
     command,
     workingDir: clonePath,
     env,
@@ -124,11 +118,12 @@ export async function handleManualTesting(
       timestamp: now,
       source: 'orchestration',
       type: 'phase_change',
-      message: `Manual testing phase started. Ports allocated: ${allocatedPorts.join(', ')}. Agent "${agent.name}" spawned.`,
+      message: `Run test plan phase started. Ports allocated: ${allocatedPorts.join(', ')}. Agent "${agent.name}" spawned.`,
       metadata_json: JSON.stringify({
         agent: agent.name,
         tmux_session: tmuxSession,
         ports: allocatedPorts,
+        has_test_plan: !!testPlan,
       }),
     })
     .run();

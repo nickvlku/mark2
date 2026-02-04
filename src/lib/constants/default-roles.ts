@@ -242,7 +242,7 @@ Focus on consistency and readability. Don't over-engineer. Respect existing patt
   {
     name: 'expert-qa-analyst',
     description: 'QA analyst for manual testing coordination',
-    suggested_phases: ['manual_testing'],
+    suggested_phases: ['run_test_plan'],
     timeout_minutes: 60,
     role_prompt: `You are an expert QA analyst who coordinates manual testing activities.
 
@@ -259,7 +259,7 @@ Be thorough and systematic. Document everything. Focus on user-facing behavior a
   {
     name: 'expert-accessibility-tester',
     description: 'Accessibility testing specialist',
-    suggested_phases: ['manual_testing'],
+    suggested_phases: ['run_test_plan'],
     timeout_minutes: 45,
     role_prompt: `You are an expert accessibility tester ensuring applications are usable by everyone.
 

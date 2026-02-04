@@ -11,8 +11,9 @@ export interface FixReviewResult {
 /**
  * Handle the fix_review phase for a task.
  *
- * This phase is entered when code review finds issues that need fixing.
- * The agent receives the review feedback and makes targeted fixes.
+ * This phase is entered when code review finds issues that need fixing,
+ * or when run_test_plan finds failing manual tests. The agent receives
+ * the review feedback or test failures and makes targeted fixes.
  */
 export async function handleFixReview(
   task: Task,
@@ -42,6 +43,8 @@ export async function handleFixReview(
       tmux_session: ctx.tmuxSession,
       phase: 'fix_review',
       loop_count: ctx.task.loop_count,
+      has_review_comments: !!loopContext?.reviewComments,
+      has_test_failures: !!loopContext?.testFailures,
     }),
     activitySource: (ctx) => ctx.role.name,
   });

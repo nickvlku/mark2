@@ -156,13 +156,15 @@ async function handlePhaseTransition(
               loopContext = { testFailures: content };
             }
           }
-          // Coming back from manual_testing - include human feedback
-          else if (previousPhase === 'manual_testing') {
-            // Look for artifacts with "test-plan" in the name
-            const { content } = artifactService.getMostRecentContent(id, 'test-plan');
-            if (content) {
-              loopContext = { humanComments: content };
-            }
+          // Coming back from run_test_plan - include test execution report
+          else if (previousPhase === 'run_test_plan') {
+            // Get accumulated context
+            const { content: reviewComments } = artifactService.getMostRecentContent(id, 'review');
+            const { content: testExecutionReport } = artifactService.getMostRecentContent(id, 'test-execution-report');
+            loopContext = {
+              reviewComments: reviewComments || undefined,
+              testFailures: testExecutionReport || undefined,
+            };
           }
         }
 

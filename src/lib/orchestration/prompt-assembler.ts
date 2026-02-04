@@ -152,34 +152,94 @@ If no fixes needed: mark2_signal_complete(task_id, token: "[REVIEW_COMPLETED]")
 If fixes are required: mark2_signal_complete(task_id, token: "[REVIEW_NEEDS_FIXES]")`,
 
   fix_review: `You are in the FIX REVIEW phase. Your job is to:
-1. Get the MOST RECENT review feedback: use mark2_get_latest_artifact(task_id, "review") - this automatically returns only the latest review, ignoring older ones that were already addressed
-2. If tests failed, also get test results: mark2_get_latest_artifact(task_id, "test")
-3. Address all P0 and P1 issues from the review
+1. Get the MOST RECENT feedback to address:
+   - First check for test execution report: mark2_get_latest_artifact(task_id, "test-execution-report")
+   - If no test execution report, get code review: mark2_get_latest_artifact(task_id, "review")
+2. If test failures exist, also get historical context:
+   - Previous fix artifacts: mark2_get_latest_artifact(task_id, "fix")
+   - Original review comments: mark2_get_latest_artifact(task_id, "review")
+3. Focus EXCLUSIVELY on the most recent issue:
+   - If test-execution-report exists: Fix the failing manual tests
+   - Otherwise: Address P0 and P1 code review issues
 4. Make the necessary code changes
 5. Commit your fixes: mark2_git_commit(task_id, message: "fix: address code review feedback")
 6. Save a fixes summary artifact documenting what you fixed:
    - List each issue from the review and how you addressed it
    - Note any P2 issues you chose to defer and why
    - Verification steps you performed
-   Example: mark2_save_artifact(task_id, filename: "fixes-applied.md", content: "...")
+   Example: mark2_save_artifact(task_id, filename: "fixes-summary.md", content: "...")
 
 When done, signal: mark2_signal_complete(task_id, token: "[FIX_REVIEW_COMPLETED]")`,
 
   final_testing: `You are in the FINAL TESTING phase. Your job is to:
 1. Run the complete test suite after code review approval
 2. Verify that all tests still pass after any review-related changes
-3. Save results: mark2_save_artifact(task_id, filename: "final-test-results.md", content: "...")
+3. Save test results: mark2_save_artifact(task_id, filename: "final-test-results.md", content: "...")
 
-If all tests pass: mark2_signal_complete(task_id, token: "[FINAL_TESTING_PASSED]")
-If any tests fail: mark2_signal_complete(task_id, token: "[FINAL_TESTING_FAILED]")`,
+If any tests fail: mark2_signal_complete(task_id, token: "[FINAL_TESTING_FAILED]")
 
-  manual_testing: `You are in the MANUAL TESTING phase. Your job is to:
+If all tests pass, create a manual test plan:
+4. Analyze what was implemented and what needs manual verification
+5. Create a human-readable test plan that a product manager could follow
+6. Include browser tests (login flows, UI interactions) and API tests (endpoint verification)
+7. Save the test plan: mark2_save_artifact(task_id, filename: "test-plan.md", content: "...")
+
+Test plan format:
+\`\`\`markdown
+# Manual Test Plan for {TASK_ID}
+
+## Summary
+Brief description of what was implemented and needs testing.
+
+## Prerequisites
+- Development server running on port XXXX
+- Any required test accounts or setup
+
+## Test Cases
+
+### 1. [Test Name]
+1. Step one
+2. Step two
+**Expected:** What should happen
+\`\`\`
+
+After creating the test plan: mark2_signal_complete(task_id, token: "[FINAL_TESTING_PASSED]")`,
+
+  run_test_plan: `You are in the RUN TEST PLAN phase. Your job is to:
 1. Start any development servers needed to test the changes
-2. Generate a test plan with specific steps a human tester should follow
-3. Save the test plan: mark2_save_artifact(task_id, filename: "test-plan.md", content: "...")
-4. Report which ports are in use
+2. Get the test plan: use mark2_get_latest_artifact(task_id, "test-plan") to retrieve it
+3. Execute each test case in the plan:
+   - For browser/UI tests: Use Playwright to automate the steps
+   - For API tests: Use curl commands to verify endpoints
+   - Use the allocated dev ports for all requests
+4. Mark each test as passed (✅) or failed (❌)
+5. For failed tests, capture error details and screenshots if applicable
+6. Save the execution report: mark2_save_artifact(task_id, filename: "test-execution-report.md", content: "...")
 
-When ready, signal: mark2_signal_complete(task_id, token: "[MANUAL_TESTING_READY]")`,
+Report format:
+\`\`\`markdown
+# Test Execution Report for {TASK_ID}
+
+## Summary
+- **Total:** X tests
+- **Passed:** Y ✅
+- **Failed:** Z ❌
+
+## Results
+
+### 1. [Test Name] ✅
+- Executed via: Playwright/curl
+- Result: Passed
+
+### 2. [Test Name] ❌
+- Executed via: Playwright/curl
+- Result: Failed
+- **Error:** Description of what went wrong
+- **Details:** Stack trace, response body, or screenshot reference
+\`\`\`
+
+If all tests pass: mark2_signal_complete(task_id, token: "[RUN_TEST_PLAN_PASSED]")
+If any tests fail: mark2_signal_complete(task_id, token: "[RUN_TEST_PLAN_FAILED]")`,
 
   done: `The task is complete. Signal: mark2_signal_complete(task_id, token: "[TASK_COMPLETED]")`,
 };
@@ -288,6 +348,7 @@ export class PromptAssembler {
 
     // Only include artifact instructions for phases that produce artifacts
     const artifactPhases: Phase[] = ['design', 'coding', 'testing', 'code_review', 'fix_review', 'manual_testing'];
+
     const includeArtifacts = artifactPhases.includes(phase);
 
     // Include git instructions for phases that make code changes

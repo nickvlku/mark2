@@ -16,7 +16,7 @@ const PHASES: { key: Phase; label: string }[] = [
   { key: 'code_review', label: 'Review' },
   { key: 'fix_review', label: 'Fix' },
   { key: 'final_testing', label: 'Final' },
-  { key: 'manual_testing', label: 'QA' },
+  { key: 'run_test_plan', label: 'QA' },
   { key: 'done', label: 'Done' },
 ];
 

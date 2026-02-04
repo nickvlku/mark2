@@ -66,7 +66,7 @@ const DEFAULT_ACTIVITY_SOURCE = 'orchestration';
 
 /**
  * Shared logic for role-based phases: ensure clone, build prompt, spawn CLI tool, log activity.
- * Used by design, coding, testing, code_review, fix_review, final_testing, manual_testing.
+ * Used by design, coding, testing, code_review, fix_review, final_testing, run_test_plan.
  */
 export async function runPhase<TExtra = Record<string, never>>(
   task: Task,

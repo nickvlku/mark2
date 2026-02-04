@@ -10,7 +10,7 @@ export const PHASE_ORDER: Phase[] = [
   'code_review',
   'fix_review',
   'final_testing',
-  'manual_testing',
+  'run_test_plan',
   'done',
 ];
 
@@ -24,7 +24,7 @@ export const END_TOKENS: Record<Phase, string[]> = {
   code_review: ['[REVIEW_COMPLETED]', '[REVIEW_NEEDS_FIXES]'],
   fix_review: ['[FIX_REVIEW_COMPLETED]'],
   final_testing: ['[FINAL_TESTING_PASSED]', '[FINAL_TESTING_FAILED]'],
-  manual_testing: ['[MANUAL_TESTING_READY]'],
+  run_test_plan: ['[RUN_TEST_PLAN_PASSED]', '[RUN_TEST_PLAN_FAILED]'],
   done: ['[TASK_COMPLETED]'],
 };
 
@@ -80,11 +80,18 @@ export const TRANSITIONS: PhaseTransition[] = [
     trigger: '[TESTING_FAILED]',
   },
 
-  // code_review -> manual_testing: review completed (no auto-fix issues)
+  // code_review -> final_testing: review completed (no issues)
   {
     from: 'code_review',
-    to: 'manual_testing',
+    to: 'final_testing',
     trigger: '[REVIEW_COMPLETED]',
+  },
+
+  // code_review -> fix_review: review found issues that need fixes
+  {
+    from: 'code_review',
+    to: 'fix_review',
+    trigger: '[REVIEW_NEEDS_FIXES]',
   },
 
   // code_review -> coding: review found auto-fixable issues (loop back)
@@ -94,11 +101,39 @@ export const TRANSITIONS: PhaseTransition[] = [
     trigger: '[REVIEW_COMPLETED]:autofix',
   },
 
-  // manual_testing -> done: manual testing ready (auto-advance)
+  // fix_review -> final_testing: fixes reviewed and approved
   {
-    from: 'manual_testing',
+    from: 'fix_review',
+    to: 'final_testing',
+    trigger: '[FIX_REVIEW_COMPLETED]',
+  },
+
+  // final_testing -> run_test_plan: final tests passed
+  {
+    from: 'final_testing',
+    to: 'run_test_plan',
+    trigger: '[FINAL_TESTING_PASSED]',
+  },
+
+  // final_testing -> fix_review: final tests failed (loop back for fixes)
+  {
+    from: 'final_testing',
+    to: 'fix_review',
+    trigger: '[FINAL_TESTING_FAILED]',
+  },
+
+  // run_test_plan -> done: test plan passed
+  {
+    from: 'run_test_plan',
     to: 'done',
-    trigger: '[MANUAL_TESTING_READY]',
+    trigger: '[RUN_TEST_PLAN_PASSED]',
+  },
+
+  // run_test_plan -> fix_review: test plan failed (loop back for fixes)
+  {
+    from: 'run_test_plan',
+    to: 'fix_review',
+    trigger: '[RUN_TEST_PLAN_FAILED]',
   },
 
   // done: terminal state, task completed
