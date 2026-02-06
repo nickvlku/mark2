@@ -1,0 +1,21 @@
+id: TASK-128
+title: DnD Target Task 1770337357930
+description: ""
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: human
+story_id: STORY-37
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-06T00:22:37.935Z
+updated_at: 2026-02-06T00:22:37.935Z
+phase_entered_at: 2026-02-06T00:22:37.935Z
+loop_count: 0
+archived: false
