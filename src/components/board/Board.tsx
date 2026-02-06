@@ -203,7 +203,9 @@ export function Board() {
       if (!over) return;
 
       const taskId = active.id as string;
-      const newPhase = over.id as Phase;
+      // Extract phase from droppable data (handles both flat IDs like "coding"
+      // and prefixed IDs like "__unassigned__::coding" in grouped view)
+      const newPhase = (over.data.current?.phase ?? over.id) as Phase;
       const task = tasks.find((t: Task) => t.id === taskId);
       if (!task || task.phase === newPhase) return;
 
@@ -386,6 +388,7 @@ export function Board() {
             {orderedSections.map(({ key, story, tasks: sectionTasks }) => (
               <StorySection
                 key={key}
+                sectionKey={key}
                 story={story}
                 tasks={sectionTasks}
                 isCollapsed={collapsedSections.has(key)}

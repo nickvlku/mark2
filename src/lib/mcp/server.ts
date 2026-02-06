@@ -795,61 +795,7 @@ export function createMcpServer(): McpServer {
       const taskService = new TaskService(mark2Dir);
 
       try {
-        // Validate both tasks exist
-        const task = taskService.getById(task_id);
-        if (!task) {
-          return {
-            content: [{ type: 'text' as const, text: `Error: Task ${task_id} not found` }],
-            isError: true,
-          };
-        }
-
-        const blocker = taskService.getById(blocker_id);
-        if (!blocker) {
-          return {
-            content: [{ type: 'text' as const, text: `Error: Blocker task ${blocker_id} not found` }],
-            isError: true,
-          };
-        }
-
-        // Prevent self-blocking
-        if (task_id === blocker_id) {
-          return {
-            content: [{ type: 'text' as const, text: `Error: Task cannot block itself` }],
-            isError: true,
-          };
-        }
-
-        // Check for circular dependency (blocker has task_id in its blockers)
-        const blockerBlockers = blocker.blockers || [];
-        if (blockerBlockers.includes(task_id)) {
-          return {
-            content: [
-              {
-                type: 'text' as const,
-                text: `Error: Circular dependency - ${blocker_id} is already blocked by ${task_id}`,
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        // Get current blockers and add if not already present
-        const currentBlockers = task.blockers || [];
-        if (currentBlockers.includes(blocker_id)) {
-          return {
-            content: [
-              {
-                type: 'text' as const,
-                text: `Task ${task_id} is already blocked by ${blocker_id}`,
-              },
-            ],
-          };
-        }
-
-        // Add the blocker
-        const newBlockers = [...currentBlockers, blocker_id];
-        await taskService.update(task_id, { blockers: newBlockers });
+        await taskService.addBlocker(task_id, blocker_id);
 
         return {
           content: [

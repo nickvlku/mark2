@@ -18,6 +18,8 @@ const PHASES: Phase[] = [
 ];
 
 interface StorySectionProps {
+  /** Unique key for this section (story ID or '__unassigned__') */
+  sectionKey: string;
   /** Story data, or null for "Unassigned" section */
   story: Story | null;
   /** Tasks belonging to this story (or unassigned tasks) */
@@ -41,6 +43,7 @@ interface StorySectionProps {
 }
 
 export function StorySection({
+  sectionKey,
   story,
   tasks,
   isCollapsed,
@@ -63,7 +66,7 @@ export function StorySection({
   );
 
   return (
-    <div className="border border-border rounded-xl overflow-hidden bg-bg-card mb-4">
+    <div data-story-section={sectionKey} className="border border-border rounded-xl overflow-hidden bg-bg-card mb-4">
       {/* Header */}
       <StorySectionHeader
         story={story}
@@ -88,6 +91,7 @@ export function StorySection({
                 onRestore={onRestore}
                 onDelete={onDelete}
                 currentUserEmail={currentUserEmail}
+                droppableIdPrefix={sectionKey}
               />
             ))}
           </div>

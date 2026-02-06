@@ -301,6 +301,42 @@ describe('TaskService', () => {
       const { data } = reader.readTask('TASK-1');
       expect(data!.blockers).toContain('TASK-2');
     });
+
+    it('rejects direct circular dependency A↔B', async () => {
+      await taskService.create({ title: 'Task A', description: 'desc', created_by: 'human' });
+      await taskService.create({ title: 'Task B', description: 'desc', created_by: 'human' });
+
+      // A blocked by B
+      await taskService.addBlocker('TASK-1', 'TASK-2');
+
+      // B blocked by A should be rejected
+      await expect(taskService.addBlocker('TASK-2', 'TASK-1')).rejects.toThrow(/circular/i);
+    });
+
+    it('rejects transitive circular dependency A→B→C→A', async () => {
+      await taskService.create({ title: 'Task A', description: 'desc', created_by: 'human' });
+      await taskService.create({ title: 'Task B', description: 'desc', created_by: 'human' });
+      await taskService.create({ title: 'Task C', description: 'desc', created_by: 'human' });
+
+      // A blocked by B
+      await taskService.addBlocker('TASK-1', 'TASK-2');
+      // B blocked by C
+      await taskService.addBlocker('TASK-2', 'TASK-3');
+
+      // C blocked by A would create cycle: A→B→C→A
+      await expect(taskService.addBlocker('TASK-3', 'TASK-1')).rejects.toThrow(/circular/i);
+    });
+
+    it('allows non-circular blocker chains', async () => {
+      await taskService.create({ title: 'Task A', description: 'desc', created_by: 'human' });
+      await taskService.create({ title: 'Task B', description: 'desc', created_by: 'human' });
+      await taskService.create({ title: 'Task C', description: 'desc', created_by: 'human' });
+
+      // A blocked by B, B blocked by C — valid chain, not circular
+      await taskService.addBlocker('TASK-1', 'TASK-2');
+      const updated = await taskService.addBlocker('TASK-2', 'TASK-3');
+      expect(updated.blockers).toContain('TASK-3');
+    });
   });
 
   describe('allBlockersResolved', () => {
