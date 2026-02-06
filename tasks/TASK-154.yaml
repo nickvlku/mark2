@@ -1,0 +1,20 @@
+id: TASK-154
+title: Fetch me
+description: Test retrieval
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: human
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-06T00:25:53.347Z
+updated_at: 2026-02-06T00:25:53.347Z
+phase_entered_at: 2026-02-06T00:25:53.347Z
+loop_count: 0
+archived: false
