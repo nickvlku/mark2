@@ -1,0 +1,21 @@
+id: TASK-213
+title: DnD Task A 1770338247630
+description: ""
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: human
+story_id: STORY-82
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-06T00:37:27.639Z
+updated_at: 2026-02-06T00:37:27.639Z
+phase_entered_at: 2026-02-06T00:37:27.639Z
+loop_count: 0
+archived: false
