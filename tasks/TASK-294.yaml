@@ -1,0 +1,20 @@
+id: TASK-294
+title: Test Task from Playwright 1770338555014
+description: This is an e2e test task
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: human
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-06T00:42:37.058Z
+updated_at: 2026-02-06T00:42:37.058Z
+phase_entered_at: 2026-02-06T00:42:37.058Z
+loop_count: 0
+archived: false
