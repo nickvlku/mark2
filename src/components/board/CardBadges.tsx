@@ -99,6 +99,27 @@ interface LockBadgeProps {
   isExpired?: boolean;
 }
 
+interface StoryBadgeProps {
+  storyId: string;
+}
+
+export function StoryBadge({ storyId }: StoryBadgeProps) {
+  // Convert STORY-1 to S-1 for compact display
+  const shortId = storyId.replace('STORY-', 'S-');
+
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full bg-purple-500/15 px-2 py-0.5 text-[10px] font-medium text-purple-400"
+      title={storyId}
+    >
+      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+      </svg>
+      {shortId}
+    </span>
+  );
+}
+
 export function LockBadge({ lock, isMine, isExpired }: LockBadgeProps) {
   // Use hook to calculate lock age (client-side only to avoid hydration mismatch)
   const timeStr = useLockAge(lock.locked_at);

@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const story = service.create({
+    const story = await service.create({
       title: body.title,
       description: body.description || '',
       created_by: body.created_by || 'human',

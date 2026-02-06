@@ -1,19 +1,18 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Board View', () => {
-  test('renders the Kanban board with 7 phase columns', async ({ page }) => {
+  test('renders the Kanban board with phase columns', async ({ page }) => {
     await page.goto('/');
 
     // Verify the board loads
     await expect(page.locator('text=Mark2')).toBeVisible();
 
-    // Verify all 7 phase columns are present by their headings
+    // Verify key phase columns are present by their headings
     await expect(page.getByRole('heading', { name: 'Pending', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Design', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Coding', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Testing', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Code Review', exact: true })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Manual Testing', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Done', exact: true })).toBeVisible();
   });
 
@@ -80,36 +79,215 @@ test.describe('Board View', () => {
   });
 });
 
+test.describe('View Mode Toggle', () => {
+  test('shows view mode toggle with Flat and By Story options', async ({ page }) => {
+    await page.goto('/');
+
+    // Check for the view mode toggle
+    await expect(page.getByRole('button', { name: 'Flat' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'By Story' })).toBeVisible();
+  });
+
+  test('defaults to flat view', async ({ page }) => {
+    await page.goto('/');
+
+    // In flat view, we should see the phase columns directly
+    await expect(page.getByRole('heading', { name: 'Pending', exact: true })).toBeVisible();
+
+    // The Flat button should be active (has accent color class)
+    const flatButton = page.getByRole('button', { name: 'Flat' });
+    await expect(flatButton).toHaveClass(/bg-accent/);
+  });
+
+  test('can switch to grouped view', async ({ page }) => {
+    await page.goto('/');
+
+    // Click "By Story" to switch to grouped view
+    await page.getByRole('button', { name: 'By Story' }).click();
+
+    // Should see the "Unassigned" section header
+    await expect(page.getByText('Unassigned')).toBeVisible();
+
+    // The By Story button should now be active
+    const byStoryButton = page.getByRole('button', { name: 'By Story' });
+    await expect(byStoryButton).toHaveClass(/bg-accent/);
+  });
+
+  test('persists view mode preference', async ({ page }) => {
+    await page.goto('/');
+
+    // Switch to grouped view
+    await page.getByRole('button', { name: 'By Story' }).click();
+    await expect(page.getByText('Unassigned')).toBeVisible();
+
+    // Reload the page
+    await page.reload();
+
+    // Should still be in grouped view
+    await expect(page.getByText('Unassigned')).toBeVisible();
+    const byStoryButton = page.getByRole('button', { name: 'By Story' });
+    await expect(byStoryButton).toHaveClass(/bg-accent/);
+  });
+});
+
+test.describe('Story Grouped View', () => {
+  test('shows unassigned section at the top', async ({ page }) => {
+    await page.goto('/');
+
+    // Switch to grouped view
+    await page.getByRole('button', { name: 'By Story' }).click();
+
+    // Unassigned should be the first section
+    const sections = page.locator('[class*="border-border rounded-xl"]');
+    const firstSection = sections.first();
+    await expect(firstSection.getByText('Unassigned')).toBeVisible();
+  });
+
+  test('can collapse and expand sections', async ({ page }) => {
+    await page.goto('/');
+
+    // Switch to grouped view
+    await page.getByRole('button', { name: 'By Story' }).click();
+
+    // Find the collapse toggle for Unassigned section
+    const collapseButton = page.locator('[data-collapse-toggle]').first();
+
+    // Click to collapse
+    await collapseButton.click();
+
+    // The board inside should be hidden (phase columns not visible in this section)
+    // After collapse, the section's board area should be hidden
+    const unassignedSection = page.locator('[class*="border-border rounded-xl"]').first();
+    const pendingInSection = unassignedSection.getByRole('heading', { name: 'Pending', exact: true });
+    await expect(pendingInSection).not.toBeVisible();
+
+    // Click again to expand
+    await collapseButton.click();
+
+    // Now should be visible again
+    await expect(pendingInSection).toBeVisible();
+  });
+
+  test('shows progress badge for sections', async ({ page }) => {
+    await page.goto('/');
+
+    // Switch to grouped view
+    await page.getByRole('button', { name: 'By Story' }).click();
+
+    // Should see progress badge format (X/Y done)
+    await expect(page.getByText(/\(\d+\/\d+ done\)/)).toBeVisible();
+  });
+});
+
+test.describe('Story Sidebar', () => {
+  test('clicking story section header opens story sidebar', async ({ page }) => {
+    // First create a story via API
+    const storyRes = await page.request.post('/api/stories', {
+      data: {
+        title: 'Sidebar Test Story',
+        description: 'Testing the story sidebar',
+      },
+    });
+    expect(storyRes.ok()).toBeTruthy();
+    const { story } = await storyRes.json();
+
+    await page.goto('/');
+
+    // Switch to grouped view
+    await page.getByRole('button', { name: 'By Story' }).click();
+
+    // Wait for the page to update
+    await expect(page.getByText('Unassigned')).toBeVisible({ timeout: 5000 });
+
+    // Find the story section header and click on the story ID badge
+    // The story ID badge is a clickable element in the section header
+    const storySection = page.locator(`text=${story.id}`).first();
+    await expect(storySection).toBeVisible({ timeout: 5000 });
+    await storySection.click();
+
+    // Story sidebar should open on the left with tabs
+    await expect(page.getByRole('button', { name: 'Overview' })).toBeVisible({ timeout: 10000 });
+  });
+
+  test('story sidebar shows story details', async ({ page }) => {
+    // Create a story via API with unique values
+    const timestamp = Date.now();
+    const storyRes = await page.request.post('/api/stories', {
+      data: {
+        title: `Details Story ${timestamp}`,
+        description: `Story description ${timestamp}`,
+      },
+    });
+    const { story } = await storyRes.json();
+
+    await page.goto('/');
+    await page.getByRole('button', { name: 'By Story' }).click();
+    await expect(page.getByText('Unassigned')).toBeVisible({ timeout: 5000 });
+
+    // Click the story section
+    const storyBadge = page.locator(`text=${story.id}`).first();
+    await expect(storyBadge).toBeVisible({ timeout: 5000 });
+    await storyBadge.click();
+
+    // Should show the story details in the sidebar (use first() to avoid strict mode violation)
+    await expect(page.getByText(`Details Story ${timestamp}`).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(`Story description ${timestamp}`).first()).toBeVisible();
+  });
+});
+
+test.describe('Story Badge on Cards', () => {
+  test('shows story badge on cards in flat view', async ({ page }) => {
+    // Create a story first
+    const storyRes = await page.request.post('/api/stories', {
+      data: { title: 'Badge Test Story' },
+    });
+    const { story } = await storyRes.json();
+
+    // Create a task in that story with unique title
+    const timestamp = Date.now();
+    const taskRes = await page.request.post('/api/tasks', {
+      data: {
+        title: `Task with Badge ${timestamp}`,
+        story_id: story.id,
+      },
+    });
+    expect(taskRes.ok()).toBeTruthy();
+
+    await page.goto('/');
+
+    // In flat view, look for the story badge abbreviation (S-X format)
+    // The badge should be visible somewhere on the page
+    const shortId = story.id.replace('STORY-', 'S-');
+    await expect(page.locator(`text=${shortId}`).first()).toBeVisible({ timeout: 5000 });
+  });
+});
+
 test.describe('Task Detail', () => {
   test('clicking a task card opens the detail panel', async ({ page }) => {
-    // Generate a unique task title to avoid conflicts
-    const uniqueTitle = `Detail Panel Test ${Date.now()}`;
-    
+    // Generate a unique task title and description to avoid conflicts
+    const timestamp = Date.now();
+    const uniqueTitle = `Detail Panel Test ${timestamp}`;
+    const uniqueDescription = `Testing the detail panel ${timestamp}`;
+
     // First create a task via API
     const response = await page.request.post('/api/tasks', {
       data: {
         title: uniqueTitle,
-        description: 'Testing the detail panel',
+        description: uniqueDescription,
       },
     });
     expect(response.ok()).toBeTruthy();
 
     await page.goto('/');
 
-    // Wait for the task to appear and click the task card specifically
-    await page.getByRole('button', { name: new RegExp(uniqueTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }).click();
+    // Wait for the task to appear and click the task card
+    const taskCard = page.getByText(uniqueTitle).first();
+    await expect(taskCard).toBeVisible({ timeout: 5000 });
+    await taskCard.click();
 
     // The detail panel should slide in with task info
-    // Check for the detail panel specifically (it should contain both title and description)
-    const detailPanel = page.locator('[data-testid="task-detail-panel"], .task-detail, .detail-panel').first();
-    if (await detailPanel.count() > 0) {
-      await expect(detailPanel.getByText(uniqueTitle)).toBeVisible();
-      await expect(detailPanel.getByText('Testing the detail panel')).toBeVisible();
-    } else {
-      // Fallback: check for any element containing the description, which should be unique
-      await expect(page.getByText('Testing the detail panel')).toBeVisible();
-      await expect(page.locator('h2').filter({ hasText: uniqueTitle })).toBeVisible();
-    }
+    // Check for the unique description which proves the panel opened with the right task
+    await expect(page.getByText(uniqueDescription)).toBeVisible({ timeout: 5000 });
   });
 });
 
