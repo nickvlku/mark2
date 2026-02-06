@@ -4,7 +4,8 @@ description: ""
 phase: pending
 phase_agents: {}
 phase_overrides: {}
-blockers: []
+blockers:
+  - TASK-308
 priority: P2
 artifacts: []
 ports: []
@@ -14,7 +15,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-06T00:45:59.817Z
-updated_at: 2026-02-06T00:45:59.817Z
+updated_at: 2026-02-06T00:46:03.403Z
 phase_entered_at: 2026-02-06T00:45:59.817Z
 loop_count: 0
 archived: false
