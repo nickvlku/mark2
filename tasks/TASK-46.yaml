@@ -16,7 +16,8 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T03:30:40.614Z
-updated_at: 2026-02-08T03:30:43.521Z
+updated_at: 2026-02-08T03:30:46.910Z
 phase_entered_at: 2026-02-08T03:30:40.614Z
 loop_count: 0
-archived: false
+archived: true
+archived_at: 2026-02-08T03:30:46.909Z
