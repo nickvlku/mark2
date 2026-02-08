@@ -89,6 +89,14 @@ export class PlanEngine {
     const role = this.resolveRole(roleName, phase);
     const adapter = this.getAdapter(role.cli_tool);
 
+    // Plan phases require MCP for artifact saving and completion signaling
+    if (!adapter.supportsMCP) {
+      throw new Error(
+        `CLI tool "${role.cli_tool}" does not support MCP, which is required for plan phases. ` +
+        `Please configure a MCP-capable tool (e.g. claude-code) in plan phase defaults.`
+      );
+    }
+
     // Read prior artifacts for context
     const priorArtifacts = this.readPriorArtifacts(plan, phase);
 

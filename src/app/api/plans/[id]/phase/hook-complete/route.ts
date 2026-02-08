@@ -7,11 +7,11 @@ import type { PlanPhase } from '@/lib/yaml/schemas';
 
 const service = createPlanService();
 
-// Map end tokens to review phases
-const TOKEN_TRANSITIONS: Record<string, PlanPhase> = {
-  '[PRD_COMPLETED]': 'prd_review',
-  '[TECH_SPEC_COMPLETED]': 'tech_spec_review',
-  '[TASKS_GENERATED]': 'task_review',
+// Map end tokens to { expected source phase, target review phase }
+const TOKEN_TRANSITIONS: Record<string, { from: PlanPhase; to: PlanPhase }> = {
+  '[PRD_COMPLETED]': { from: 'prd', to: 'prd_review' },
+  '[TECH_SPEC_COMPLETED]': { from: 'tech_spec', to: 'tech_spec_review' },
+  '[TASKS_GENERATED]': { from: 'task_generation', to: 'task_review' },
 };
 
 export async function POST(
@@ -39,13 +39,23 @@ export async function POST(
       return NextResponse.json({ error: `Plan ${id} not found` }, { status: 404 });
     }
 
-    const nextPhase = TOKEN_TRANSITIONS[token];
-    if (!nextPhase) {
+    const transition = TOKEN_TRANSITIONS[token];
+    if (!transition) {
       return NextResponse.json(
         { error: `Unknown end token: ${token}` },
         { status: 400 },
       );
     }
+
+    // Validate the token matches the plan's current phase
+    if (plan.phase !== transition.from) {
+      return NextResponse.json(
+        { error: `Token "${token}" is not valid for current phase "${plan.phase}" (expected "${transition.from}")` },
+        { status: 409 },
+      );
+    }
+
+    const nextPhase = transition.to;
 
     console.log(`[plan-hook-complete] Processing token "${token}" for plan ${id} (phase: ${plan.phase})`);
 

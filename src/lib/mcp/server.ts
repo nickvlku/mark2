@@ -835,23 +835,29 @@ export function createMcpServer(): McpServer {
           return { content: [{ type: 'text' as const, text: `Error: Plan ${plan_id} not found` }], isError: true };
         }
 
+        // Sanitize filename to prevent path traversal
+        const safeFilename = path.basename(filename);
+        if (!safeFilename || safeFilename === '.' || safeFilename === '..') {
+          return { content: [{ type: 'text' as const, text: 'Error: Invalid filename' }], isError: true };
+        }
+
         // Save to storage
         const artifactDir = path.join(mark2Dir, 'storage', plan_id, 'artifacts');
         if (!fs.existsSync(artifactDir)) {
           fs.mkdirSync(artifactDir, { recursive: true });
         }
-        fs.writeFileSync(path.join(artifactDir, filename), content, 'utf-8');
+        fs.writeFileSync(path.join(artifactDir, safeFilename), content, 'utf-8');
 
         // Determine mime type
         let mime_type = 'text/plain';
-        if (filename.endsWith('.md')) mime_type = 'text/markdown';
-        else if (filename.endsWith('.json')) mime_type = 'application/json';
+        if (safeFilename.endsWith('.md')) mime_type = 'text/markdown';
+        else if (safeFilename.endsWith('.json')) mime_type = 'application/json';
 
         // Register artifact
         await planService.addArtifact(plan_id, {
-          name: filename.replace(/\.[^/.]+$/, ''),
+          name: safeFilename.replace(/\.[^/.]+$/, ''),
           phase: plan.phase,
-          path: filename,
+          path: safeFilename,
           mime_type,
           created_at: new Date().toISOString(),
           source: 'agent',
