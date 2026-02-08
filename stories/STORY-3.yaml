@@ -4,6 +4,7 @@ description: Testing blocker resolution
 tasks:
   - TASK-45
   - TASK-46
+  - TASK-47
 created_by: plan
 created_at: 2026-02-08T03:30:38.539Z
-updated_at: 2026-02-08T03:30:41.605Z
+updated_at: 2026-02-08T03:30:42.846Z
