@@ -6,6 +6,7 @@
 
 export const TASK_ID_REGEX = /^TASK-\d+$/;
 export const STORY_ID_REGEX = /^STORY-\d+$/;
+export const PLAN_ID_REGEX = /^PLAN-\d+$/;
 
 export function isValidTaskId(id: string): boolean {
   return typeof id === 'string' && TASK_ID_REGEX.test(id);
@@ -13,4 +14,8 @@ export function isValidTaskId(id: string): boolean {
 
 export function isValidStoryId(id: string): boolean {
   return typeof id === 'string' && STORY_ID_REGEX.test(id);
+}
+
+export function isValidPlanId(id: string): boolean {
+  return typeof id === 'string' && PLAN_ID_REGEX.test(id);
 }

@@ -2,8 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import YAML from 'yaml';
 import { z } from 'zod';
-import { TaskSchema, ActivityLog, StorySchema, ConfigSchema, RolesFileSchema } from './schemas';
-import type { Task, Story, Config, ActivityLog as ActivityLogType, ParseError, RolesFile } from './schemas';
+import { TaskSchema, ActivityLog, StorySchema, PlanSchema, ConfigSchema, RolesFileSchema } from './schemas';
+import type { Task, Story, Plan, Config, ActivityLog as ActivityLogType, ParseError, RolesFile } from './schemas';
 
 export class YamlReader {
   constructor(private mark2Dir: string) {}
@@ -75,6 +75,29 @@ export class YamlReader {
     }
 
     return { stories, errors };
+  }
+
+  readPlan(planId: string): { data: Plan | null; error: ParseError | null } {
+    const filePath = path.join(this.mark2Dir, 'plans', `${planId}.yaml`);
+    return this.readAndValidate(filePath, PlanSchema);
+  }
+
+  readAllPlans(): { plans: Plan[]; errors: ParseError[] } {
+    const plansDir = path.join(this.mark2Dir, 'plans');
+    const plans: Plan[] = [];
+    const errors: ParseError[] = [];
+
+    if (!fs.existsSync(plansDir)) return { plans, errors };
+
+    const files = fs.readdirSync(plansDir).filter(f => /^PLAN-\d+\.yaml$/.test(f));
+    for (const file of files) {
+      const filePath = path.join(plansDir, file);
+      const { data, error } = this.readAndValidate(filePath, PlanSchema);
+      if (data) plans.push(data);
+      if (error) errors.push(error);
+    }
+
+    return { plans, errors };
   }
 
   readConfig(): { data: Config | null; error: ParseError | null } {

@@ -10,6 +10,7 @@ import { WorktreeService } from './worktree-service';
 import { PRService } from './pr-service';
 import { MergeService } from './merge-service';
 import { StateBranchService } from './state-branch-service';
+import { PlanService } from './plan-service';
 import { EnhanceService } from './enhance-service';
 import path from 'path';
 
@@ -29,6 +30,7 @@ export function createServices(mark2DirOverride?: string) {
   return {
     task: new TaskService(mark2Dir, stateBranch),
     story: new StoryService(mark2Dir, stateBranch),
+    plan: new PlanService(mark2Dir, stateBranch),
     activity: new ActivityService(mark2Dir, stateBranch),
     artifact: new ArtifactService(mark2Dir),
     clone: new CloneService(mark2Dir),
@@ -90,6 +92,10 @@ export function createMergeService(projectRoot?: string, mark2Dir?: string) {
 
 export function createStateBranchService(mark2Dir?: string) {
   return new StateBranchService(mark2Dir ?? getMark2Dir());
+}
+
+export function createPlanService(mark2Dir?: string) {
+  return new PlanService(mark2Dir ?? getMark2Dir());
 }
 
 export function createEnhanceService(mark2Dir?: string) {

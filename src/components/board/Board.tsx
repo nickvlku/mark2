@@ -102,19 +102,21 @@ export function Board() {
     isWindowFocused,
   });
 
-  // Handle notification clicks - navigate to the task
+  // Handle notification clicks and task navigation - navigate to the task
   useEffect(() => {
-    const handleNotificationClick = (event: Event) => {
+    const handleNavigateToTask = (event: Event) => {
       const customEvent = event as CustomEvent<{ taskId: string }>;
       if (customEvent.detail?.taskId) {
         setSelectedTaskId(customEvent.detail.taskId);
       }
     };
 
-    window.addEventListener('mark2:notification-click', handleNotificationClick);
+    window.addEventListener('mark2:notification-click', handleNavigateToTask);
+    window.addEventListener('mark2:navigate-task', handleNavigateToTask);
 
     return () => {
-      window.removeEventListener('mark2:notification-click', handleNotificationClick);
+      window.removeEventListener('mark2:notification-click', handleNavigateToTask);
+      window.removeEventListener('mark2:navigate-task', handleNavigateToTask);
     };
   }, []);
 
@@ -211,7 +213,10 @@ export function Board() {
       if (!task) return;
 
       // Determine target story_id from droppable story key
-      const targetStoryId = targetStoryKey === UNASSIGNED_KEY ? undefined : targetStoryKey;
+      const targetStoryId =
+        targetStoryKey === null || targetStoryKey === UNASSIGNED_KEY
+          ? undefined
+          : targetStoryKey;
       const currentStoryId = task.story_id || undefined;
       const phaseChanged = task.phase !== newPhase;
       const storyChanged = targetStoryKey !== null && targetStoryId !== currentStoryId;

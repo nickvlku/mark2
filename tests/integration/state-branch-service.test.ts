@@ -50,8 +50,9 @@ describe('StateBranchService', () => {
         phase: 'pending',
       });
 
-      const data = await stateBranch.readYaml('tasks/TASK-1.yaml');
+      const data = await stateBranch.readYaml<{ id: string; title: string; phase: string }>('tasks/TASK-1.yaml');
       expect(data).not.toBeNull();
+      if (!data) throw new Error('Expected task YAML to exist');
       expect(data.id).toBe('TASK-1');
       expect(data.title).toBe('Test Task');
     });
@@ -95,7 +96,8 @@ describe('StateBranchService', () => {
       await stateBranch.writeYaml('tasks/TASK-1.yaml', { version: 1 });
       await stateBranch.writeYaml('tasks/TASK-1.yaml', { version: 2 });
 
-      const data = await stateBranch.readYaml('tasks/TASK-1.yaml');
+      const data = await stateBranch.readYaml<{ version: number }>('tasks/TASK-1.yaml');
+      if (!data) throw new Error('Expected task YAML to exist');
       expect(data.version).toBe(2);
     });
 
@@ -117,7 +119,12 @@ describe('StateBranchService', () => {
       };
 
       await stateBranch.writeYaml('tasks/TASK-1.yaml', complexData);
-      const data = await stateBranch.readYaml('tasks/TASK-1.yaml');
+      const data = await stateBranch.readYaml<{
+        phase_agents: { coding: string };
+        blockers: string[];
+        metadata: { nested: { deeply: { value: number } } };
+      }>('tasks/TASK-1.yaml');
+      if (!data) throw new Error('Expected task YAML to exist');
 
       expect(data.phase_agents.coding).toBe('coder-agent');
       expect(data.blockers).toEqual(['TASK-2', 'TASK-3']);

@@ -2,8 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import YAML from 'yaml';
-import { TaskSchema, ActivityLog, StorySchema, ConfigSchema, RolesFileSchema } from './schemas';
-import type { Task, Story, Config, ActivityLog as ActivityLogType, RolesFile } from './schemas';
+import { TaskSchema, ActivityLog, StorySchema, PlanSchema, ConfigSchema, RolesFileSchema } from './schemas';
+import type { Task, Story, Plan, Config, ActivityLog as ActivityLogType, RolesFile } from './schemas';
 
 export class YamlWriter {
   constructor(private mark2Dir: string) {}
@@ -48,6 +48,17 @@ export class YamlWriter {
   deleteStory(storyId: string): void {
     const storyPath = path.join(this.mark2Dir, 'stories', `${storyId}.yaml`);
     if (fs.existsSync(storyPath)) fs.unlinkSync(storyPath);
+  }
+
+  writePlan(plan: Plan): void {
+    PlanSchema.parse(plan);
+    const filePath = path.join(this.mark2Dir, 'plans', `${plan.id}.yaml`);
+    this.atomicWrite(filePath, plan);
+  }
+
+  deletePlan(planId: string): void {
+    const planPath = path.join(this.mark2Dir, 'plans', `${planId}.yaml`);
+    if (fs.existsSync(planPath)) fs.unlinkSync(planPath);
   }
 
   private atomicWrite(filePath: string, data: any): void {

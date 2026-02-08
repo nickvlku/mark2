@@ -7,7 +7,7 @@ import { useNotificationContext } from '../providers/NotificationProvider';
 
 interface PageHeaderProps {
   title: string;
-  currentPage: 'board' | 'roles';
+  currentPage: 'board' | 'plans' | 'roles';
   actions?: ReactNode;
   additionalElements?: ReactNode;
 }

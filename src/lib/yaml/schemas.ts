@@ -155,11 +155,74 @@ export const StorySchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string(),
   tasks: z.array(z.string()).default([]),
+  plan_id: z.string().regex(/^PLAN-\d+$/).optional(),
   created_by: z.string(),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
 });
 export type Story = z.infer<typeof StorySchema>;
+
+// ── Plan Phases ───────────────────────────────────────────────────────
+
+export const PlanPhase = z.enum([
+  'prompt',
+  'prd',
+  'prd_review',
+  'tech_spec',
+  'tech_spec_review',
+  'task_generation',
+  'task_review',
+  'done',
+]);
+export type PlanPhase = z.infer<typeof PlanPhase>;
+
+// ── Plan Artifact ─────────────────────────────────────────────────────
+
+export const PlanArtifact = z.object({
+  name: z.string(),
+  phase: PlanPhase,
+  path: z.string(),
+  mime_type: z.string().optional(),
+  created_at: z.string().datetime(),
+  source: z.enum(['agent', 'user', 'system']).default('agent'),
+});
+export type PlanArtifact = z.infer<typeof PlanArtifact>;
+
+// ── Proposed Task/Story (output from story-planner agent) ─────────────
+
+export const ProposedTaskSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  priority: Priority.default('P2'),
+  blockers: z.array(z.union([z.number().int(), z.string()])).default([]),
+});
+export type ProposedTask = z.infer<typeof ProposedTaskSchema>;
+
+export const ProposedStorySchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  tasks: z.array(ProposedTaskSchema).default([]),
+});
+export type ProposedStory = z.infer<typeof ProposedStorySchema>;
+
+// ── Plan ──────────────────────────────────────────────────────────────
+
+export const PlanSchema = z.object({
+  id: z.string().regex(/^PLAN-\d+$/),
+  title: z.string().min(1).max(200),
+  prompt: z.string().min(1),
+  phase: PlanPhase.default('prompt'),
+  artifacts: z.array(PlanArtifact).default([]),
+  proposed_stories: z.array(ProposedStorySchema).default([]),
+  created_stories: z.array(z.string()).default([]),
+  created_tasks: z.array(z.string()).default([]),
+  project_prefix: z.string().optional(),
+  created_by: z.string(),
+  created_at: z.string().datetime(),
+  updated_at: z.string().datetime(),
+  phase_entered_at: z.string().datetime(),
+});
+export type Plan = z.infer<typeof PlanSchema>;
 
 // ── Project Config ─────────────────────────────────────────────────────
 
@@ -194,6 +257,7 @@ export const ConfigSchema = z.object({
     P2: z.boolean().default(false),
   }).default({ P0: true, P1: false, P2: false }),
   phase_defaults: z.record(z.string(), PhaseDefaultConfig).default({}),
+  plan_phase_defaults: z.record(z.string(), PhaseDefaultSchema).default({}),
   max_loop_count: z.number().int().default(5),
   server_port: z.number().int().default(3100),
   merge_strategy: MergeStrategy.default('squash'),

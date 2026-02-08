@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { getDb, initializeDatabase } from '../db';
-import { tasks, stories, activityEntries, idCounters, corruptFiles } from '../db/schema';
+import { tasks, stories, plans, activityEntries, idCounters, corruptFiles } from '../db/schema';
 import { YamlReader } from '../yaml/reader';
 import { StateBranchService } from './state-branch-service';
 import type { ReindexResult, ParseError } from '../../types';
@@ -37,6 +37,7 @@ export class ReindexService {
     // Clear derived tables
     db.delete(tasks).run();
     db.delete(stories).run();
+    db.delete(plans).run();
     db.delete(activityEntries).run();
     db.delete(corruptFiles).run();
 
@@ -81,6 +82,7 @@ export class ReindexService {
         id: story.id,
         title: story.title,
         description: story.description,
+        plan_id: story.plan_id ?? null,
         created_by: story.created_by,
         created_at: story.created_at,
         updated_at: story.updated_at,
@@ -89,6 +91,29 @@ export class ReindexService {
       storiesIndexed++;
     }
     errors.push(...storyResult.errors);
+
+    // Index plans
+    const planResult = reader.readAllPlans();
+    let plansIndexed = 0;
+    for (const plan of planResult.plans) {
+      db.insert(plans).values({
+        id: plan.id,
+        title: plan.title,
+        prompt: plan.prompt,
+        phase: plan.phase,
+        created_by: plan.created_by,
+        created_at: plan.created_at,
+        updated_at: plan.updated_at,
+        phase_entered_at: plan.phase_entered_at,
+        artifacts_json: JSON.stringify(plan.artifacts),
+        proposed_stories_json: JSON.stringify(plan.proposed_stories),
+        created_stories_json: JSON.stringify(plan.created_stories),
+        created_tasks_json: JSON.stringify(plan.created_tasks),
+        project_prefix: plan.project_prefix ?? null,
+      }).run();
+      plansIndexed++;
+    }
+    errors.push(...planResult.errors);
 
     // Index activities
     const activityResult = reader.readAllActivities();
@@ -109,7 +134,7 @@ export class ReindexService {
     errors.push(...activityResult.errors);
 
     // Update ID counters based on max existing IDs
-    this.updateIdCounters(taskResult.tasks, storyResult.stories);
+    this.updateIdCounters(taskResult.tasks, storyResult.stories, planResult.plans);
 
     // Record corrupt files
     for (const error of errors) {
@@ -131,6 +156,7 @@ export class ReindexService {
     return {
       tasks_indexed: tasksIndexed,
       stories_indexed: storiesIndexed,
+      plans_indexed: plansIndexed,
       activities_indexed: activitiesIndexed,
       errors,
       sync_result: pullResult,
@@ -149,6 +175,7 @@ export class ReindexService {
     const errors: ParseError[] = [];
     let tasksIndexed = 0;
     let storiesIndexed = 0;
+    let plansIndexed = 0;
     let activitiesIndexed = 0;
 
     for (const file of changedFiles) {
@@ -215,6 +242,7 @@ export class ReindexService {
             id: data.id,
             title: data.title,
             description: data.description,
+            plan_id: data.plan_id ?? null,
             created_by: data.created_by,
             created_at: data.created_at,
             updated_at: data.updated_at,
@@ -223,13 +251,36 @@ export class ReindexService {
           storiesIndexed++;
         }
         if (error) errors.push(error);
+      } else if (basename.match(/^PLAN-\d+\.yaml$/)) {
+        const planId = basename.replace('.yaml', '');
+        const { data, error } = reader.readPlan(planId);
+        if (data) {
+          db.delete(plans).where(sql`id = ${data.id}`).run();
+          db.insert(plans).values({
+            id: data.id,
+            title: data.title,
+            prompt: data.prompt,
+            phase: data.phase,
+            created_by: data.created_by,
+            created_at: data.created_at,
+            updated_at: data.updated_at,
+            phase_entered_at: data.phase_entered_at,
+            artifacts_json: JSON.stringify(data.artifacts),
+            proposed_stories_json: JSON.stringify(data.proposed_stories),
+            created_stories_json: JSON.stringify(data.created_stories),
+            created_tasks_json: JSON.stringify(data.created_tasks),
+            project_prefix: data.project_prefix ?? null,
+          }).run();
+          plansIndexed++;
+        }
+        if (error) errors.push(error);
       }
     }
 
-    return { tasks_indexed: tasksIndexed, stories_indexed: storiesIndexed, activities_indexed: activitiesIndexed, errors };
+    return { tasks_indexed: tasksIndexed, stories_indexed: storiesIndexed, plans_indexed: plansIndexed, activities_indexed: activitiesIndexed, errors };
   }
 
-  private updateIdCounters(taskList: any[], storyList: any[]): void {
+  private updateIdCounters(taskList: any[], storyList: any[], planList: any[] = []): void {
     const db = getDb(this.mark2Dir);
 
     let maxTaskId = 0;
@@ -253,5 +304,18 @@ export class ReindexService {
       .set({ next_id: maxStoryId + 1 })
       .where(sql`entity_type = 'story'`)
       .run();
+
+    let maxPlanId = 0;
+    for (const p of planList) {
+      const num = parseInt(p.id.replace('PLAN-', ''), 10);
+      if (num > maxPlanId) maxPlanId = num;
+    }
+
+    if (maxPlanId > 0) {
+      db.update(idCounters)
+        .set({ next_id: maxPlanId + 1 })
+        .where(sql`entity_type = 'plan'`)
+        .run();
+    }
   }
 }

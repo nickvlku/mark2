@@ -14,6 +14,7 @@ import { ActivityTab } from './ActivityTab';
 import { CodeTab } from './CodeTab';
 import { TerminalTab } from './TerminalTab';
 import { PhaseOverridesTab } from './PhaseOverridesTab';
+import { DependenciesTab } from './DependenciesTab';
 import { DevServerPanel } from './DevServerPanel';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -24,10 +25,11 @@ interface TaskDetailProps {
   onUpdate: () => void;
 }
 
-type TabId = 'details' | 'artifacts' | 'activity' | 'code' | 'terminal' | 'overrides';
+type TabId = 'details' | 'dependencies' | 'artifacts' | 'activity' | 'code' | 'terminal' | 'overrides';
 
 const tabs: { id: TabId; label: string }[] = [
   { id: 'details', label: 'Details' },
+  { id: 'dependencies', label: 'Dependencies' },
   { id: 'artifacts', label: 'Artifacts' },
   { id: 'activity', label: 'Activity' },
   { id: 'code', label: 'Code' },
@@ -283,6 +285,7 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
         {/* Tab Content */}
         <div className="flex-1 min-h-0 overflow-hidden">
           {activeTab === 'details' && <DetailsTab task={task} onUpdate={onUpdate} />}
+          {activeTab === 'dependencies' && <DependenciesTab task={task} />}
           {activeTab === 'artifacts' && <ArtifactsTab task={task} />}
           {activeTab === 'activity' && <ActivityTab task={task} />}
           {activeTab === 'code' && <CodeTab task={task} />}
