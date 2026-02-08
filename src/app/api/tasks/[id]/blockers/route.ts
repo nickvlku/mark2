@@ -92,7 +92,7 @@ export async function DELETE(
       );
     }
 
-    const task = service.removeBlocker(id, blockerId);
+    const task = await service.removeBlocker(id, blockerId);
     return NextResponse.json({ task });
   } catch (error: any) {
     if (error.message?.includes('not found')) {

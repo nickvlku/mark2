@@ -73,27 +73,30 @@ export async function PUT(
       }
     }
 
-    const updated = await service.transitionPhase(id, nextPhase);
-
-    // Fire-and-forget: spawn agent if transitioning to an agent phase
+    // For agent phases, start the agent before committing the transition.
+    // If startup fails, don't transition — the plan stays in its current phase so the user can retry.
     if (PLAN_AGENT_PHASES.includes(nextPhase)) {
-      try {
-        const mark2Dir = getMark2Dir();
-        const projectRoot = getProjectRoot();
-        const engine = new PlanEngine({
-          projectRoot,
-          mark2Dir,
-          apiBaseUrl: `http://localhost:${process.env.PORT || 3100}`,
-          agentToken: process.env.MARK2_AGENT_TOKEN || 'mark2-local',
-        });
+      const mark2Dir = getMark2Dir();
+      const projectRoot = getProjectRoot();
+      const engine = new PlanEngine({
+        projectRoot,
+        mark2Dir,
+        apiBaseUrl: `http://localhost:${process.env.PORT || 3100}`,
+        agentToken: process.env.MARK2_AGENT_TOKEN || 'mark2-local',
+      });
 
-        engine.startPhase(id, nextPhase, feedback).catch((err) => {
-          console.error(`[plan-engine] Failed to start phase ${nextPhase} for ${id}:`, err.message);
-        });
+      try {
+        await engine.startPhase(id, nextPhase, feedback);
       } catch (err: any) {
-        console.error(`[plan-engine] Engine init failed:`, err.message);
+        console.error(`[plan-engine] Failed to start phase ${nextPhase} for ${id}:`, err.message);
+        return NextResponse.json(
+          { error: `Failed to start agent: ${err.message}` },
+          { status: 500 },
+        );
       }
     }
+
+    const updated = await service.transitionPhase(id, nextPhase);
 
     return NextResponse.json({
       plan: updated,

@@ -50,8 +50,8 @@ export async function GET(
     const artifactPath = path.join(mark2Dir, 'storage', id, 'artifacts', artifact.path);
     const resolved = path.resolve(artifactPath);
 
-    // Security: ensure path is within storage
-    const storageRoot = path.resolve(path.join(mark2Dir, 'storage', id));
+    // Security: ensure path is within this plan's storage (trailing sep prevents PLAN-1 matching PLAN-11)
+    const storageRoot = path.resolve(path.join(mark2Dir, 'storage', id)) + path.sep;
     if (!resolved.startsWith(storageRoot)) {
       return NextResponse.json({ error: 'Invalid artifact path' }, { status: 400 });
     }
