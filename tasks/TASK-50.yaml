@@ -1,7 +1,7 @@
 id: TASK-50
 title: DnD Task A 1770521485050
 description: ""
-phase: pending
+phase: design
 phase_agents: {}
 phase_overrides: {}
 blockers: []
@@ -15,7 +15,8 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T03:31:25.054Z
-updated_at: 2026-02-08T03:31:25.054Z
+updated_at: 2026-02-08T03:31:26.693Z
 phase_entered_at: 2026-02-08T03:31:25.054Z
 loop_count: 0
-archived: false
+archived: true
+archived_at: 2026-02-08T03:31:26.693Z
