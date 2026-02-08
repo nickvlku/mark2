@@ -1,0 +1,21 @@
+id: TASK-80
+title: Write E2E test for complete task lifecycle
+description: Create tests/e2e/codex-task.spec.ts. Test creating task with Codex configuration, starting design phase, verifying AGENTS.md is created, simulating completion via MCP tool call, verifying phase transition, and verifying cleanup. Use Playwright for browser automation.
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P0
+artifacts: []
+ports: []
+worktrees: {}
+created_by: plan
+story_id: STORY-14
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-08T19:00:44.743Z
+updated_at: 2026-02-08T19:00:44.743Z
+phase_entered_at: 2026-02-08T19:00:44.743Z
+loop_count: 0
+archived: false
