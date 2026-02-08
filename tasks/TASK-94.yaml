@@ -1,7 +1,7 @@
 id: TASK-94
 title: xdg fix verification
 description: ensure claude symlink remains stable
-phase: pending
+phase: design
 phase_agents: {}
 phase_overrides: {}
 blockers: []
@@ -14,7 +14,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T23:19:15.766Z
-updated_at: 2026-02-08T23:19:15.766Z
-phase_entered_at: 2026-02-08T23:19:15.766Z
+updated_at: 2026-02-08T23:19:18.109Z
+phase_entered_at: 2026-02-08T23:19:18.107Z
 loop_count: 0
 archived: false
