@@ -1,7 +1,7 @@
 id: PLAN-21
 title: Add Codex integration alongside Claude Code
 prompt: It's time to add Codex integration into Mark2 alongside Claude.  It's important to research and web search for the LATEST codex spec and models (this changes almost daily).  The spec should be similar to the claude one but with of course the tweaks for codex cli (this includes how the orchestrator agent prompt, system prompt, mcp servers, session tracking if any, --yolo, etc are different in codex vs claude code)
-phase: task_review
+phase: done
 artifacts:
   - name: prd
     phase: prd
@@ -163,9 +163,35 @@ proposed_stories:
           - 1
           - 2
           - 3
-created_stories: []
-created_tasks: []
+created_stories:
+  - STORY-12
+  - STORY-13
+  - STORY-14
+  - STORY-15
+created_tasks:
+  - TASK-65
+  - TASK-66
+  - TASK-67
+  - TASK-68
+  - TASK-69
+  - TASK-70
+  - TASK-71
+  - TASK-72
+  - TASK-73
+  - TASK-74
+  - TASK-75
+  - TASK-76
+  - TASK-77
+  - TASK-78
+  - TASK-79
+  - TASK-80
+  - TASK-81
+  - TASK-82
+  - TASK-83
+  - TASK-84
+  - TASK-85
+  - TASK-86
 created_by: human
 created_at: 2026-02-08T04:36:34.975Z
-updated_at: 2026-02-08T18:51:53.692Z
-phase_entered_at: 2026-02-08T18:51:53.691Z
+updated_at: 2026-02-08T19:01:17.369Z
+phase_entered_at: 2026-02-08T19:01:17.369Z
