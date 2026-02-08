@@ -1,7 +1,7 @@
 id: TASK-105
 title: post-patch2-precreate-check-1770594254
 description: adapter should precreate correct claude project slug
-phase: pending
+phase: design
 phase_agents: {}
 phase_overrides: {}
 blockers: []
@@ -14,7 +14,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T23:44:14.923Z
-updated_at: 2026-02-08T23:44:14.923Z
-phase_entered_at: 2026-02-08T23:44:14.923Z
+updated_at: 2026-02-08T23:44:17.415Z
+phase_entered_at: 2026-02-08T23:44:17.415Z
 loop_count: 0
 archived: false
