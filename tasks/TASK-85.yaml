@@ -1,0 +1,21 @@
+id: TASK-85
+title: Update README and core documentation
+description: Add Codex to supported CLI tools list in README. Add comparison table (Claude Code vs Codex) with speed, cost, features. Add quickstart example showing Codex usage. Update any other docs that mention CLI tools.
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: plan
+story_id: STORY-15
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-08T19:00:52.383Z
+updated_at: 2026-02-08T19:00:52.383Z
+phase_entered_at: 2026-02-08T19:00:52.383Z
+loop_count: 0
+archived: false
