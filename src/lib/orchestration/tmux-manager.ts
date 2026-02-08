@@ -58,8 +58,7 @@ export class TmuxManager {
     // Create TMUX session
     await createSession(tmuxName, workingDir);
 
-    // Record in database BEFORE sending commands - this ensures we track the session
-    // even if sendCommand fails (e.g., due to shell escaping issues)
+    // Record in database
     const db = getDb(this.mark2Dir);
     const now = new Date().toISOString();
 
@@ -78,15 +77,18 @@ export class TmuxManager {
       .run();
 
     try {
-      // Set environment variables in the session if provided
+      const commandLines: string[] = [];
+
+      // Set environment variables first in the same shell invocation
       if (env) {
         for (const [key, value] of Object.entries(env)) {
-          await sendCommand(tmuxName, `export ${key}=${JSON.stringify(value)}`);
+          commandLines.push(`export ${key}=${JSON.stringify(value)}`);
         }
       }
 
-      // Send the agent command
-      await sendCommand(tmuxName, command);
+      // Run the agent command after exports
+      commandLines.push(command);
+      await sendCommand(tmuxName, commandLines.join('\n'));
     } catch (err) {
       // Mark session as failed if we couldn't send the command
       db.update(agentSessions)

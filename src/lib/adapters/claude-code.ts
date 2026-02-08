@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import type { CLIAdapter } from './types';
 import type { AgentInvocationParams } from '../../types';
@@ -52,6 +53,9 @@ export class ClaudeCodeAdapter implements CLIAdapter {
 
     // Set up Claude Code Stop hook for end token detection
     this.setupClaudeHooks(params.workingDirectory, projectRoot);
+    // Claude Code can dead-start in some environments when this per-project
+    // directory doesn't exist yet for a new clone path.
+    this.ensureClaudeProjectState(params.workingDirectory);
 
     // Generate a session ID for tracking
     const sessionId = crypto.randomUUID();
@@ -102,6 +106,23 @@ export class ClaudeCodeAdapter implements CLIAdapter {
   }
 
   /**
+   * Ensure Claude's per-project state directories exist for this working path.
+   * Claude stores per-cwd state under ~/.claude/projects/<cwd-slug>/memory.
+   */
+  private ensureClaudeProjectState(workingDirectory: string): void {
+    const normalizedCwd = path.resolve(workingDirectory).replace(/\\/g, '/');
+    const projectSlugs = new Set<string>([
+      normalizedCwd.replace(/\//g, '-'),
+      normalizedCwd.replace(/[/.]/g, '-'),
+    ]);
+
+    for (const projectSlug of projectSlugs) {
+      const memoryDir = path.join(os.homedir(), '.claude', 'projects', projectSlug, 'memory');
+      fs.mkdirSync(memoryDir, { recursive: true });
+    }
+  }
+
+  /**
    * Build MCP server configuration for mark2 tools.
    * This makes mark2_save_artifact, mark2_signal_complete, etc. available to the agent.
    */
@@ -109,15 +130,19 @@ export class ClaudeCodeAdapter implements CLIAdapter {
     const mark2Dir = path.join(projectRoot, '.mark2');
 
     // Find the MCP server in the mark2 installation directory
-    // This allows mark2 to work when installed globally
     const installDir = getMark2InstallDir();
     const mcpServerPath = path.join(installDir, 'src', 'lib', 'mcp', 'index.ts');
+
+    // Use absolute path to tsx from the install directory's node_modules.
+    // Task agents run in clones that don't have node_modules, so `npx tsx`
+    // would fail to find tsx. Using the absolute path avoids this.
+    const tsxPath = path.join(installDir, 'node_modules', '.bin', 'tsx');
 
     return {
       mcpServers: {
         mark2: {
-          command: 'npx',
-          args: ['tsx', mcpServerPath],
+          command: tsxPath,
+          args: [mcpServerPath],
           env: {
             MARK2_DIR: mark2Dir,
             MARK2_TASK_ID: taskId,
