@@ -99,7 +99,7 @@ describe('CLI Sync Command', () => {
         sync_result: { success: true, updated: true, message: 'Updated from remote' },
       });
 
-      const { syncCommand } = await import('@cli/commands/sync');
+      const { syncCommand } = await import('../../cli/commands/sync');
       await syncCommand(projectDir, { push: false });
 
       expect(mockFullReindex).toHaveBeenCalled();
@@ -109,7 +109,7 @@ describe('CLI Sync Command', () => {
     it('handles sync errors gracefully', async () => {
       mockFullReindex.mockRejectedValue(new Error('Sync failed'));
 
-      const { syncCommand } = await import('@cli/commands/sync');
+      const { syncCommand } = await import('../../cli/commands/sync');
 
       await expect(syncCommand(projectDir, { push: false })).rejects.toThrow('process.exit called');
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Sync failed'));
@@ -124,14 +124,14 @@ describe('CLI Sync Command', () => {
         sync_result: { success: true, updated: false, message: 'Already up to date' },
       });
 
-      const { syncCommand } = await import('@cli/commands/sync');
+      const { syncCommand } = await import('../../cli/commands/sync');
       await syncCommand(projectDir, { push: false });
 
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Already up to date'));
     });
 
     it('performs push when push option is true', async () => {
-      const { syncCommand } = await import('@cli/commands/sync');
+      const { syncCommand } = await import('../../cli/commands/sync');
       await syncCommand(projectDir, { push: true });
 
       expect(mockEnsureWorktree).toHaveBeenCalled();
@@ -175,7 +175,7 @@ describe('CLI Lock Commands', () => {
         },
       });
 
-      const { lockCommand } = await import('@cli/commands/lock');
+      const { lockCommand } = await import('../../cli/commands/lock');
       await lockCommand('TASK-1', projectDir);
 
       expect(mockAcquireLock).toHaveBeenCalledWith('TASK-1');
@@ -195,21 +195,21 @@ describe('CLI Lock Commands', () => {
       });
       mockIsLockExpired.mockResolvedValue(false);
 
-      const { lockCommand } = await import('@cli/commands/lock');
+      const { lockCommand } = await import('../../cli/commands/lock');
 
       await expect(lockCommand('TASK-1', projectDir)).rejects.toThrow('process.exit called');
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('already locked'));
     });
 
     it('validates task ID format', async () => {
-      const { lockCommand } = await import('@cli/commands/lock');
+      const { lockCommand } = await import('../../cli/commands/lock');
 
       await expect(lockCommand('invalid', projectDir)).rejects.toThrow('process.exit called');
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Invalid task ID'));
     });
 
     it('requires task ID argument', async () => {
-      const { lockCommand } = await import('@cli/commands/lock');
+      const { lockCommand } = await import('../../cli/commands/lock');
 
       await expect(lockCommand('', projectDir)).rejects.toThrow('process.exit called');
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Task ID is required'));
@@ -227,7 +227,7 @@ describe('CLI Lock Commands', () => {
       mockIsLockExpired.mockResolvedValue(true);
       mockForceTakeLock.mockResolvedValue({ success: true });
 
-      const { forceLockCommand } = await import('@cli/commands/lock');
+      const { forceLockCommand } = await import('../../cli/commands/lock');
       await forceLockCommand('TASK-1', projectDir);
 
       expect(mockForceTakeLock).toHaveBeenCalledWith('TASK-1');
@@ -238,7 +238,7 @@ describe('CLI Lock Commands', () => {
       mockGetLock.mockResolvedValue(null);
       mockAcquireLock.mockResolvedValue({ success: true });
 
-      const { forceLockCommand } = await import('@cli/commands/lock');
+      const { forceLockCommand } = await import('../../cli/commands/lock');
       await forceLockCommand('TASK-1', projectDir);
 
       expect(mockAcquireLock).toHaveBeenCalledWith('TASK-1');
@@ -253,7 +253,7 @@ describe('CLI Lock Commands', () => {
       });
       mockIsLockExpired.mockResolvedValue(false);
 
-      const { forceLockCommand } = await import('@cli/commands/lock');
+      const { forceLockCommand } = await import('../../cli/commands/lock');
 
       await expect(forceLockCommand('TASK-1', projectDir)).rejects.toThrow('process.exit called');
       expect(mockConsoleError).toHaveBeenCalledWith(
@@ -273,7 +273,7 @@ describe('CLI Lock Commands', () => {
       mockIsLockMine.mockResolvedValue(true);
       mockReleaseLock.mockResolvedValue(undefined);
 
-      const { unlockCommand } = await import('@cli/commands/lock');
+      const { unlockCommand } = await import('../../cli/commands/lock');
       await unlockCommand('TASK-1', projectDir);
 
       expect(mockReleaseLock).toHaveBeenCalledWith('TASK-1');
@@ -289,7 +289,7 @@ describe('CLI Lock Commands', () => {
       });
       mockIsLockMine.mockResolvedValue(false);
 
-      const { unlockCommand } = await import('@cli/commands/lock');
+      const { unlockCommand } = await import('../../cli/commands/lock');
 
       await expect(unlockCommand('TASK-1', projectDir)).rejects.toThrow('process.exit called');
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('belongs to'));
@@ -298,7 +298,7 @@ describe('CLI Lock Commands', () => {
     it('succeeds when no lock exists', async () => {
       mockGetLock.mockResolvedValue(null);
 
-      const { unlockCommand } = await import('@cli/commands/lock');
+      const { unlockCommand } = await import('../../cli/commands/lock');
       await unlockCommand('TASK-1', projectDir);
 
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('No lock found'));
@@ -330,7 +330,7 @@ describe('CLI Lock Commands', () => {
       mockListLocks.mockResolvedValue(locks);
       mockIsLockExpired.mockResolvedValue(false);
 
-      const { locksCommand } = await import('@cli/commands/lock');
+      const { locksCommand } = await import('../../cli/commands/lock');
       await locksCommand(projectDir);
 
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('TASK-1'));
@@ -340,7 +340,7 @@ describe('CLI Lock Commands', () => {
     it('reports when no locks exist', async () => {
       mockListLocks.mockResolvedValue(new Map());
 
-      const { locksCommand } = await import('@cli/commands/lock');
+      const { locksCommand } = await import('../../cli/commands/lock');
       await locksCommand(projectDir);
 
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('No tasks are currently locked'));
@@ -361,7 +361,7 @@ describe('CLI Lock Commands', () => {
       mockListLocks.mockResolvedValue(locks);
       mockIsLockExpired.mockResolvedValue(true);
 
-      const { locksCommand } = await import('@cli/commands/lock');
+      const { locksCommand } = await import('../../cli/commands/lock');
       await locksCommand(projectDir);
 
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('EXPIRED'));
@@ -382,14 +382,14 @@ describe('CLI Directory Validation', () => {
   });
 
   it('sync fails when .mark2 directory does not exist', async () => {
-    const { syncCommand } = await import('@cli/commands/sync');
+    const { syncCommand } = await import('../../cli/commands/sync');
 
     await expect(syncCommand(projectDir, { push: false })).rejects.toThrow('process.exit called');
     expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('.mark2 not found'));
   });
 
   it('lock fails when .mark2 directory does not exist', async () => {
-    const { lockCommand } = await import('@cli/commands/lock');
+    const { lockCommand } = await import('../../cli/commands/lock');
 
     await expect(lockCommand('TASK-1', projectDir)).rejects.toThrow('process.exit called');
     expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('.mark2 not found'));

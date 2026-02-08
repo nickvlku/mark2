@@ -213,7 +213,10 @@ export function Board() {
       if (!task) return;
 
       // Determine target story_id from droppable story key
-      const targetStoryId = targetStoryKey === UNASSIGNED_KEY ? undefined : targetStoryKey;
+      const targetStoryId =
+        targetStoryKey === null || targetStoryKey === UNASSIGNED_KEY
+          ? undefined
+          : targetStoryKey;
       const currentStoryId = task.story_id || undefined;
       const phaseChanged = task.phase !== newPhase;
       const storyChanged = targetStoryKey !== null && targetStoryId !== currentStoryId;

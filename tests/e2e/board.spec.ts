@@ -1,4 +1,4 @@
-import { test as base, expect } from '@playwright/test';
+import { test as base, expect, type APIRequestContext } from '@playwright/test';
 
 // Tests share a dev server with mutable state — run serially to avoid flakes
 base.describe.configure({ mode: 'serial' });
@@ -36,20 +36,20 @@ const test = base.extend<{
 // Helper – find a task by title via API and return its ID (for UI-created tasks)
 // ---------------------------------------------------------------------------
 async function findTaskIdByTitle(
-  request: ReturnType<typeof base.extend>['request'] extends infer R ? R : never,
+  request: APIRequestContext,
   title: string,
 ): Promise<string | undefined> {
-  const res = await (request as any).get('/api/tasks');
+  const res = await request.get('/api/tasks');
   const { tasks } = await res.json();
   const match = tasks.find((t: any) => t.title === title);
   return match?.id;
 }
 
 async function findStoryIdByTitle(
-  request: ReturnType<typeof base.extend>['request'] extends infer R ? R : never,
+  request: APIRequestContext,
   title: string,
 ): Promise<string | undefined> {
-  const res = await (request as any).get('/api/stories');
+  const res = await request.get('/api/stories');
   const { stories } = await res.json();
   const match = stories.find((s: any) => s.title === title);
   return match?.id;
