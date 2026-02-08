@@ -9,7 +9,7 @@ phase_defaults:
   design:
     role: expert-system-architect
     cli_tool: claude-code
-    model: claude-opus-4-5
+    model: claude-opus-4-6
     auto_advance: false
   coding:
     role: expert-fullstack-coder
@@ -24,17 +24,17 @@ phase_defaults:
   code_review:
     role: expert-code-reviewer
     cli_tool: claude-code
-    model: claude-opus-4-5
+    model: claude-opus-4-6
     auto_advance: false
   run_test_plan:
     role: expert-style-reviewer
     cli_tool: claude-code
-    model: claude-opus-4-5
+    model: claude-opus-4-6
     auto_advance: false
   fix_review:
     role: expert-test-engineer
     cli_tool: claude-code
-    model: claude-opus-4-5
+    model: claude-opus-4-6
     auto_advance: false
   final_testing:
     role: expert-e2e-tester
