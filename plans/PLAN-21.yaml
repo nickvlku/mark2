@@ -1,7 +1,7 @@
 id: PLAN-21
 title: Add Codex integration alongside Claude Code
 prompt: It's time to add Codex integration into Mark2 alongside Claude.  It's important to research and web search for the LATEST codex spec and models (this changes almost daily).  The spec should be similar to the claude one but with of course the tweaks for codex cli (this includes how the orchestrator agent prompt, system prompt, mcp servers, session tracking if any, --yolo, etc are different in codex vs claude code)
-phase: task_generation
+phase: task_review
 artifacts:
   - name: prd
     phase: prd
@@ -27,10 +27,145 @@ artifacts:
     mime_type: text/markdown
     created_at: 2026-02-08T18:48:45.559Z
     source: agent
-proposed_stories: []
+  - name: task-proposal
+    phase: task_generation
+    path: task-proposal.json
+    mime_type: application/json
+    created_at: 2026-02-08T18:51:50.122Z
+    source: agent
+proposed_stories:
+  - title: Core Adapter Implementation
+    description: Rewrite CodexCLIAdapter to support MCP, AGENTS.md, session tracking, and cleanup. This is the main implementation work that brings Codex to feature parity with Claude Code.
+    tasks:
+      - title: Set up project structure and verify dependencies
+        description: Create test directories, verify Codex CLI is available for testing, and set up any new dependencies needed for the implementation. Verify Mark2 MCP server is properly configured.
+        priority: P1
+        blockers: []
+      - title: Implement MCP configuration generation (.codex/config.toml)
+        description: Write setupMcpConfig() method in CodexCLIAdapter. Generate .codex/config.toml with proper TOML format, point to mark2 MCP server via STDIO, pass environment variables (MARK2_DIR, MARK2_TASK_ID, etc.). Create .codex directory in worktree if needed.
+        priority: P0
+        blockers:
+          - 0
+      - title: Implement AGENTS.md generation
+        description: Write setupAgentsMd() method in CodexCLIAdapter. Combine agent role prompt + orchestration instructions in single markdown file. Include end token protocol instructions (call mark2_signal_complete MCP tool). Document available MCP tools. Save to worktree root and debug directory.
+        priority: P0
+        blockers:
+          - 0
+      - title: Implement command building with shell quoting
+        description: Write buildCommand() method in CodexCLIAdapter. Build 'codex' command with proper shell quoting (handle special characters). Add --model flag, --ask-for-approval flag. Call setupMcpConfig() and setupAgentsMd() before building command.
+        priority: P0
+        blockers:
+          - 0
+      - title: Implement prompt file saving for debugging
+        description: Save orchestration prompt, agent prompt, and task prompt to ~/.mark2/<task-id>/prompts/ directory. Use getTaskStoragePaths() to get correct paths. Ensure UTF-8 encoding. This enables debugging and audit trails.
+        priority: P1
+        blockers:
+          - 0
+      - title: Implement cleanup logic in adapter
+        description: Write cleanup() method in CodexCLIAdapter. Delete .codex/config.toml from worktree. Delete AGENTS.md from worktree. Remove .codex directory if empty. Handle errors gracefully (non-fatal, just log).
+        priority: P0
+        blockers:
+          - 1
+          - 2
+          - 3
+      - title: Integrate cleanup into orchestration engine
+        description: Update OrchestrationEngine.processEndToken() to call adapter.cleanup() after session completes. Add try/finally for safety. Test cleanup is called on both success and failure paths. Update CLIAdapter interface to include optional cleanup() method.
+        priority: P0
+        blockers:
+          - 5
+      - title: Implement getEnvironment() method
+        description: Write getEnvironment() method in CodexCLIAdapter to return all required environment variables (NODE_ENV, MARK2_AGENT_TOKEN, MARK2_API_URL, MARK2_TASK_ID, MARK2_STORAGE_DIR, MARK2_ARTIFACTS_DIR, MARK2_PROMPTS_DIR, MARK2_SESSIONS_DIR). These are used by MCP server.
+        priority: P1
+        blockers:
+          - 0
+  - title: Model Definitions & Configuration
+    description: Update model definitions to include the latest Codex models (GPT-5.3-codex) and ensure proper configuration support. This story is independent of core adapter implementation and can run in parallel.
+    tasks:
+      - title: Add GPT-5.3-codex and update model definitions
+        description: Update src/lib/constants/models.ts to add gpt-5.3-codex as the recommended model. Update descriptions for all Codex models (gpt-5.2-codex, gpt-5.1-codex-max, gpt-5.1-codex-mini, o4-mini). Add any necessary entries to MODEL_MIGRATIONS map for backward compatibility.
+        priority: P1
+        blockers: []
+      - title: Verify UI model filtering works correctly
+        description: Test role configuration UI to ensure Codex models are shown when cli_tool is set to 'codex-cli'. Verify model selection dropdown filters correctly. Test that default model is set properly when switching CLI tools.
+        priority: P2
+        blockers:
+          - 0
+  - title: Testing Infrastructure
+    description: Comprehensive testing coverage for the Codex adapter including unit tests, integration tests for MCP end token detection, and E2E tests for complete task lifecycle. Target 100% code coverage for adapter.
+    tasks:
+      - title: Write unit tests for adapter properties and basic methods
+        description: Create tests/unit/codex-adapter.test.ts. Test toolId, supportsMCP, supportsNaming properties. Test getEnvironment() returns correct variables. Test shell quoting with special characters. Test getPromptFilePath() returns undefined.
+        priority: P0
+        blockers:
+          - 0:3
+          - 0:7
+      - title: Write unit tests for MCP config generation
+        description: Test setupMcpConfig() creates .codex/config.toml in correct location. Verify TOML format is valid. Test environment variables are passed correctly. Test .codex directory creation.
+        priority: P0
+        blockers:
+          - 0:1
+      - title: Write unit tests for AGENTS.md generation
+        description: Test setupAgentsMd() creates AGENTS.md in worktree root. Verify markdown structure includes all required sections (Agent Role, Orchestration Instructions, End Token Protocol, Available MCP Tools). Test content includes agent prompt and orchestration prompt. Test end token instructions are correct for each phase.
+        priority: P0
+        blockers:
+          - 0:2
+      - title: Write unit tests for cleanup logic
+        description: Test cleanup() method deletes .codex/config.toml. Test AGENTS.md is deleted. Test .codex directory is removed if empty. Test error handling when files don't exist or deletion fails.
+        priority: P0
+        blockers:
+          - 0:5
+      - title: Write integration test for MCP end token detection
+        description: Create tests/integration/codex-end-token.test.ts. Create test task with Codex configuration. Simulate agent calling mark2_signal_complete MCP tool by making HTTP POST to /api/tasks/{id}/phase/hook-complete. Verify phase transition occurs. Verify task phase is updated correctly.
+        priority: P0
+        blockers:
+          - 0
+          - 1
+          - 2
+          - 3
+      - title: Write E2E test for complete task lifecycle
+        description: Create tests/e2e/codex-task.spec.ts. Test creating task with Codex configuration, starting design phase, verifying AGENTS.md is created, simulating completion via MCP tool call, verifying phase transition, and verifying cleanup. Use Playwright for browser automation.
+        priority: P0
+        blockers:
+          - 4
+      - title: Performance benchmarking and optimization
+        description: Measure adapter overhead (buildCommand execution time). Measure MCP config creation time. Measure AGENTS.md creation time. Measure end token detection latency. Document results and compare against targets from tech spec. Optimize if needed.
+        priority: P2
+        blockers:
+          - 5
+  - title: Documentation & Release
+    description: Create comprehensive documentation for users and developers. Prepare release materials including migration guide, README updates, and release notes.
+    tasks:
+      - title: Write user documentation
+        description: "Create docs/codex-integration.md. Include: overview of Codex integration and benefits, setup instructions for Codex CLI, configuration guide for roles and models, usage examples for creating Codex tasks, troubleshooting common issues, best practices for when to use Codex vs Claude, security warnings for --yolo mode."
+        priority: P1
+        blockers: []
+      - title: Write developer documentation
+        description: "Create docs/architecture/codex-adapter.md. Include: architecture overview with component diagram, end token detection flow (MCP-based), AGENTS.md format and examples, .codex/config.toml format and examples, testing guide for running and adding tests, debugging guide for viewing prompts and MCP logs, contributing guide for adding new models."
+        priority: P2
+        blockers:
+          - 0
+      - title: Write migration guide for users with old adapter
+        description: "Create docs/migration/codex-upgrade.md. Include: backup instructions for existing tasks, upgrade steps, configuration update guide for .mark2/roles.yaml, testing verification steps, rollback procedure if needed, FAQ for common migration issues."
+        priority: P2
+        blockers:
+          - 0
+      - title: Update README and core documentation
+        description: Add Codex to supported CLI tools list in README. Add comparison table (Claude Code vs Codex) with speed, cost, features. Add quickstart example showing Codex usage. Update any other docs that mention CLI tools.
+        priority: P2
+        blockers:
+          - 0
+      - title: Release preparation and QA
+        description: Final QA pass on all functionality. Create release notes summarizing new features, breaking changes (if any), and upgrade instructions. Prepare demo video or screenshots (optional). Plan announcement for blog, Discord, X. Set up monitoring for post-release issues.
+        priority: P1
+        blockers:
+          - 2:5
+          - 0
+          - 1
+          - 2
+          - 3
 created_stories: []
 created_tasks: []
 created_by: human
 created_at: 2026-02-08T04:36:34.975Z
-updated_at: 2026-02-08T18:50:26.933Z
-phase_entered_at: 2026-02-08T18:50:26.933Z
+updated_at: 2026-02-08T18:51:53.692Z
+phase_entered_at: 2026-02-08T18:51:53.691Z
