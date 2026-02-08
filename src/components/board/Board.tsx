@@ -206,8 +206,17 @@ export function Board() {
       // Extract phase from droppable data (handles both flat IDs like "coding"
       // and prefixed IDs like "__unassigned__::coding" in grouped view)
       const newPhase = (over.data.current?.phase ?? over.id) as Phase;
+      const targetStoryKey: string | null = over.data.current?.storyKey ?? null;
       const task = tasks.find((t: Task) => t.id === taskId);
-      if (!task || task.phase === newPhase) return;
+      if (!task) return;
+
+      // Determine target story_id from droppable story key
+      const targetStoryId = targetStoryKey === UNASSIGNED_KEY ? undefined : targetStoryKey;
+      const currentStoryId = task.story_id || undefined;
+      const phaseChanged = task.phase !== newPhase;
+      const storyChanged = targetStoryKey !== null && targetStoryId !== currentStoryId;
+
+      if (!phaseChanged && !storyChanged) return;
 
       // Optimistic update
       mutateTasks(
@@ -215,7 +224,13 @@ export function Board() {
           if (!current) return current;
           return {
             tasks: current.tasks.map((t: Task) =>
-              t.id === taskId ? { ...t, phase: newPhase } : t,
+              t.id === taskId
+                ? {
+                    ...t,
+                    ...(phaseChanged ? { phase: newPhase } : {}),
+                    ...(storyChanged ? { story_id: targetStoryId } : {}),
+                  }
+                : t,
             ),
           };
         },
@@ -223,11 +238,26 @@ export function Board() {
       );
 
       try {
-        await fetch(`/api/tasks/${taskId}/phase`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phase: newPhase }),
-        });
+        const requests: Promise<Response>[] = [];
+        if (phaseChanged) {
+          requests.push(
+            fetch(`/api/tasks/${taskId}/phase`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ phase: newPhase }),
+            }),
+          );
+        }
+        if (storyChanged) {
+          requests.push(
+            fetch(`/api/tasks/${taskId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ story_id: targetStoryId ?? null }),
+            }),
+          );
+        }
+        await Promise.all(requests);
         mutateTasks();
       } catch {
         mutateTasks();

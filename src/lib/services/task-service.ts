@@ -420,6 +420,10 @@ export class TaskService {
     if (!task) {
       throw new Error(`Task ${taskId} not found`);
     }
+    const blockerTask = this.getById(blockerId);
+    if (!blockerTask) {
+      throw new Error(`Blocker task ${blockerId} not found`);
+    }
     if (taskId === blockerId) {
       throw new Error(`Circular dependency: task cannot block itself`);
     }

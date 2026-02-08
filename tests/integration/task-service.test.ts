@@ -266,6 +266,7 @@ describe('TaskService', () => {
   describe('addBlocker / removeBlocker', () => {
     it('adds a blocker to a task', async () => {
       await taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
+      await taskService.create({ title: 'Blocker', description: 'desc', created_by: 'human' });
 
       const updated = await taskService.addBlocker('TASK-1', 'TASK-2');
       expect(updated.blockers).toContain('TASK-2');
@@ -273,6 +274,7 @@ describe('TaskService', () => {
 
     it('does not duplicate blockers', async () => {
       await taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
+      await taskService.create({ title: 'Blocker', description: 'desc', created_by: 'human' });
 
       await taskService.addBlocker('TASK-1', 'TASK-2');
       const updated = await taskService.addBlocker('TASK-1', 'TASK-2');
@@ -294,8 +296,14 @@ describe('TaskService', () => {
       await expect(taskService.removeBlocker('TASK-999', 'TASK-2')).rejects.toThrow();
     });
 
+    it('addBlocker throws for non-existent blocker', async () => {
+      await taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
+      await expect(taskService.addBlocker('TASK-1', 'TASK-999')).rejects.toThrow(/not found/);
+    });
+
     it('blockers are persisted in YAML', async () => {
       await taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
+      await taskService.create({ title: 'Blocker', description: 'desc', created_by: 'human' });
       await taskService.addBlocker('TASK-1', 'TASK-2');
 
       const { data } = reader.readTask('TASK-1');

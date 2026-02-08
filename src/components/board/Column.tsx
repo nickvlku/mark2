@@ -44,7 +44,7 @@ export function Column({ phase, tasks, onCardClick, onArchive, onRestore, onDele
   const droppableId = droppableIdPrefix ? `${droppableIdPrefix}::${phase}` : phase;
   const { isOver, setNodeRef } = useDroppable({
     id: droppableId,
-    data: { phase },
+    data: { phase, storyKey: droppableIdPrefix || null },
   });
 
   return (
