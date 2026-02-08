@@ -7,3 +7,7 @@ entries:
     metadata:
       old_phase: pending
       new_phase: design
+  - timestamp: 2026-02-08T23:40:49.308Z
+    source: agent
+    type: note
+    message: "[in_progress] Writing design document for startup cleanup feature"
