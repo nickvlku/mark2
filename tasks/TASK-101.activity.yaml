@@ -11,3 +11,21 @@ entries:
     source: agent
     type: note
     message: "[in_progress] Writing design document for startup cleanup feature"
+  - timestamp: 2026-02-08T23:41:51.907Z
+    source: hook
+    type: phase_change
+    message: End token "[DESIGN_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[DESIGN_COMPLETED]"
+      phase: design
+  - timestamp: 2026-02-08T23:42:03.454Z
+    source: agent
+    type: note
+    message: "[in_progress] Analyzed full codebase. Writing design document for startup cleanup feature."
+  - timestamp: 2026-02-08T23:43:08.502Z
+    source: hook
+    type: phase_change
+    message: End token "[DESIGN_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[DESIGN_COMPLETED]"
+      phase: design
