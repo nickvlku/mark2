@@ -49,7 +49,7 @@ npm install -g mark2
 ### Option 2: Clone and Install
 
 ```bash
-git clone https://github.com/anthropics/mark2.git
+git clone https://github.com/nickvlku/mark2.git
 cd mark2
 ./install.sh
 ```
@@ -57,7 +57,7 @@ cd mark2
 ### Option 3: Development Setup
 
 ```bash
-git clone https://github.com/anthropics/mark2.git
+git clone https://github.com/nickvlku/mark2.git
 cd mark2
 pnpm install
 pnpm build
