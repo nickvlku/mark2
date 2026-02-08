@@ -1,0 +1,21 @@
+id: TASK-82
+title: Write user documentation
+description: "Create docs/codex-integration.md. Include: overview of Codex integration and benefits, setup instructions for Codex CLI, configuration guide for roles and models, usage examples for creating Codex tasks, troubleshooting common issues, best practices for when to use Codex vs Claude, security warnings for --yolo mode."
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P1
+artifacts: []
+ports: []
+worktrees: {}
+created_by: plan
+story_id: STORY-15
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-08T19:00:48.188Z
+updated_at: 2026-02-08T19:00:48.188Z
+phase_entered_at: 2026-02-08T19:00:48.188Z
+loop_count: 0
+archived: false
