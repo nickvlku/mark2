@@ -4,7 +4,8 @@ description: Measure adapter overhead (buildCommand execution time). Measure MCP
 phase: pending
 phase_agents: {}
 phase_overrides: {}
-blockers: []
+blockers:
+  - TASK-80
 priority: P2
 artifacts: []
 ports: []
@@ -15,7 +16,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T19:00:46.094Z
-updated_at: 2026-02-08T19:00:46.094Z
+updated_at: 2026-02-08T19:01:10.029Z
 phase_entered_at: 2026-02-08T19:00:46.094Z
 loop_count: 0
 archived: false
