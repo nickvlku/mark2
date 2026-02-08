@@ -8,6 +8,7 @@ blockers:
   - TASK-80
   - TASK-82
   - TASK-83
+  - TASK-84
 priority: P1
 artifacts: []
 ports: []
@@ -18,7 +19,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T19:00:53.955Z
-updated_at: 2026-02-08T19:01:14.409Z
+updated_at: 2026-02-08T19:01:15.321Z
 phase_entered_at: 2026-02-08T19:00:53.955Z
 loop_count: 0
 archived: false
