@@ -6,7 +6,13 @@ phase_agents: {}
 phase_overrides: {}
 blockers: []
 priority: P2
-artifacts: []
+artifacts:
+  - name: design
+    phase: design
+    path: design-design-1770590727367-qd3oaf.md
+    mime_type: text/markdown
+    created_at: 2026-02-08T22:45:27.368Z
+    source: agent
 ports: []
 worktrees: {}
 created_by: human
@@ -14,7 +20,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T22:40:06.718Z
-updated_at: 2026-02-08T22:40:08.905Z
+updated_at: 2026-02-08T22:45:27.368Z
 phase_entered_at: 2026-02-08T22:40:08.905Z
 loop_count: 0
 archived: false
