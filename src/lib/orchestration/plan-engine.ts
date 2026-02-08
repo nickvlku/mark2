@@ -209,18 +209,15 @@ export class PlanEngine {
     let model = 'claude-sonnet-4-5';
     let timeoutMinutes = 60;
 
-    // Try plan_phase_defaults first (phase-specific config for plans)
-    if (phase && config?.plan_phase_defaults) {
-      const planDefault = config.plan_phase_defaults[phase];
-      if (planDefault) {
-        cliTool = planDefault.cli_tool;
-        model = planDefault.model;
-        if (planDefault.timeout_minutes) {
-          timeoutMinutes = planDefault.timeout_minutes;
-        }
-        // Also override roleName if configured
-        roleName = planDefault.role;
+    // Try plan_phase_defaults first, then fall back to task phase_defaults
+    const planDefault = phase ? config?.plan_phase_defaults?.[phase] : undefined;
+    if (planDefault) {
+      cliTool = planDefault.cli_tool;
+      model = planDefault.model;
+      if (planDefault.timeout_minutes) {
+        timeoutMinutes = planDefault.timeout_minutes;
       }
+      roleName = planDefault.role;
     } else if (config?.phase_defaults) {
       // Fallback to task phase_defaults (use design defaults as reasonable fallback)
       const designDefault = config.phase_defaults['design'];
