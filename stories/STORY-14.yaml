@@ -4,6 +4,7 @@ description: Comprehensive testing coverage for the Codex adapter including unit
 tasks:
   - TASK-75
   - TASK-76
+  - TASK-77
 created_by: plan
 created_at: 2026-02-08T19:00:36.130Z
-updated_at: 2026-02-08T19:00:39.281Z
+updated_at: 2026-02-08T19:00:40.850Z
