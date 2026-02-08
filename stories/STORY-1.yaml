@@ -1,7 +1,8 @@
 id: STORY-1
 title: Auth Story
 description: Authentication feature
-tasks: []
+tasks:
+  - TASK-42
 created_by: plan
 created_at: 2026-02-08T03:30:21.706Z
-updated_at: 2026-02-08T03:30:21.706Z
+updated_at: 2026-02-08T03:30:22.952Z
