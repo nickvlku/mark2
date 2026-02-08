@@ -1,0 +1,21 @@
+id: TASK-76
+title: Write unit tests for MCP config generation
+description: Test setupMcpConfig() creates .codex/config.toml in correct location. Verify TOML format is valid. Test environment variables are passed correctly. Test .codex directory creation.
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P0
+artifacts: []
+ports: []
+worktrees: {}
+created_by: plan
+story_id: STORY-14
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-08T19:00:38.565Z
+updated_at: 2026-02-08T19:00:38.565Z
+phase_entered_at: 2026-02-08T19:00:38.565Z
+loop_count: 0
+archived: false
