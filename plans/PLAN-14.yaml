@@ -1,12 +1,12 @@
 id: PLAN-14
 title: Approve Test
 prompt: Testing approve
-phase: prompt
+phase: tech_spec
 artifacts: []
 proposed_stories: []
 created_stories: []
 created_tasks: []
 created_by: human
 created_at: 2026-02-08T03:30:10.120Z
-updated_at: 2026-02-08T03:30:10.120Z
-phase_entered_at: 2026-02-08T03:30:10.120Z
+updated_at: 2026-02-08T03:30:12.031Z
+phase_entered_at: 2026-02-08T03:30:12.030Z
