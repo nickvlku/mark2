@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import useSWR from 'swr';
-import type { Story, Task } from '@/types';
+import type { Story, Task, Plan } from '@/types';
+import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -13,13 +15,40 @@ interface StorySidebarProps {
   onUpdate?: () => void;
 }
 
-type TabId = 'overview' | 'tasks' | 'artifacts';
+type TabId = 'overview' | 'tasks' | 'artifacts' | 'plan';
 
-const tabs: { id: TabId; label: string }[] = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'tasks', label: 'Tasks' },
-  { id: 'artifacts', label: 'Artifacts' },
-];
+function FullscreenModal({ title, content, onClose }: { title: string; content: string; onClose: () => void }) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-[90vw] max-w-4xl h-[85vh] bg-bg-primary border border-border rounded-xl shadow-2xl flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-bg-secondary">
+          <h2 className="text-sm font-medium text-text-primary truncate">{title}</h2>
+          <button
+            onClick={onClose}
+            className="p-1.5 text-text-secondary hover:text-text-primary hover:bg-bg-hover rounded-lg transition-colors ml-4"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="flex-1 overflow-auto p-6">
+          <MarkdownRenderer content={content} />
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
 
 export function StorySidebar({ story: initialStory, onClose, onTaskClick, onUpdate }: StorySidebarProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
@@ -27,6 +56,9 @@ export function StorySidebar({ story: initialStory, onClose, onTaskClick, onUpda
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editTitle, setEditTitle] = useState(initialStory.title);
   const [editDescription, setEditDescription] = useState(initialStory.description);
+  const [prdExpanded, setPrdExpanded] = useState(true);
+  const [techSpecExpanded, setTechSpecExpanded] = useState(true);
+  const [fullscreenArtifact, setFullscreenArtifact] = useState<{ title: string; content: string } | null>(null);
 
   // Fetch story data
   const { data: storyData, mutate: mutateStory } = useSWR<{ story: Story }>(
@@ -43,6 +75,35 @@ export function StorySidebar({ story: initialStory, onClose, onTaskClick, onUpda
     { refreshInterval: 5000 }
   );
   const tasks = tasksData?.tasks ?? [];
+
+  // Fetch plan data if story has plan_id
+  const { data: planData } = useSWR<Plan>(
+    story.plan_id ? `/api/plans/${story.plan_id}` : null,
+    (url: string) => fetch(url).then((r) => r.json()).then((d) => d.plan ?? d),
+    { refreshInterval: 0 },
+  );
+
+  // Fetch PRD content
+  const { data: prdData } = useSWR<{ content: string }>(
+    story.plan_id ? `/api/plans/${story.plan_id}/artifacts/content?name=prd.md` : null,
+    fetcher,
+    { refreshInterval: 0 },
+  );
+
+  // Fetch tech spec content
+  const { data: techSpecData } = useSWR<{ content: string }>(
+    story.plan_id ? `/api/plans/${story.plan_id}/artifacts/content?name=tech-spec.md` : null,
+    fetcher,
+    { refreshInterval: 0 },
+  );
+
+  // Build tabs dynamically
+  const tabs: { id: TabId; label: string }[] = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'tasks', label: 'Tasks' },
+    ...(story.plan_id ? [{ id: 'plan' as TabId, label: 'Plan' }] : []),
+    { id: 'artifacts', label: 'Artifacts' },
+  ];
 
   // Calculate progress
   const doneCount = tasks.filter((t) => t.phase === 'done').length;
@@ -325,6 +386,103 @@ export function StorySidebar({ story: initialStory, onClose, onTaskClick, onUpda
             </div>
           )}
 
+          {activeTab === 'plan' && story.plan_id && (
+            <div className="space-y-4">
+              {/* Plan header */}
+              {planData && (
+                <div className="rounded-lg border border-border bg-bg-primary p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="inline-flex items-center rounded bg-indigo-500/20 px-2 py-0.5 text-xs font-medium text-indigo-400">
+                      {planData.id}
+                    </span>
+                    <span className="text-xs text-text-secondary capitalize">{planData.phase}</span>
+                  </div>
+                  <h3 className="text-sm font-medium text-text-primary">{planData.title}</h3>
+                </div>
+              )}
+
+              {/* PRD */}
+              <div className="rounded-lg border border-border bg-bg-primary overflow-hidden">
+                <button
+                  onClick={() => setPrdExpanded(!prdExpanded)}
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-bg-hover transition-colors"
+                >
+                  <span className="text-sm font-medium text-text-primary">PRD</span>
+                  <div className="flex items-center gap-1">
+                    {prdData?.content && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFullscreenArtifact({ title: `${story.plan_id} — PRD`, content: prdData.content });
+                        }}
+                        className="p-1 text-text-secondary hover:text-text-primary rounded transition-colors"
+                        title="Fullscreen"
+                      >
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                        </svg>
+                      </button>
+                    )}
+                    <svg className={`h-4 w-4 text-text-secondary transition-transform ${prdExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </div>
+                </button>
+                {prdExpanded && (
+                  <div className="px-4 pb-4 border-t border-border">
+                    {prdData?.content ? (
+                      <div className="mt-3 max-h-64 overflow-auto">
+                        <MarkdownRenderer content={prdData.content} />
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-text-secondary italic">No PRD available</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Tech Spec */}
+              <div className="rounded-lg border border-border bg-bg-primary overflow-hidden">
+                <button
+                  onClick={() => setTechSpecExpanded(!techSpecExpanded)}
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-bg-hover transition-colors"
+                >
+                  <span className="text-sm font-medium text-text-primary">Tech Spec</span>
+                  <div className="flex items-center gap-1">
+                    {techSpecData?.content && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFullscreenArtifact({ title: `${story.plan_id} — Tech Spec`, content: techSpecData.content });
+                        }}
+                        className="p-1 text-text-secondary hover:text-text-primary rounded transition-colors"
+                        title="Fullscreen"
+                      >
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                        </svg>
+                      </button>
+                    )}
+                    <svg className={`h-4 w-4 text-text-secondary transition-transform ${techSpecExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </div>
+                </button>
+                {techSpecExpanded && (
+                  <div className="px-4 pb-4 border-t border-border">
+                    {techSpecData?.content ? (
+                      <div className="mt-3 max-h-64 overflow-auto">
+                        <MarkdownRenderer content={techSpecData.content} />
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-text-secondary italic">No tech spec available</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {activeTab === 'artifacts' && (
             <div className="text-center py-8">
               <p className="text-sm text-text-secondary">
@@ -333,6 +491,15 @@ export function StorySidebar({ story: initialStory, onClose, onTaskClick, onUpda
             </div>
           )}
         </div>
+
+        {/* Fullscreen modal for plan artifacts */}
+        {fullscreenArtifact && (
+          <FullscreenModal
+            title={fullscreenArtifact.title}
+            content={fullscreenArtifact.content}
+            onClose={() => setFullscreenArtifact(null)}
+          />
+        )}
       </div>
     </div>
   );

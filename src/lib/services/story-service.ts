@@ -26,6 +26,7 @@ export class StoryService {
     title: string;
     description: string;
     created_by: string;
+    plan_id?: string;
   }): Promise<Story> {
     const now = new Date().toISOString();
     const id = generateStoryId(this.mark2Dir);
@@ -35,6 +36,7 @@ export class StoryService {
       title: data.title,
       description: data.description,
       tasks: [],
+      plan_id: data.plan_id,
       created_by: data.created_by,
       created_at: now,
       updated_at: now,
@@ -49,6 +51,7 @@ export class StoryService {
       id: story.id,
       title: story.title,
       description: story.description,
+      plan_id: story.plan_id ?? null,
       created_by: story.created_by,
       created_at: story.created_at,
       updated_at: story.updated_at,
@@ -66,6 +69,7 @@ export class StoryService {
     title: string;
     description: string;
     created_by: string;
+    plan_id?: string;
   }): Story {
     const now = new Date().toISOString();
     const id = generateStoryId(this.mark2Dir);
@@ -75,6 +79,7 @@ export class StoryService {
       title: data.title,
       description: data.description,
       tasks: [],
+      plan_id: data.plan_id,
       created_by: data.created_by,
       created_at: now,
       updated_at: now,
@@ -91,6 +96,7 @@ export class StoryService {
       id: story.id,
       title: story.title,
       description: story.description,
+      plan_id: story.plan_id ?? null,
       created_by: story.created_by,
       created_at: story.created_at,
       updated_at: story.updated_at,
@@ -147,6 +153,7 @@ export class StoryService {
       .set({
         title: story.title,
         description: story.description,
+        plan_id: story.plan_id ?? null,
         created_by: story.created_by,
         created_at: story.created_at,
         updated_at: story.updated_at,
@@ -184,6 +191,7 @@ export class StoryService {
       .set({
         title: story.title,
         description: story.description,
+        plan_id: story.plan_id ?? null,
         created_by: story.created_by,
         created_at: story.created_at,
         updated_at: story.updated_at,
@@ -270,6 +278,7 @@ export class StoryService {
       id: row.id,
       title: row.title,
       description: row.description,
+      plan_id: row.plan_id ?? undefined,
       created_by: row.created_by,
       created_at: row.created_at,
       updated_at: row.updated_at,

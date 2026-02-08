@@ -473,6 +473,18 @@ export class TaskService {
   }
 
   /**
+   * Find all tasks that are blocked by the given task (reverse lookup).
+   * Uses SQL LIKE on blockers_json for efficiency.
+   */
+  getBlocking(taskId: string): Task[] {
+    const db = getDb(this.mark2Dir);
+    const rows = db.select().from(tasks)
+      .where(sql`${tasks.blockers_json} LIKE ${'%"' + taskId + '"%'}`)
+      .all();
+    return rows.map((row) => this.rowToTask(row));
+  }
+
+  /**
    * Transition a task to a new phase.
    * Handles lock acquisition when moving from pending to design.
    * Handles lock release when moving to done.

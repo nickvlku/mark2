@@ -91,6 +91,22 @@ export function initializeDatabase(mark2Dir?: string): void {
       tasks_json TEXT NOT NULL DEFAULT '[]'
     );
 
+    CREATE TABLE IF NOT EXISTS plans (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      prompt TEXT NOT NULL,
+      phase TEXT NOT NULL DEFAULT 'prompt',
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      phase_entered_at TEXT NOT NULL,
+      artifacts_json TEXT NOT NULL DEFAULT '[]',
+      proposed_stories_json TEXT NOT NULL DEFAULT '[]',
+      created_stories_json TEXT NOT NULL DEFAULT '[]',
+      created_tasks_json TEXT NOT NULL DEFAULT '[]'
+    );
+    CREATE INDEX IF NOT EXISTS idx_plans_phase ON plans(phase);
+
     CREATE TABLE IF NOT EXISTS activity_entries (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       task_id TEXT NOT NULL,
@@ -205,10 +221,25 @@ export function initializeDatabase(mark2Dir?: string): void {
     // Index already exists
   }
 
+  // Add plan_id to stories
+  try {
+    sqliteInstance.exec(`ALTER TABLE stories ADD COLUMN plan_id TEXT`);
+  } catch {
+    // Column already exists
+  }
+
+  // Add project_prefix to plans
+  try {
+    sqliteInstance.exec(`ALTER TABLE plans ADD COLUMN project_prefix TEXT`);
+  } catch {
+    // Column already exists
+  }
+
   // Initialize counters if not present
   const stmt = sqliteInstance.prepare('INSERT OR IGNORE INTO id_counters (entity_type, next_id) VALUES (?, ?)');
   stmt.run('task', 1);
   stmt.run('story', 1);
+  stmt.run('plan', 1);
 
   // Recalculate counters from state files to prevent ID collisions
   // This handles the case where the database is recreated but state files exist
@@ -264,6 +295,32 @@ function recalculateIdCountersFromState(mark2Dir: string, sqliteInstance: Databa
     }
   }
 
+  // Find max plan ID from state files
+  const plansDir = path.join(stateDir, 'plans');
+  let maxPlanId = 0;
+  if (fs.existsSync(plansDir)) {
+    const planFiles = fs.readdirSync(plansDir).filter(f => f.match(/^PLAN-\d+\.yaml$/));
+    for (const file of planFiles) {
+      const match = file.match(/^PLAN-(\d+)\.yaml$/);
+      if (match) {
+        const id = parseInt(match[1], 10);
+        if (id > maxPlanId) maxPlanId = id;
+      }
+    }
+  }
+
+  // Also check storage directory for existing plan data
+  if (fs.existsSync(storageDir)) {
+    const planStorageDirs = fs.readdirSync(storageDir).filter(f => f.match(/^PLAN-\d+$/));
+    for (const dir of planStorageDirs) {
+      const match = dir.match(/^PLAN-(\d+)$/);
+      if (match) {
+        const id = parseInt(match[1], 10);
+        if (id > maxPlanId) maxPlanId = id;
+      }
+    }
+  }
+
   // Update counters if we found higher IDs than what's currently set
   if (maxTaskId > 0) {
     const currentTaskCounter = sqliteInstance.prepare(
@@ -286,6 +343,18 @@ function recalculateIdCountersFromState(mark2Dir: string, sqliteInstance: Databa
       sqliteInstance.prepare(
         'UPDATE id_counters SET next_id = ? WHERE entity_type = ?'
       ).run(maxStoryId + 1, 'story');
+    }
+  }
+
+  if (maxPlanId > 0) {
+    const currentPlanCounter = sqliteInstance.prepare(
+      'SELECT next_id FROM id_counters WHERE entity_type = ?'
+    ).get('plan') as { next_id: number } | undefined;
+
+    if (!currentPlanCounter || currentPlanCounter.next_id <= maxPlanId) {
+      sqliteInstance.prepare(
+        'UPDATE id_counters SET next_id = ? WHERE entity_type = ?'
+      ).run(maxPlanId + 1, 'plan');
     }
   }
 }

@@ -104,7 +104,7 @@ export function Card({ task, onClick, onArchive, onRestore, onDelete, currentUse
           {task.phase_agents && Object.entries(task.phase_agents).map(([phase, agent]) => (
             <AgentBadge key={phase} name={agent} />
           ))}
-          <BlockerBadge count={task.blockers.length} />
+          <BlockerBadge count={task.blockers.length} blockers={task.blockers} />
         </div>
         <span className="text-[10px] text-text-secondary shrink-0 ml-2">
           {phaseTime}

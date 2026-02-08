@@ -814,5 +814,175 @@ export function createMcpServer(): McpServer {
     },
   );
 
+  // ── mark2_save_plan_artifact ──────────────────────────────────────────
+
+  server.tool(
+    'mark2_save_plan_artifact',
+    'Save an artifact file for a plan (PRD, tech spec, or task proposal)',
+    {
+      plan_id: z.string().describe('Plan ID (e.g., PLAN-1)'),
+      filename: z.string().describe('Filename to save (e.g., prd.md, tech-spec.md, task-proposal.json)'),
+      content: z.string().describe('Content of the artifact'),
+    },
+    async ({ plan_id, filename, content }) => {
+      try {
+        const mark2Dir = getMark2Dir();
+        const { PlanService } = await import('../services/plan-service');
+        const planService = new PlanService(mark2Dir);
+
+        const plan = planService.getById(plan_id);
+        if (!plan) {
+          return { content: [{ type: 'text' as const, text: `Error: Plan ${plan_id} not found` }], isError: true };
+        }
+
+        // Save to storage
+        const artifactDir = path.join(mark2Dir, 'storage', plan_id, 'artifacts');
+        if (!fs.existsSync(artifactDir)) {
+          fs.mkdirSync(artifactDir, { recursive: true });
+        }
+        fs.writeFileSync(path.join(artifactDir, filename), content, 'utf-8');
+
+        // Determine mime type
+        let mime_type = 'text/plain';
+        if (filename.endsWith('.md')) mime_type = 'text/markdown';
+        else if (filename.endsWith('.json')) mime_type = 'application/json';
+
+        // Register artifact
+        await planService.addArtifact(plan_id, {
+          name: filename.replace(/\.[^/.]+$/, ''),
+          phase: plan.phase,
+          path: filename,
+          mime_type,
+          created_at: new Date().toISOString(),
+          source: 'agent',
+        });
+
+        // If this is a task-proposal.json, parse and store proposed_stories + project_prefix
+        if (filename === 'task-proposal.json') {
+          try {
+            const proposal = JSON.parse(content);
+            if (proposal.stories && Array.isArray(proposal.stories)) {
+              const updateData: Partial<{ proposed_stories: any[]; project_prefix: string }> = { proposed_stories: proposal.stories };
+              if (proposal.project_prefix) {
+                updateData.project_prefix = proposal.project_prefix;
+              }
+              await planService.update(plan_id, updateData);
+            }
+          } catch {
+            // Parse error is ok, just skip storing proposed stories
+          }
+        }
+
+        return {
+          content: [{ type: 'text' as const, text: `Artifact "${filename}" saved for plan ${plan_id}` }],
+        };
+      } catch (error) {
+        return { content: [{ type: 'text' as const, text: `Error: ${error}` }], isError: true };
+      }
+    },
+  );
+
+  // ── mark2_get_plan_artifact ─────────────────────────────────────────
+
+  server.tool(
+    'mark2_get_plan_artifact',
+    'Read a plan artifact by name pattern',
+    {
+      plan_id: z.string().describe('Plan ID (e.g., PLAN-1)'),
+      name_pattern: z.string().describe('Filename or pattern to match (e.g., prd, tech-spec)'),
+    },
+    async ({ plan_id, name_pattern }) => {
+      try {
+        const mark2Dir = getMark2Dir();
+        const artifactDir = path.join(mark2Dir, 'storage', plan_id, 'artifacts');
+
+        if (!fs.existsSync(artifactDir)) {
+          return { content: [{ type: 'text' as const, text: `No artifacts found for plan ${plan_id}` }], isError: true };
+        }
+
+        // Find matching file
+        const files = fs.readdirSync(artifactDir);
+        const match = files.find(f => f.includes(name_pattern));
+
+        if (!match) {
+          return {
+            content: [{ type: 'text' as const, text: `No artifact matching "${name_pattern}" found. Available: ${files.join(', ')}` }],
+            isError: true,
+          };
+        }
+
+        const fileContent = fs.readFileSync(path.join(artifactDir, match), 'utf-8');
+        return {
+          content: [{ type: 'text' as const, text: fileContent }],
+        };
+      } catch (error) {
+        return { content: [{ type: 'text' as const, text: `Error: ${error}` }], isError: true };
+      }
+    },
+  );
+
+  // ── mark2_signal_plan_complete ──────────────────────────────────────
+
+  server.tool(
+    'mark2_signal_plan_complete',
+    'Signal that a plan phase is complete',
+    {
+      plan_id: z.string().describe('Plan ID (e.g., PLAN-1)'),
+      token: z.string().describe('Completion token (e.g., [PRD_COMPLETED], [TECH_SPEC_COMPLETED], [TASKS_GENERATED])'),
+    },
+    async ({ plan_id, token }) => {
+      try {
+        const apiBaseUrl = process.env.MARK2_API_URL || `http://localhost:${process.env.PORT || 3100}`;
+        const response = await fetch(`${apiBaseUrl}/api/plans/${plan_id}/phase/hook-complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, source: 'mcp' }),
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          return {
+            content: [{ type: 'text' as const, text: `Error signaling completion: ${(err as Record<string, string>).error || response.statusText}` }],
+            isError: true,
+          };
+        }
+
+        return {
+          content: [{ type: 'text' as const, text: `Plan ${plan_id} phase completion signaled with token: ${token}` }],
+        };
+      } catch (error) {
+        return { content: [{ type: 'text' as const, text: `Error: ${error}` }], isError: true };
+      }
+    },
+  );
+
+  // ── mark2_get_plan ──────────────────────────────────────────────────
+
+  server.tool(
+    'mark2_get_plan',
+    'Read full plan details',
+    {
+      plan_id: z.string().describe('Plan ID (e.g., PLAN-1)'),
+    },
+    async ({ plan_id }) => {
+      try {
+        const mark2Dir = getMark2Dir();
+        const { PlanService } = await import('../services/plan-service');
+        const planService = new PlanService(mark2Dir);
+
+        const plan = planService.getById(plan_id);
+        if (!plan) {
+          return { content: [{ type: 'text' as const, text: `Plan ${plan_id} not found` }], isError: true };
+        }
+
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(plan, null, 2) }],
+        };
+      } catch (error) {
+        return { content: [{ type: 'text' as const, text: `Error: ${error}` }], isError: true };
+      }
+    },
+  );
+
   return server;
 }

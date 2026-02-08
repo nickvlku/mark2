@@ -51,11 +51,35 @@ export const stories = sqliteTable('stories', {
   id: text('id').primaryKey(),
   title: text('title').notNull(),
   description: text('description').notNull(),
+  plan_id: text('plan_id'),
   created_by: text('created_by').notNull(),
   created_at: text('created_at').notNull(),
   updated_at: text('updated_at').notNull(),
   tasks_json: text('tasks_json').notNull().default('[]'),
 });
+
+// ── Plans ───────────────────────────────────────────────────────────────────
+export const plans = sqliteTable(
+  'plans',
+  {
+    id: text('id').primaryKey(),
+    title: text('title').notNull(),
+    prompt: text('prompt').notNull(),
+    phase: text('phase').notNull().default('prompt'),
+    created_by: text('created_by').notNull(),
+    created_at: text('created_at').notNull(),
+    updated_at: text('updated_at').notNull(),
+    phase_entered_at: text('phase_entered_at').notNull(),
+    artifacts_json: text('artifacts_json').notNull().default('[]'),
+    proposed_stories_json: text('proposed_stories_json').notNull().default('[]'),
+    created_stories_json: text('created_stories_json').notNull().default('[]'),
+    created_tasks_json: text('created_tasks_json').notNull().default('[]'),
+    project_prefix: text('project_prefix'),
+  },
+  (table) => [
+    index('idx_plans_phase').on(table.phase),
+  ],
+);
 
 // ── Activity Entries ─────────────────────────────────────────────────────────
 export const activityEntries = sqliteTable(

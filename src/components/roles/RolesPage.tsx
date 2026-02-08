@@ -15,6 +15,7 @@ import { ImportRolesDialog } from './ImportRolesDialog';
 import { Dialog } from '@/components/shared/Dialog';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { PhaseDefaultsSection } from './PhaseDefaultsSection';
+import { PlanPhaseDefaultsSection } from './PlanPhaseDefaultsSection';
 
 export function RolesPage() {
   const { roles, mutate: mutateRoles, isLoading, error } = useRoles();
@@ -209,6 +210,9 @@ export function RolesPage() {
       <div className="flex-1 overflow-auto p-6 space-y-6">
         {/* Phase Defaults Section */}
         <PhaseDefaultsSection roles={roles} />
+
+        {/* Plan Phase Defaults Section */}
+        <PlanPhaseDefaultsSection roles={roles} />
 
         {/* Roles Grid */}
         <div>

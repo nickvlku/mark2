@@ -106,6 +106,7 @@ export interface SyncResult {
 export interface ReindexResult {
   tasks_indexed: number;
   stories_indexed: number;
+  plans_indexed?: number;
   activities_indexed: number;
   errors: ParseError[];
   sync_result?: SyncResult;

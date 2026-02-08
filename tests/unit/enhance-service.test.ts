@@ -64,6 +64,7 @@ beforeEach(() => {
     ports_per_task: 10,
     auto_fix: { P0: true, P1: false, P2: false },
     phase_defaults: {},
+    plan_phase_defaults: {},
     max_loop_count: 5,
     server_port: 3100,
     merge_strategy: 'squash',
