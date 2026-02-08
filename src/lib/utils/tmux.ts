@@ -15,26 +15,23 @@ export async function createSession(name: string, workingDir: string): Promise<v
 }
 
 export async function sendCommand(name: string, command: string): Promise<void> {
-  // For short, simple commands (like export statements), use inline send-keys
-  const isSimple = command.startsWith('export ') && !command.includes('\n') && command.length < 500;
+  // For short, simple commands, inline send-keys is reliable and fast.
+  const isSimple = !command.includes('\n') && command.length < 500;
 
   if (isSimple) {
-    // Simple command - escape single quotes and send inline
     const escaped = command.replace(/'/g, "'\\''");
     await exec(`tmux send-keys -t "${name}" '${escaped}' Enter`);
-  } else {
-    // Complex/long command - write to temp file and source it
-    const tmpDir = path.join(os.tmpdir(), 'mark2-tmux');
-    fs.mkdirSync(tmpDir, { recursive: true });
-    const tmpFile = path.join(tmpDir, `cmd-${Date.now()}-${Math.random().toString(36).slice(2)}.sh`);
-
-    // Write the command to a temp file (the command itself, not a script)
-    fs.writeFileSync(tmpFile, command, 'utf-8');
-
-    // Tell tmux to eval the file contents, then remove it
-    // Using $(<file) to read file contents avoids argument length limits
-    await exec(`tmux send-keys -t "${name}" 'eval "$(<${tmpFile})" ; rm -f "${tmpFile}"' Enter`);
+    return;
   }
+
+  // For long/multi-line commands, write to a temp file and eval it in the pane.
+  // This avoids shell input truncation/quote corruption when pasting huge payloads.
+  const tmpDir = path.join(os.tmpdir(), 'mark2-tmux');
+  fs.mkdirSync(tmpDir, { recursive: true });
+  const tmpFile = path.join(tmpDir, `cmd-${Date.now()}-${Math.random().toString(36).slice(2)}.sh`);
+
+  fs.writeFileSync(tmpFile, command, 'utf-8');
+  await exec(`tmux send-keys -t "${name}" '. "${tmpFile}" ; rm -f "${tmpFile}"' Enter`);
 }
 
 export async function capturePane(name: string, lines: number = 50): Promise<string> {
