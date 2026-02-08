@@ -1,0 +1,20 @@
+id: TASK-106
+title: post-patch-final-check-1770594305
+description: final startup validation
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: human
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-08T23:45:05.802Z
+updated_at: 2026-02-08T23:45:05.802Z
+phase_entered_at: 2026-02-08T23:45:05.802Z
+loop_count: 0
+archived: false
