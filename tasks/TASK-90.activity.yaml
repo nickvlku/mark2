@@ -18,3 +18,21 @@ entries:
     metadata:
       token: "[DESIGN_COMPLETED]"
       phase: design
+  - timestamp: 2026-02-08T22:48:16.923Z
+    source: hook
+    type: phase_change
+    message: End token "[DESIGN_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[DESIGN_COMPLETED]"
+      phase: design
+  - timestamp: 2026-02-08T22:48:57.204Z
+    source: agent
+    type: note
+    message: "[in_progress] Writing design document for source-instead-of-eval change with long quoted command validation"
+  - timestamp: 2026-02-08T22:49:57.041Z
+    source: hook
+    type: phase_change
+    message: End token "[DESIGN_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[DESIGN_COMPLETED]"
+      phase: design
