@@ -1,18 +1,20 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import type { Task, Phase } from '@/types';
+import type { Task, Phase, Story } from '@/types';
 import { useTasks } from '@/hooks/useTasks';
 import { useStories } from '@/hooks/useStories';
 import { useBoardPan } from '@/hooks/useBoardPan';
 import { useConfig } from '@/hooks/useConfig';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Column } from './Column';
-import { StoryFilter } from './StoryFilter';
+import { ViewModeToggle, ViewMode } from './ViewModeToggle';
+import { StorySection } from './StorySection';
 import { ArchiveFilter } from './ArchiveFilter';
 import { Card } from './Card';
 import { TaskDetail } from '../detail/TaskDetail';
+import { StorySidebar } from '../detail/StorySidebar';
 import { CreateTaskDialog } from '../create/CreateTaskDialog';
 import { CreateStoryDialog } from '../create/CreateStoryDialog';
 import { PageHeader } from '../shared/PageHeader';
@@ -30,8 +32,15 @@ const PHASES: Phase[] = [
   'done',
 ];
 
+const VIEW_MODE_STORAGE_KEY = 'mark2_board_view_mode';
+const UNASSIGNED_KEY = '__unassigned__';
+
 export function Board() {
-  const [selectedStoryId, setSelectedStoryId] = useState<string | null>(null);
+  // View mode state with localStorage persistence
+  const [viewMode, setViewMode] = useState<ViewMode>('flat');
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [selectedStoryForSidebar, setSelectedStoryForSidebar] = useState<string | null>(null);
+
   const [showArchived, setShowArchived] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
@@ -42,16 +51,33 @@ export function Board() {
   const [confirmArchive, setConfirmArchive] = useState<Task | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Task | null>(null);
 
-  const filters = {
-    ...(selectedStoryId ? { story_id: selectedStoryId } : {}),
-    archived: showArchived,
-  };
+  // Fetch all tasks (no story filter in grouped mode)
+  const filters = { archived: showArchived };
   const { tasks, mutate: mutateTasks } = useTasks(filters);
   const { stories, mutate: mutateStories } = useStories();
   const { userEmail } = useConfig();
 
+  // Load view mode from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+    if (stored === 'flat' || stored === 'grouped') {
+      setViewMode(stored);
+    }
+  }, []);
+
+  // Persist view mode to localStorage
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
+  }, []);
+
   // Find the task for initial snapshot — TaskDetail fetches its own data after mount
   const selectedTask = selectedTaskId ? tasks.find((t: Task) => t.id === selectedTaskId) ?? null : null;
+
+  // Find the story for sidebar
+  const selectedStory = selectedStoryForSidebar
+    ? stories.find((s: Story) => s.id === selectedStoryForSidebar) ?? null
+    : null;
 
   // Monitor window focus state for notifications
   const [isWindowFocused, setIsWindowFocused] = useState(true);
@@ -111,6 +137,60 @@ export function Board() {
     [tasks],
   );
 
+  // Group tasks by story for grouped view
+  const groupedTasks = useMemo(() => {
+    if (viewMode !== 'grouped') return null;
+
+    const groups = new Map<string, Task[]>();
+
+    // Initialize with unassigned
+    groups.set(UNASSIGNED_KEY, []);
+
+    // Initialize groups for all stories
+    for (const story of stories) {
+      groups.set(story.id, []);
+    }
+
+    // Distribute tasks to groups
+    for (const task of tasks) {
+      const key = task.story_id || UNASSIGNED_KEY;
+      const group = groups.get(key);
+      if (group) {
+        group.push(task);
+      } else {
+        // Task has a story_id that doesn't exist in stories list
+        groups.get(UNASSIGNED_KEY)?.push(task);
+      }
+    }
+
+    return groups;
+  }, [viewMode, tasks, stories]);
+
+  // Get ordered story list (unassigned first, then stories by ID)
+  const orderedSections = useMemo(() => {
+    if (!groupedTasks) return [];
+
+    const sections: Array<{ key: string; story: Story | null; tasks: Task[] }> = [];
+
+    // Add unassigned first
+    const unassignedTasks = groupedTasks.get(UNASSIGNED_KEY) || [];
+    sections.push({ key: UNASSIGNED_KEY, story: null, tasks: unassignedTasks });
+
+    // Add stories sorted by ID
+    const sortedStories = [...stories].sort((a, b) => {
+      const numA = parseInt(a.id.replace('STORY-', ''), 10);
+      const numB = parseInt(b.id.replace('STORY-', ''), 10);
+      return numA - numB;
+    });
+
+    for (const story of sortedStories) {
+      const storyTasks = groupedTasks.get(story.id) || [];
+      sections.push({ key: story.id, story, tasks: storyTasks });
+    }
+
+    return sections;
+  }, [groupedTasks, stories]);
+
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const task = event.active.data.current?.task as Task | undefined;
     if (task) setActiveTask(task);
@@ -123,9 +203,20 @@ export function Board() {
       if (!over) return;
 
       const taskId = active.id as string;
-      const newPhase = over.id as Phase;
+      // Extract phase from droppable data (handles both flat IDs like "coding"
+      // and prefixed IDs like "__unassigned__::coding" in grouped view)
+      const newPhase = (over.data.current?.phase ?? over.id) as Phase;
+      const targetStoryKey: string | null = over.data.current?.storyKey ?? null;
       const task = tasks.find((t: Task) => t.id === taskId);
-      if (!task || task.phase === newPhase) return;
+      if (!task) return;
+
+      // Determine target story_id from droppable story key
+      const targetStoryId = targetStoryKey === UNASSIGNED_KEY ? undefined : targetStoryKey;
+      const currentStoryId = task.story_id || undefined;
+      const phaseChanged = task.phase !== newPhase;
+      const storyChanged = targetStoryKey !== null && targetStoryId !== currentStoryId;
+
+      if (!phaseChanged && !storyChanged) return;
 
       // Optimistic update
       mutateTasks(
@@ -133,7 +224,13 @@ export function Board() {
           if (!current) return current;
           return {
             tasks: current.tasks.map((t: Task) =>
-              t.id === taskId ? { ...t, phase: newPhase } : t,
+              t.id === taskId
+                ? {
+                    ...t,
+                    ...(phaseChanged ? { phase: newPhase } : {}),
+                    ...(storyChanged ? { story_id: targetStoryId } : {}),
+                  }
+                : t,
             ),
           };
         },
@@ -141,11 +238,26 @@ export function Board() {
       );
 
       try {
-        await fetch(`/api/tasks/${taskId}/phase`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phase: newPhase }),
-        });
+        const requests: Promise<Response>[] = [];
+        if (phaseChanged) {
+          requests.push(
+            fetch(`/api/tasks/${taskId}/phase`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ phase: newPhase }),
+            }),
+          );
+        }
+        if (storyChanged) {
+          requests.push(
+            fetch(`/api/tasks/${taskId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ story_id: targetStoryId ?? null }),
+            }),
+          );
+        }
+        await Promise.all(requests);
         mutateTasks();
       } catch {
         mutateTasks();
@@ -162,9 +274,14 @@ export function Board() {
     setSelectedTaskId(null);
   }, []);
 
+  const handleCloseStorySidebar = useCallback(() => {
+    setSelectedStoryForSidebar(null);
+  }, []);
+
   const handleUpdateDetail = useCallback(() => {
     mutateTasks();
-  }, [mutateTasks]);
+    mutateStories();
+  }, [mutateTasks, mutateStories]);
 
   const handleArchiveTask = useCallback((taskId: string) => {
     const task = tasks.find((t: Task) => t.id === taskId);
@@ -209,6 +326,18 @@ export function Board() {
     }
   }, [confirmDelete, mutateTasks]);
 
+  const toggleSectionCollapse = useCallback((key: string) => {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
+
   return (
     <div className="flex h-screen flex-col">
       {/* Top Bar */}
@@ -217,12 +346,7 @@ export function Board() {
         currentPage="board"
         additionalElements={
           <div className="flex items-center gap-3">
-            <StoryFilter
-              stories={stories}
-              tasks={tasks}
-              selectedStoryId={selectedStoryId}
-              onSelect={setSelectedStoryId}
-            />
+            <ViewModeToggle mode={viewMode} onChange={handleViewModeChange} />
             <ArchiveFilter
               showArchived={showArchived}
               onToggle={setShowArchived}
@@ -247,42 +371,89 @@ export function Board() {
         }
       />
 
-      {/* Board Columns */}
-      <div
-        ref={boardContainerRef}
-        {...panHandlers}
-        className={`flex flex-1 gap-3 overflow-x-auto px-4 py-4 ${
-          isPanning ? 'cursor-grabbing select-none' : 'cursor-grab'
-        }`}
-      >
-        <DndContext
-          sensors={sensors}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
+      {/* Board Content */}
+      {viewMode === 'flat' ? (
+        /* Flat View - original kanban board */
+        <div
+          ref={boardContainerRef}
+          {...panHandlers}
+          className={`flex flex-1 gap-3 overflow-x-auto px-4 py-4 ${
+            isPanning ? 'cursor-grabbing select-none' : 'cursor-grab'
+          }`}
         >
-          {PHASES.map((phase) => (
-            <Column
-              key={phase}
-              phase={phase}
-              tasks={tasksByPhase(phase)}
-              onCardClick={handleCardClick}
-              onArchive={showArchived ? undefined : handleArchiveTask}
-              onRestore={showArchived ? handleRestoreTask : undefined}
-              onDelete={showArchived ? handleDeleteTask : undefined}
-              currentUserEmail={userEmail}
-            />
-          ))}
-          <DragOverlay>
-            {activeTask ? (
-              <div className="rotate-3 scale-105 opacity-90">
-                <Card task={activeTask} onClick={() => {}} />
-              </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      </div>
+          <DndContext
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            {PHASES.map((phase) => (
+              <Column
+                key={phase}
+                phase={phase}
+                tasks={tasksByPhase(phase)}
+                onCardClick={handleCardClick}
+                onArchive={showArchived ? undefined : handleArchiveTask}
+                onRestore={showArchived ? handleRestoreTask : undefined}
+                onDelete={showArchived ? handleDeleteTask : undefined}
+                currentUserEmail={userEmail}
+              />
+            ))}
+            <DragOverlay>
+              {activeTask ? (
+                <div className="rotate-3 scale-105 opacity-90">
+                  <Card task={activeTask} onClick={() => {}} />
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        </div>
+      ) : (
+        /* Grouped View - tasks grouped by story */
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          <DndContext
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            {orderedSections.map(({ key, story, tasks: sectionTasks }) => (
+              <StorySection
+                key={key}
+                sectionKey={key}
+                story={story}
+                tasks={sectionTasks}
+                isCollapsed={collapsedSections.has(key)}
+                onToggleCollapse={() => toggleSectionCollapse(key)}
+                onStoryClick={story ? () => setSelectedStoryForSidebar(story.id) : undefined}
+                onCardClick={handleCardClick}
+                onArchive={showArchived ? undefined : handleArchiveTask}
+                onRestore={showArchived ? handleRestoreTask : undefined}
+                onDelete={showArchived ? handleDeleteTask : undefined}
+                currentUserEmail={userEmail}
+              />
+            ))}
+            <DragOverlay>
+              {activeTask ? (
+                <div className="rotate-3 scale-105 opacity-90">
+                  <Card task={activeTask} onClick={() => {}} />
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        </div>
+      )}
 
-      {/* Task Detail Slide-over — keyed by ID to prevent remount during SWR refetches */}
+      {/* Story Sidebar (left side) */}
+      {selectedStory && (
+        <StorySidebar
+          key={selectedStory.id}
+          story={selectedStory}
+          onClose={handleCloseStorySidebar}
+          onTaskClick={(taskId) => setSelectedTaskId(taskId)}
+          onUpdate={handleUpdateDetail}
+        />
+      )}
+
+      {/* Task Detail Slide-over (right side) — keyed by ID to prevent remount during SWR refetches */}
       {selectedTask && (
         <TaskDetail
           key={selectedTask.id}

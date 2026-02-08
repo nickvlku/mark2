@@ -22,11 +22,14 @@ export async function POST(
       );
     }
 
-    const task = service.addBlocker(id, body.blocker_id);
+    const task = await service.addBlocker(id, body.blocker_id);
     return NextResponse.json({ task });
   } catch (error: any) {
     if (error.message?.includes('not found')) {
       return NextResponse.json({ error: error.message }, { status: 404 });
+    }
+    if (error.message?.toLowerCase().includes('circular')) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
     return NextResponse.json(
       { error: error.message ?? 'Failed to add blocker' },

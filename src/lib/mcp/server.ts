@@ -708,5 +708,111 @@ export function createMcpServer(): McpServer {
     },
   );
 
+  // ── mark2_add_to_story ─────────────────────────────────────────────────
+
+  server.tool(
+    'mark2_add_to_story',
+    'Assign or move a task to a story. Pass null for story_id to unassign the task from any story.',
+    {
+      task_id: z.string().describe('The task ID (e.g. TASK-1)'),
+      story_id: z.string().nullable().describe('The story ID to assign to, or null to unassign'),
+    },
+    async ({ task_id, story_id }) => {
+      const mark2Dir = getMark2Dir();
+      const taskService = new TaskService(mark2Dir);
+      const storyService = new StoryService(mark2Dir);
+
+      try {
+        // Validate task exists
+        const task = taskService.getById(task_id);
+        if (!task) {
+          return {
+            content: [{ type: 'text' as const, text: `Error: Task ${task_id} not found` }],
+            isError: true,
+          };
+        }
+
+        // Validate story exists (if not unassigning)
+        if (story_id !== null) {
+          const story = storyService.getById(story_id);
+          if (!story) {
+            return {
+              content: [{ type: 'text' as const, text: `Error: Story ${story_id} not found` }],
+              isError: true,
+            };
+          }
+        }
+
+        // Remove from old story if it had one
+        const oldStoryId = task.story_id;
+        if (oldStoryId && oldStoryId !== story_id) {
+          try {
+            await storyService.removeTask(oldStoryId, task_id);
+          } catch {
+            // Ignore errors removing from old story
+          }
+        }
+
+        // Update task's story_id (convert null to undefined for Task type)
+        await taskService.update(task_id, { story_id: story_id ?? undefined });
+
+        // Add to new story's task list (if assigning)
+        if (story_id !== null) {
+          try {
+            await storyService.addTask(story_id, task_id);
+          } catch {
+            // Task may already be in story's list, ignore
+          }
+        }
+
+        const message = story_id
+          ? `Task ${task_id} assigned to story ${story_id}`
+          : `Task ${task_id} unassigned from story`;
+
+        return {
+          content: [{ type: 'text' as const, text: message }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${error}` }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // ── mark2_add_task_blocker ─────────────────────────────────────────────
+
+  server.tool(
+    'mark2_add_task_blocker',
+    'Add a blocker to a task. The blocker_id task must complete before task_id can proceed. Idempotent - no error if already blocked.',
+    {
+      task_id: z.string().describe('The task ID that will be blocked'),
+      blocker_id: z.string().describe('The task ID that blocks this task'),
+    },
+    async ({ task_id, blocker_id }) => {
+      const mark2Dir = getMark2Dir();
+      const taskService = new TaskService(mark2Dir);
+
+      try {
+        await taskService.addBlocker(task_id, blocker_id);
+
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Added blocker: ${task_id} is now blocked by ${blocker_id}`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${error}` }],
+          isError: true,
+        };
+      }
+    },
+  );
+
   return server;
 }

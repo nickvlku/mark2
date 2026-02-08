@@ -2,7 +2,7 @@
 
 import { useDraggable } from '@dnd-kit/core';
 import type { Task, TaskWithSession, SessionStatus } from '@/types';
-import { PriorityBadge, AgentBadge, StatusIndicator, BlockerBadge, LockBadge, LockInfo } from './CardBadges';
+import { PriorityBadge, AgentBadge, StatusIndicator, BlockerBadge, LockBadge, LockInfo, StoryBadge } from './CardBadges';
 import { useRelativeTime, useIsLockExpired } from '@/hooks/useRelativeTime';
 
 interface CardProps {
@@ -97,9 +97,10 @@ export function Card({ task, onClick, onArchive, onRestore, onDelete, currentUse
         {task.title}
       </h3>
 
-      {/* Bottom row: agents, blockers, time */}
+      {/* Bottom row: story, agents, blockers, time */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5 flex-wrap">
+          {task.story_id && <StoryBadge storyId={task.story_id} />}
           {task.phase_agents && Object.entries(task.phase_agents).map(([phase, agent]) => (
             <AgentBadge key={phase} name={agent} />
           ))}

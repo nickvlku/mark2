@@ -12,6 +12,8 @@ interface ColumnProps {
   onRestore?: (taskId: string) => void;
   onDelete?: (taskId: string) => void;
   currentUserEmail?: string;
+  /** Optional prefix for droppable ID to ensure uniqueness across story sections */
+  droppableIdPrefix?: string;
 }
 
 const phaseLabels: Record<Phase, string> = {
@@ -38,10 +40,11 @@ const phaseColors: Record<Phase, string> = {
   done: 'bg-green-500',
 };
 
-export function Column({ phase, tasks, onCardClick, onArchive, onRestore, onDelete, currentUserEmail }: ColumnProps) {
+export function Column({ phase, tasks, onCardClick, onArchive, onRestore, onDelete, currentUserEmail, droppableIdPrefix }: ColumnProps) {
+  const droppableId = droppableIdPrefix ? `${droppableIdPrefix}::${phase}` : phase;
   const { isOver, setNodeRef } = useDroppable({
-    id: phase,
-    data: { phase },
+    id: droppableId,
+    data: { phase, storyKey: droppableIdPrefix || null },
   });
 
   return (

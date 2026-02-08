@@ -420,9 +420,39 @@ export class TaskService {
     if (!task) {
       throw new Error(`Task ${taskId} not found`);
     }
+    const blockerTask = this.getById(blockerId);
+    if (!blockerTask) {
+      throw new Error(`Blocker task ${blockerId} not found`);
+    }
+    if (taskId === blockerId) {
+      throw new Error(`Circular dependency: task cannot block itself`);
+    }
     if (task.blockers.includes(blockerId)) {
       return task; // Already exists
     }
+
+    // Check for circular dependency using BFS: would adding blockerId as a
+    // blocker of taskId create a cycle? A cycle exists if taskId is reachable
+    // from blockerId by following blocker edges.
+    const visited = new Set<string>();
+    const queue = [blockerId];
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      if (current === taskId) {
+        throw new Error(`Circular dependency: adding ${blockerId} as blocker of ${taskId} would create a cycle`);
+      }
+      if (visited.has(current)) continue;
+      visited.add(current);
+      const currentTask = this.getById(current);
+      if (currentTask) {
+        for (const b of currentTask.blockers) {
+          if (!visited.has(b)) {
+            queue.push(b);
+          }
+        }
+      }
+    }
+
     const updated = await this.update(taskId, {
       blockers: [...task.blockers, blockerId],
     });

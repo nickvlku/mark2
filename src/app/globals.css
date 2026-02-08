@@ -84,6 +84,20 @@ body {
   animation: slide-out-right 0.2s ease-in;
 }
 
+/* Slide-in from left (for story sidebar) */
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.slide-in-left {
+  animation: slide-in-left 0.25s ease-out;
+}
+
 /* Fade overlay */
 @keyframes fade-in {
   from { opacity: 0; }
