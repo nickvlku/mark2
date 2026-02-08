@@ -38,6 +38,8 @@ interface StorySectionProps {
   onRestore?: (taskId: string) => void;
   /** Handle delete action */
   onDelete?: (taskId: string) => void;
+  /** Handle archive all done tasks */
+  onArchiveAll?: () => void;
   /** Current user email for lock display */
   currentUserEmail?: string;
 }
@@ -53,6 +55,7 @@ export function StorySection({
   onArchive,
   onRestore,
   onDelete,
+  onArchiveAll,
   currentUserEmail,
 }: StorySectionProps) {
   // Calculate progress
@@ -90,6 +93,7 @@ export function StorySection({
                 onArchive={onArchive}
                 onRestore={onRestore}
                 onDelete={onDelete}
+                onArchiveAll={phase === 'done' ? onArchiveAll : undefined}
                 currentUserEmail={currentUserEmail}
                 droppableIdPrefix={sectionKey}
               />
