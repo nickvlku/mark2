@@ -1,0 +1,21 @@
+id: TASK-79
+title: Write integration test for MCP end token detection
+description: Create tests/integration/codex-end-token.test.ts. Create test task with Codex configuration. Simulate agent calling mark2_signal_complete MCP tool by making HTTP POST to /api/tasks/{id}/phase/hook-complete. Verify phase transition occurs. Verify task phase is updated correctly.
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P0
+artifacts: []
+ports: []
+worktrees: {}
+created_by: plan
+story_id: STORY-14
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-08T19:00:43.275Z
+updated_at: 2026-02-08T19:00:43.275Z
+phase_entered_at: 2026-02-08T19:00:43.275Z
+loop_count: 0
+archived: false
