@@ -3,6 +3,7 @@ title: Documentation & Release
 description: Create comprehensive documentation for users and developers. Prepare release materials including migration guide, README updates, and release notes.
 tasks:
   - TASK-82
+  - TASK-83
 created_by: plan
 created_at: 2026-02-08T19:00:47.505Z
-updated_at: 2026-02-08T19:00:48.952Z
+updated_at: 2026-02-08T19:00:50.293Z
