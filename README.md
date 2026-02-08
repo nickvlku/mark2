@@ -54,6 +54,8 @@ cd mark2
 ./install.sh
 ```
 
+The install script will prompt you to install globally (`/usr/local/bin`), locally (`~/.local/bin`), or skip and use the project-local wrapper.
+
 ### Option 3: Development Setup
 
 ```bash
