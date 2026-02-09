@@ -1,0 +1,21 @@
+id: TASK-187
+title: Task B 1770599983352
+description: B
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: human
+story_id: STORY-16
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-09T01:19:43.357Z
+updated_at: 2026-02-09T01:19:43.357Z
+phase_entered_at: 2026-02-09T01:19:43.357Z
+loop_count: 0
+archived: false
