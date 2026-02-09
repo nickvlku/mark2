@@ -4,7 +4,8 @@ description: Depends on foundation
 phase: pending
 phase_agents: {}
 phase_overrides: {}
-blockers: []
+blockers:
+  - TASK-253
 priority: P2
 artifacts: []
 ports: []
@@ -15,7 +16,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-09T02:15:47.971Z
-updated_at: 2026-02-09T02:15:47.971Z
+updated_at: 2026-02-09T02:15:51.262Z
 phase_entered_at: 2026-02-09T02:15:47.971Z
 loop_count: 0
 archived: false
