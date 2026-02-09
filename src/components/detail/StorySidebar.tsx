@@ -59,6 +59,8 @@ export function StorySidebar({ story: initialStory, onClose, onTaskClick, onUpda
   const [prdExpanded, setPrdExpanded] = useState(true);
   const [techSpecExpanded, setTechSpecExpanded] = useState(true);
   const [fullscreenArtifact, setFullscreenArtifact] = useState<{ title: string; content: string } | null>(null);
+  const [storyActionLoading, setStoryActionLoading] = useState<'start' | 'merge' | null>(null);
+  const [storyActionError, setStoryActionError] = useState<string | null>(null);
 
   // Fetch story data
   const { data: storyData, mutate: mutateStory } = useSWR<{ story: Story }>(
@@ -109,6 +111,11 @@ export function StorySidebar({ story: initialStory, onClose, onTaskClick, onUpda
   const doneCount = tasks.filter((t) => t.phase === 'done').length;
   const totalCount = tasks.length;
   const progressPercent = totalCount > 0 ? (doneCount / totalCount) * 100 : 0;
+  const executionStatus = story.execution?.status ?? 'idle';
+  const canStartStory = executionStatus === 'idle';
+  const canCreateMergePr =
+    executionStatus === 'ready_to_merge'
+    || (executionStatus === 'running' && totalCount > 0 && doneCount === totalCount);
 
   // Handle escape key
   const handleKeyDown = useCallback(
@@ -171,6 +178,48 @@ export function StorySidebar({ story: initialStory, onClose, onTaskClick, onUpda
       console.error('Failed to update story description:', err);
     }
     setIsEditingDescription(false);
+  };
+
+  const handleStartStory = async () => {
+    setStoryActionLoading('start');
+    setStoryActionError(null);
+    try {
+      const res = await fetch(`/api/stories/${story.id}/run/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to start story');
+      }
+      await mutateStory();
+      onUpdate?.();
+    } catch (error: any) {
+      setStoryActionError(error?.message ?? String(error));
+    } finally {
+      setStoryActionLoading(null);
+    }
+  };
+
+  const handleCreateMergePr = async () => {
+    setStoryActionLoading('merge');
+    setStoryActionError(null);
+    try {
+      const res = await fetch(`/api/stories/${story.id}/merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to create merge PR');
+      }
+      await mutateStory();
+      onUpdate?.();
+    } catch (error: any) {
+      setStoryActionError(error?.message ?? String(error));
+    } finally {
+      setStoryActionLoading(null);
+    }
   };
 
   // Get phase badge color
@@ -237,6 +286,62 @@ export function StorySidebar({ story: initialStory, onClose, onTaskClick, onUpda
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === 'overview' && (
             <div className="space-y-6">
+              {/* Story Run */}
+              <div>
+                <label className="text-xs font-medium text-text-secondary uppercase tracking-wide mb-2 block">
+                  Story Run
+                </label>
+                <div className="rounded-lg border border-border bg-bg-primary p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-text-secondary">Status</span>
+                    <span className="text-xs font-medium text-text-primary capitalize">
+                      {executionStatus.replaceAll('_', ' ')}
+                    </span>
+                  </div>
+                  {story.execution?.branch_name && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-text-secondary">Branch</span>
+                      <span className="text-xs font-mono text-text-primary truncate">
+                        {story.execution.branch_name}
+                      </span>
+                    </div>
+                  )}
+                  {story.execution?.merge_pr_url && (
+                    <a
+                      href={story.execution.merge_pr_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block text-xs text-accent hover:text-accent-hover truncate"
+                    >
+                      {story.execution.merge_pr_url}
+                    </a>
+                  )}
+                  {storyActionError && (
+                    <p className="text-xs text-red-400">{storyActionError}</p>
+                  )}
+                  <div className="flex gap-2">
+                    {canStartStory && (
+                      <button
+                        onClick={handleStartStory}
+                        disabled={storyActionLoading !== null}
+                        className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {storyActionLoading === 'start' ? 'Starting...' : 'Start Story'}
+                      </button>
+                    )}
+                    {canCreateMergePr && (
+                      <button
+                        onClick={handleCreateMergePr}
+                        disabled={storyActionLoading !== null}
+                        className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {storyActionLoading === 'merge' ? 'Creating PR...' : 'Create Merge PR'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Title */}
               <div>
                 <div className="flex items-center justify-between mb-2">

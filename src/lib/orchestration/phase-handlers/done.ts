@@ -1,23 +1,27 @@
 import path from 'path';
 import type { Task } from '../../yaml/schemas';
-import type { RoleConfig } from './run-phase';
 import { removeWorktree } from '../../utils/git';
 import { getDb } from '../../db';
 import {
-  tasks,
   activityEntries,
   portAllocations,
   worktreeRecords,
 } from '../../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { PRService } from '../../services/pr-service';
+import { CloneService } from '../../services/clone-service';
+import { StoryService } from '../../services/story-service';
+import { TaskService } from '../../services/task-service';
+import { StoryRunService } from '../../services/story-run-service';
 
 export interface DoneResult {
   prCreated: boolean;
   prUrl?: string;
   prNumber?: number;
   prError?: string;
+  storyBranchMerged?: string;
   unblockedTasks: string[];
+  autoStartedTasks: string[];
   cleanedUp: boolean;
 }
 
@@ -37,28 +41,76 @@ export async function handleDone(
 ): Promise<DoneResult> {
   const db = getDb(mark2Dir);
   const now = new Date().toISOString();
+  const cloneService = new CloneService(mark2Dir);
+  const storyService = new StoryService(mark2Dir);
+  const taskService = new TaskService(mark2Dir);
+  const storyRunService = new StoryRunService(mark2Dir);
   const result: DoneResult = {
     prCreated: false,
     unblockedTasks: [],
+    autoStartedTasks: [],
     cleanedUp: false,
   };
 
-  const branchName = `mark2/${task.id}`;
+  const branchName = cloneService.getBranchName(task.id);
   const worktreePath = path.join(mark2Dir, 'clones', task.id);
 
-  // Step 1: Create PR instead of local merge
-  try {
-    const prService = new PRService(mark2Dir);
-    const prResult = await prService.createPR(task.id, targetBranch);
+  // Step 1: Story-mode merge (task -> story branch) or standalone task PR.
+  let mergedIntoStoryBranch = false;
+  if (task.story_id) {
+    const story = storyService.getById(task.story_id);
+    const storyBranch = story?.execution.branch_name;
+    const storyRunning = story
+      && (story.execution.status === 'running' || story.execution.status === 'ready_to_merge');
 
-    if (prResult.success) {
-      result.prCreated = true;
-      result.prUrl = prResult.url;
-      result.prNumber = prResult.number;
-    } else {
-      result.prError = prResult.error;
+    if (storyRunning && storyBranch) {
+      const mergeStrategy = task.merge_strategy === 'preserve' ? 'merge' : 'squash';
+      const mergeResult = await cloneService.mergeTaskIntoStory(task.id, storyBranch, mergeStrategy);
 
-      // Log the PR creation failure
+      if (mergeResult.success) {
+        mergedIntoStoryBranch = true;
+        result.storyBranchMerged = storyBranch;
+      } else {
+        result.prError = mergeResult.error ?? 'Story merge failed';
+        db.insert(activityEntries)
+          .values({
+            task_id: task.id,
+            timestamp: now,
+            source: 'orchestration',
+            type: 'error',
+            message: `Story branch merge failed: ${result.prError}`,
+            metadata_json: JSON.stringify({ story_branch: storyBranch, merge_strategy: mergeStrategy }),
+          })
+          .run();
+      }
+    }
+  }
+
+  if (!mergedIntoStoryBranch) {
+    try {
+      const prService = new PRService(mark2Dir);
+      const prResult = await prService.createPR(task.id, targetBranch);
+
+      if (prResult.success) {
+        result.prCreated = true;
+        result.prUrl = prResult.url;
+        result.prNumber = prResult.number;
+      } else {
+        result.prError = prResult.error;
+
+        db.insert(activityEntries)
+          .values({
+            task_id: task.id,
+            timestamp: now,
+            source: 'orchestration',
+            type: 'error',
+            message: `PR creation failed: ${result.prError}`,
+          })
+          .run();
+      }
+    } catch (err: any) {
+      result.prError = err.message ?? 'Unknown PR creation error';
+
       db.insert(activityEntries)
         .values({
           task_id: task.id,
@@ -69,19 +121,6 @@ export async function handleDone(
         })
         .run();
     }
-  } catch (err: any) {
-    result.prError = err.message ?? 'Unknown PR creation error';
-
-    // Log the error
-    db.insert(activityEntries)
-      .values({
-        task_id: task.id,
-        timestamp: now,
-        source: 'orchestration',
-        type: 'error',
-        message: `PR creation failed: ${result.prError}`,
-      })
-      .run();
   }
 
   // Step 2: Cleanup worktree
@@ -114,32 +153,49 @@ export async function handleDone(
   }
 
   // Step 4: Find and unblock dependent tasks
-  // Query all tasks that list this task as a blocker
-  const allTasks = db.select().from(tasks).all();
+  const blockedTasks = taskService.getBlocking(task.id);
+  for (const blockedTask of blockedTasks) {
+    try {
+      await taskService.removeBlocker(blockedTask.id, task.id);
+      result.unblockedTasks.push(blockedTask.id);
 
-  for (const row of allTasks) {
-    const blockers: string[] = JSON.parse(row.blockers_json ?? '[]');
-    if (blockers.includes(task.id)) {
-      // Remove this task from the blocker list
-      const updatedBlockers = blockers.filter((b) => b !== task.id);
-      db.update(tasks)
-        .set({
-          blockers_json: JSON.stringify(updatedBlockers),
-          updated_at: now,
-        })
-        .where(eq(tasks.id, row.id))
-        .run();
-
-      result.unblockedTasks.push(row.id);
-
-      // Log unblocking
       db.insert(activityEntries)
         .values({
-          task_id: row.id,
+          task_id: blockedTask.id,
           timestamp: now,
           source: 'orchestration',
           type: 'note',
           message: `Blocker ${task.id} completed. Removed from blocker list.`,
+        })
+        .run();
+    } catch (error: any) {
+      db.insert(activityEntries)
+        .values({
+          task_id: blockedTask.id,
+          timestamp: now,
+          source: 'orchestration',
+          type: 'error',
+          message: `Failed to remove blocker ${task.id}: ${error?.message ?? String(error)}`,
+        })
+        .run();
+    }
+  }
+
+  // Step 5: Story run orchestration updates (auto-start newly ready tasks + ready-to-merge status)
+  if (task.story_id) {
+    try {
+      const startResult = await storyRunService.startReadyTasks(task.story_id);
+      result.autoStartedTasks = startResult.started_task_ids;
+      await storyRunService.refreshReadyToMergeStatus(task.story_id);
+    } catch (error: any) {
+      db.insert(activityEntries)
+        .values({
+          task_id: task.id,
+          timestamp: now,
+          source: 'orchestration',
+          type: 'error',
+          message: `Story auto-start failed: ${error?.message ?? String(error)}`,
+          metadata_json: JSON.stringify({ story_id: task.story_id }),
         })
         .run();
     }
@@ -151,6 +207,12 @@ export async function handleDone(
     : result.prError
       ? ` PR creation failed: ${result.prError}`
       : '';
+  const storyMergeMessage = result.storyBranchMerged
+    ? ` Merged into story branch ${result.storyBranchMerged}.`
+    : '';
+  const autoStartedMessage = result.autoStartedTasks.length > 0
+    ? ` Auto-started: ${result.autoStartedTasks.join(', ')}.`
+    : '';
 
   db.insert(activityEntries)
     .values({
@@ -158,14 +220,16 @@ export async function handleDone(
       timestamp: now,
       source: 'orchestration',
       type: 'phase_change',
-      message: `Task completed.${prMessage}${result.unblockedTasks.length > 0 ? ` Unblocked: ${result.unblockedTasks.join(', ')}.` : ''}`,
+      message: `Task completed.${storyMergeMessage}${prMessage}${result.unblockedTasks.length > 0 ? ` Unblocked: ${result.unblockedTasks.join(', ')}.` : ''}${autoStartedMessage}`,
       metadata_json: JSON.stringify({
         pr_created: result.prCreated,
         pr_url: result.prUrl,
         pr_number: result.prNumber,
         pr_error: result.prError,
+        story_branch_merged: result.storyBranchMerged,
         target_branch: targetBranch,
         unblocked_tasks: result.unblockedTasks,
+        auto_started_tasks: result.autoStartedTasks,
         cleaned_up: result.cleanedUp,
       }),
     })

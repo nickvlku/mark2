@@ -6,6 +6,8 @@ import YAML from 'yaml';
 import { getDb } from '../db';
 import { activityEntries } from '../db/schema';
 import { getMark2Dir } from '../utils/mark2-dir';
+import { TaskService } from './task-service';
+import { StoryService } from './story-service';
 
 const exec = promisify(execCb);
 
@@ -39,11 +41,15 @@ export class CloneService {
   private mark2Dir: string;
   private projectRoot: string;
   private clonesDir: string;
+  private taskService: TaskService;
+  private storyService: StoryService;
 
   constructor(mark2Dir?: string) {
     this.mark2Dir = mark2Dir ?? getMark2Dir();
     this.projectRoot = path.dirname(this.mark2Dir);
     this.clonesDir = path.join(this.mark2Dir, 'clones');
+    this.taskService = new TaskService(this.mark2Dir);
+    this.storyService = new StoryService(this.mark2Dir);
   }
 
   /**
@@ -57,7 +63,7 @@ export class CloneService {
    * Get the branch name for a task.
    */
   getBranchName(taskId: string): string {
-    return `mark2/${taskId}`;
+    return this.resolveBranchContext(taskId).branchName;
   }
 
   /**
@@ -75,7 +81,9 @@ export class CloneService {
    */
   async createClone(taskId: string): Promise<CloneInfo> {
     const clonePath = this.getClonePath(taskId);
-    const branchName = this.getBranchName(taskId);
+    const branchContext = this.resolveBranchContext(taskId);
+    const branchName = branchContext.branchName;
+    const baseRef = branchContext.baseRef;
     const now = new Date().toISOString();
 
     // Ensure clones directory exists
@@ -87,7 +95,11 @@ export class CloneService {
     if (this.cloneExists(taskId)) {
       // Reset to clean state
       await exec(`git -C "${clonePath}" fetch origin`);
-      await exec(`git -C "${clonePath}" checkout -B "${branchName}" origin/HEAD`);
+      try {
+        await exec(`git -C "${clonePath}" checkout -B "${branchName}" "${baseRef}"`);
+      } catch {
+        await exec(`git -C "${clonePath}" checkout -B "${branchName}" origin/HEAD`);
+      }
       await exec(`git -C "${clonePath}" clean -fd`);
       await exec(`git -C "${clonePath}" reset --hard`);
 
@@ -111,15 +123,16 @@ export class CloneService {
     const repoUrl = `file://${this.projectRoot}`;
 
     try {
-      // Clone with depth 1 for speed, but we may need full history for some operations
-      // Using --single-branch to only get the main branch initially
-      await exec(`git clone --single-branch "${repoUrl}" "${clonePath}"`);
+      // Use a full local clone to preserve access to story branches in origin refs.
+      await exec(`git clone "${repoUrl}" "${clonePath}"`);
 
-      // Create and checkout the task branch
-      await exec(`git -C "${clonePath}" checkout -b "${branchName}"`);
-
-      // Set up the origin to point back to the main repo for pushing
-      await exec(`git -C "${clonePath}" remote set-url origin "${repoUrl}"`);
+      // Fetch latest refs and create task branch from the appropriate base.
+      await exec(`git -C "${clonePath}" fetch origin`);
+      try {
+        await exec(`git -C "${clonePath}" checkout -b "${branchName}" "${baseRef}"`);
+      } catch {
+        await exec(`git -C "${clonePath}" checkout -b "${branchName}"`);
+      }
 
       this.logActivity(taskId, `Clone created at ${clonePath}, branch: ${branchName}`);
 
@@ -386,12 +399,68 @@ export class CloneService {
   }
 
   /**
+   * Merge a completed task branch into its parent story branch.
+   * Performed inside the task clone so the user's working tree is untouched.
+   */
+  async mergeTaskIntoStory(
+    taskId: string,
+    storyBranch: string,
+    strategy: 'merge' | 'squash' = 'squash',
+  ): Promise<MergeResult> {
+    const clonePath = this.getClonePath(taskId);
+    const taskBranch = this.getBranchName(taskId);
+
+    if (!this.cloneExists(taskId)) {
+      return { success: false, error: 'Clone does not exist' };
+    }
+
+    try {
+      await exec(`git -C "${clonePath}" fetch origin "${storyBranch}" "${taskBranch}"`);
+      await exec(`git -C "${clonePath}" checkout -B "${storyBranch}" "origin/${storyBranch}"`);
+
+      if (strategy === 'squash') {
+        await exec(`git -C "${clonePath}" merge --squash "${taskBranch}"`);
+        await exec(`git -C "${clonePath}" commit -m "Merge ${taskId} into ${storyBranch}"`);
+      } else {
+        await exec(`git -C "${clonePath}" merge "${taskBranch}" -m "Merge ${taskId} into ${storyBranch}"`);
+      }
+
+      await exec(`git -C "${clonePath}" push origin "${storyBranch}"`);
+      const { stdout: sha } = await exec(`git -C "${clonePath}" rev-parse HEAD`);
+
+      // Restore task branch for follow-up operations in this clone.
+      await exec(`git -C "${clonePath}" checkout "${taskBranch}"`).catch(() => {});
+
+      this.logActivity(taskId, `Merged ${taskBranch} into ${storyBranch}`);
+      return { success: true, sha: sha.trim() };
+    } catch (error: any) {
+      await exec(`git -C "${clonePath}" merge --abort`).catch(() => {});
+      await exec(`git -C "${clonePath}" checkout "${taskBranch}"`).catch(() => {});
+
+      if (String(error?.message ?? '').toLowerCase().includes('conflict')) {
+        const { stdout: conflicts } = await exec(
+          `git -C "${clonePath}" diff --name-only --diff-filter=U`,
+        ).catch(() => ({ stdout: '' }));
+
+        return {
+          success: false,
+          error: 'Merge conflicts detected',
+          conflicts: conflicts.trim().split('\n').filter(Boolean),
+        };
+      }
+
+      return { success: false, error: error?.message ?? String(error) };
+    }
+  }
+
+  /**
    * Sync the clone with the latest changes from main.
    * Useful for long-running tasks.
    */
   async sync(taskId: string): Promise<{ success: boolean; error?: string; rebased?: boolean }> {
     const clonePath = this.getClonePath(taskId);
-    const branchName = this.getBranchName(taskId);
+    const branchContext = this.resolveBranchContext(taskId);
+    const baseRef = branchContext.baseRef;
 
     if (!this.cloneExists(taskId)) {
       return { success: false, error: 'Clone does not exist' };
@@ -403,8 +472,8 @@ export class CloneService {
 
       // Try to rebase on origin's HEAD (main branch)
       try {
-        await exec(`git -C "${clonePath}" rebase origin/HEAD`);
-        this.logActivity(taskId, 'Synced with latest changes from main');
+        await exec(`git -C "${clonePath}" rebase "${baseRef}"`);
+        this.logActivity(taskId, `Synced with latest changes from ${baseRef}`);
         return { success: true, rebased: true };
       } catch (rebaseError: any) {
         // Abort rebase if it fails
@@ -422,15 +491,17 @@ export class CloneService {
    */
   async getDiff(taskId: string): Promise<{ diff: string; error?: string }> {
     const clonePath = this.getClonePath(taskId);
+    const branchContext = this.resolveBranchContext(taskId);
+    const baseRef = branchContext.baseRef;
 
     if (!this.cloneExists(taskId)) {
       return { diff: '', error: 'Clone does not exist' };
     }
 
     try {
-      // Get the merge base (where this branch diverged from origin/HEAD)
+      // Get the merge base (where this branch diverged from the configured base).
       const { stdout: mergeBase } = await exec(
-        `git -C "${clonePath}" merge-base origin/HEAD HEAD`
+        `git -C "${clonePath}" merge-base "${baseRef}" HEAD`
       );
       const base = mergeBase.trim();
 
@@ -502,6 +573,27 @@ export class CloneService {
     }
 
     return clones;
+  }
+
+  private resolveBranchContext(taskId: string): { branchName: string; baseRef: string; storyBranch?: string } {
+    const fallback = { branchName: `mark2/${taskId}`, baseRef: 'origin/HEAD' };
+    const task = this.taskService.getById(taskId);
+    if (!task?.story_id) return fallback;
+
+    const story = this.storyService.getById(task.story_id);
+    const storyBranch = story?.execution?.branch_name;
+    const storyStatus = story?.execution?.status;
+
+    if (!storyBranch) return fallback;
+    if (storyStatus !== 'running' && storyStatus !== 'ready_to_merge') {
+      return fallback;
+    }
+
+    return {
+      branchName: `${storyBranch}/task-${taskId.toLowerCase()}`,
+      baseRef: `origin/${storyBranch}`,
+      storyBranch,
+    };
   }
 
   /**

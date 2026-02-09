@@ -40,6 +40,11 @@ function makeStory(id: string, overrides: Partial<Story> = {}): Story {
     title: `Story ${id}`,
     description: `Description for ${id}`,
     tasks: [],
+    execution: {
+      status: 'idle',
+      base_branch: 'main',
+      target_branch: 'main',
+    },
     created_by: 'human',
     created_at: NOW,
     updated_at: NOW,

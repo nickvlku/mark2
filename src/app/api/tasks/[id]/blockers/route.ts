@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { createTaskService } from '@/lib/services/factory';
+import { createTaskService, createStoryRunService } from '@/lib/services/factory';
 import { isValidTaskId } from '@/lib/utils/route-validation';
 
 const service = createTaskService();
+const storyRunService = createStoryRunService();
 
 export async function GET(
   _request: Request,
@@ -93,6 +94,13 @@ export async function DELETE(
     }
 
     const task = await service.removeBlocker(id, blockerId);
+
+    // If task belongs to a running story, attempt auto-start for newly ready tasks.
+    if (task.story_id) {
+      await storyRunService.startReadyTasks(task.story_id).catch(() => {});
+      await storyRunService.refreshReadyToMergeStatus(task.story_id).catch(() => {});
+    }
+
     return NextResponse.json({ task });
   } catch (error: any) {
     if (error.message?.includes('not found')) {

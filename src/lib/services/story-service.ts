@@ -56,6 +56,7 @@ export class StoryService {
       created_at: story.created_at,
       updated_at: story.updated_at,
       tasks_json: JSON.stringify(story.tasks),
+      execution_json: JSON.stringify(story.execution),
     }).run();
 
     // Push to remote
@@ -101,6 +102,7 @@ export class StoryService {
       created_at: story.created_at,
       updated_at: story.updated_at,
       tasks_json: JSON.stringify(story.tasks),
+      execution_json: JSON.stringify(story.execution),
     }).run();
 
     return story;
@@ -158,6 +160,7 @@ export class StoryService {
         created_at: story.created_at,
         updated_at: story.updated_at,
         tasks_json: JSON.stringify(story.tasks),
+        execution_json: JSON.stringify(story.execution),
       })
       .where(eq(stories.id, storyId))
       .run();
@@ -196,6 +199,7 @@ export class StoryService {
         created_at: story.created_at,
         updated_at: story.updated_at,
         tasks_json: JSON.stringify(story.tasks),
+        execution_json: JSON.stringify(story.execution),
       })
       .where(eq(stories.id, storyId))
       .run();
@@ -274,7 +278,7 @@ export class StoryService {
   }
 
   private rowToStory(row: typeof stories.$inferSelect): Story {
-    return {
+    const parsed = StorySchema.parse({
       id: row.id,
       title: row.title,
       description: row.description,
@@ -283,6 +287,9 @@ export class StoryService {
       created_at: row.created_at,
       updated_at: row.updated_at,
       tasks: JSON.parse(row.tasks_json),
-    };
+      execution: JSON.parse(row.execution_json || '{}'),
+    });
+
+    return parsed;
   }
 }

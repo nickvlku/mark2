@@ -88,7 +88,8 @@ export function initializeDatabase(mark2Dir?: string): void {
       created_by TEXT NOT NULL,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
-      tasks_json TEXT NOT NULL DEFAULT '[]'
+      tasks_json TEXT NOT NULL DEFAULT '[]',
+      execution_json TEXT NOT NULL DEFAULT '{}'
     );
 
     CREATE TABLE IF NOT EXISTS plans (
@@ -224,6 +225,13 @@ export function initializeDatabase(mark2Dir?: string): void {
   // Add plan_id to stories
   try {
     sqliteInstance.exec(`ALTER TABLE stories ADD COLUMN plan_id TEXT`);
+  } catch {
+    // Column already exists
+  }
+
+  // Add execution_json to stories for story-run state/branch metadata
+  try {
+    sqliteInstance.exec(`ALTER TABLE stories ADD COLUMN execution_json TEXT NOT NULL DEFAULT '{}'`);
   } catch {
     // Column already exists
   }
