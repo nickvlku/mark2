@@ -1,7 +1,7 @@
-id: TASK-183
-title: Test Done Task 1770596888484-2
+id: TASK-184
+title: Test Done Task 1770596889240-3
 description: test
-phase: done
+phase: pending
 phase_agents: {}
 phase_overrides: {}
 blockers: []
@@ -13,8 +13,8 @@ created_by: human
 merge_strategy: squash
 auto_advance: true
 auto_approve: false
-created_at: 2026-02-09T00:28:08.488Z
-updated_at: 2026-02-09T00:28:09.236Z
-phase_entered_at: 2026-02-09T00:28:08.488Z
+created_at: 2026-02-09T00:28:09.243Z
+updated_at: 2026-02-09T00:28:09.243Z
+phase_entered_at: 2026-02-09T00:28:09.243Z
 loop_count: 0
 archived: false
