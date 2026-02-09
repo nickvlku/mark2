@@ -415,6 +415,33 @@ export class TaskService {
     return task;
   }
 
+  async archiveDone(): Promise<{ archived_count: number; archived_ids: string[] }> {
+    // 1. List all non-archived tasks in "done" phase
+    const doneTasks = this.list({ phase: 'done', archived: false });
+
+    if (doneTasks.length === 0) {
+      return { archived_count: 0, archived_ids: [] };
+    }
+
+    const now = new Date().toISOString();
+    const archivedIds: string[] = [];
+
+    // 2. Archive each task (update DB + YAML + release locks)
+    for (const task of doneTasks) {
+      await this.update(task.id, {
+        archived: true,
+        archived_at: now,
+      });
+      await this.stateBranch.releaseLock(task.id);
+      archivedIds.push(task.id);
+    }
+
+    // 3. Single git push for all archives
+    await this.stateBranch.push(`Archive ${archivedIds.length} done tasks: ${archivedIds.join(', ')}`);
+
+    return { archived_count: archivedIds.length, archived_ids: archivedIds };
+  }
+
   async addBlocker(taskId: string, blockerId: string): Promise<Task> {
     const task = this.getById(taskId);
     if (!task) {

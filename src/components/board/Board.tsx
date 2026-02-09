@@ -50,6 +50,7 @@ export function Board() {
   // Confirmation dialog states
   const [confirmArchive, setConfirmArchive] = useState<Task | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Task | null>(null);
+  const [confirmArchiveAll, setConfirmArchiveAll] = useState<number | null>(null);
 
   // Fetch all tasks (no story filter in grouped mode)
   const filters = { archived: showArchived };
@@ -331,6 +332,37 @@ export function Board() {
     }
   }, [confirmDelete, mutateTasks]);
 
+  const handleArchiveAllDone = useCallback(() => {
+    const doneTaskCount = tasksByPhase('done').length;
+    if (doneTaskCount > 0) {
+      setConfirmArchiveAll(doneTaskCount);
+    }
+  }, [tasksByPhase]);
+
+  const confirmArchiveAllAction = useCallback(async () => {
+    if (confirmArchiveAll === null) return;
+    try {
+      // Optimistic update - remove done tasks from UI
+      mutateTasks(
+        (current: { tasks: Task[] } | undefined) => {
+          if (!current) return current;
+          return {
+            tasks: current.tasks.filter((t: Task) => t.phase !== 'done' || t.archived),
+          };
+        },
+        false,
+      );
+
+      await fetch('/api/tasks/archive-done', { method: 'POST' });
+      mutateTasks();
+    } catch (error) {
+      console.error('Failed to archive done tasks:', error);
+      mutateTasks();
+    } finally {
+      setConfirmArchiveAll(null);
+    }
+  }, [confirmArchiveAll, mutateTasks]);
+
   const toggleSectionCollapse = useCallback((key: string) => {
     setCollapsedSections((prev) => {
       const next = new Set(prev);
@@ -400,6 +432,7 @@ export function Board() {
                 onArchive={showArchived ? undefined : handleArchiveTask}
                 onRestore={showArchived ? handleRestoreTask : undefined}
                 onDelete={showArchived ? handleDeleteTask : undefined}
+                onArchiveAll={!showArchived && phase === 'done' ? handleArchiveAllDone : undefined}
                 currentUserEmail={userEmail}
               />
             ))}
@@ -433,6 +466,7 @@ export function Board() {
                 onArchive={showArchived ? undefined : handleArchiveTask}
                 onRestore={showArchived ? handleRestoreTask : undefined}
                 onDelete={showArchived ? handleDeleteTask : undefined}
+                onArchiveAll={!showArchived ? handleArchiveAllDone : undefined}
                 currentUserEmail={userEmail}
               />
             ))}
@@ -508,6 +542,16 @@ export function Board() {
         confirmLabel="Delete"
         variant="danger"
         onConfirm={confirmDeleteAction}
+      />
+
+      {/* Archive All Done Tasks Confirmation Dialog */}
+      <Dialog
+        open={confirmArchiveAll !== null}
+        onClose={() => setConfirmArchiveAll(null)}
+        title="Archive All Done Tasks"
+        description={`Archive ${confirmArchiveAll ?? 0} tasks in the Done column? They will be hidden from the active board but can be restored later.`}
+        confirmLabel="Archive All"
+        onConfirm={confirmArchiveAllAction}
       />
     </div>
   );

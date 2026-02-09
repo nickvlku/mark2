@@ -11,6 +11,7 @@ interface ColumnProps {
   onArchive?: (taskId: string) => void;
   onRestore?: (taskId: string) => void;
   onDelete?: (taskId: string) => void;
+  onArchiveAll?: () => void;
   currentUserEmail?: string;
   /** Optional prefix for droppable ID to ensure uniqueness across story sections */
   droppableIdPrefix?: string;
@@ -40,7 +41,7 @@ const phaseColors: Record<Phase, string> = {
   done: 'bg-green-500',
 };
 
-export function Column({ phase, tasks, onCardClick, onArchive, onRestore, onDelete, currentUserEmail, droppableIdPrefix }: ColumnProps) {
+export function Column({ phase, tasks, onCardClick, onArchive, onRestore, onDelete, onArchiveAll, currentUserEmail, droppableIdPrefix }: ColumnProps) {
   const droppableId = droppableIdPrefix ? `${droppableIdPrefix}::${phase}` : phase;
   const { isOver, setNodeRef } = useDroppable({
     id: droppableId,
@@ -65,6 +66,15 @@ export function Column({ phase, tasks, onCardClick, onArchive, onRestore, onDele
         <span className="ml-auto rounded-full bg-bg-primary px-2 py-0.5 text-xs font-medium text-text-secondary">
           {tasks.length}
         </span>
+        {onArchiveAll && tasks.length > 0 && (
+          <button
+            onClick={onArchiveAll}
+            className="ml-2 rounded px-2 py-0.5 text-xs font-medium text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+            title="Archive all tasks in this column"
+          >
+            Archive All ↓
+          </button>
+        )}
       </div>
 
       {/* Card List */}
