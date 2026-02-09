@@ -1,0 +1,20 @@
+id: TASK-113
+title: Grouped View Test 1
+description: test
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: human
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-09T00:19:02.082Z
+updated_at: 2026-02-09T00:19:02.082Z
+phase_entered_at: 2026-02-09T00:19:02.082Z
+loop_count: 0
+archived: false
