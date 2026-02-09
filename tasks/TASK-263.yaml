@@ -1,0 +1,21 @@
+id: TASK-263
+title: Dependent task
+description: Depends on foundation
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: plan
+story_id: STORY-54
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-09T02:18:09.935Z
+updated_at: 2026-02-09T02:18:09.935Z
+phase_entered_at: 2026-02-09T02:18:09.935Z
+loop_count: 0
+archived: false
