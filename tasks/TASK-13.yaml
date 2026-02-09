@@ -12,31 +12,37 @@ artifacts:
     path: design-design-1769897375298-n6gdvg.md
     mime_type: text/markdown
     created_at: 2026-01-31T22:09:35.299Z
+    source: agent
   - name: design-updated
     phase: design
     path: design-design-updated-1769897618498-4i9kef.md
     mime_type: text/markdown
     created_at: 2026-01-31T22:13:38.498Z
+    source: agent
   - name: coding-summary
     phase: coding
     path: coding-coding-summary-1769899318806-jrgw3f.md
     mime_type: text/markdown
     created_at: 2026-01-31T22:41:58.806Z
+    source: agent
   - name: test-results
     phase: testing
     path: testing-test-results-1769899693186-n9ypgj.md
     mime_type: text/markdown
     created_at: 2026-01-31T22:48:13.186Z
+    source: agent
   - name: review
     phase: code_review
     path: code_review-review-1769899824081-cfxsww.md
     mime_type: text/markdown
     created_at: 2026-01-31T22:50:24.081Z
+    source: agent
   - name: test-plan
     phase: done
     path: done-test-plan-1769900123008-bjls6o.md
     mime_type: text/markdown
     created_at: 2026-01-31T22:55:23.009Z
+    source: agent
 ports: []
 worktrees: {}
 created_by: human
@@ -44,6 +50,8 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-01-31T21:51:35.637Z
-updated_at: 2026-01-31T22:55:23.009Z
+updated_at: 2026-02-09T00:13:11.842Z
 phase_entered_at: 2026-01-31T22:53:09.731Z
 loop_count: 0
+archived: true
+archived_at: 2026-02-09T00:13:11.834Z

@@ -12,36 +12,43 @@ artifacts:
     path: design-enhance-feature.md
     mime_type: text/markdown
     created_at: 2026-02-02T21:18:42.678Z
+    source: agent
   - name: coding-summary
     phase: coding
     path: coding-coding-summary-1770067854634-qoc3tv.md
     mime_type: text/markdown
     created_at: 2026-02-02T21:30:54.635Z
+    source: agent
   - name: test-results
     phase: testing
     path: testing-test-results-1770068966220-35vkay.md
     mime_type: text/markdown
     created_at: 2026-02-02T21:49:26.220Z
+    source: agent
   - name: review
     phase: code_review
     path: code_review-review-1770069265764-a72wa5.md
     mime_type: text/markdown
     created_at: 2026-02-02T21:54:25.765Z
+    source: agent
   - name: fix_review-fixes-applied-1770070169
     phase: fix_review
     path: fix_review-fixes-applied-1770070169.md
     mime_type: text/markdown
     created_at: 2026-02-02T22:09:32.700Z
+    source: agent
   - name: review
     phase: code_review
     path: code_review-review-1770070457791-ze2zsz.md
     mime_type: text/markdown
     created_at: 2026-02-02T22:14:17.791Z
+    source: agent
   - name: test-plan
     phase: run_test_plan
     path: manual_testing-test-plan-1770076281983-h3dpde.md
     mime_type: text/markdown
     created_at: 2026-02-02T23:51:21.983Z
+    source: agent
 ports: []
 worktrees: {}
 created_by: human
@@ -49,7 +56,8 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-02T21:08:02.314Z
-updated_at: 2026-02-02T23:58:05.609Z
+updated_at: 2026-02-09T00:13:11.848Z
 phase_entered_at: 2026-02-02T23:58:05.608Z
 loop_count: 0
-archived: false
+archived: true
+archived_at: 2026-02-09T00:13:11.834Z
