@@ -5,9 +5,11 @@ tasks:
   - TASK-186
   - TASK-187
 execution:
-  status: idle
+  status: running
+  branch_name: mark2/story-16
   base_branch: main
   target_branch: main
+  started_at: 2026-02-09T01:19:50.545Z
 created_by: human
 created_at: 2026-02-09T01:19:41.748Z
-updated_at: 2026-02-09T01:19:45.460Z
+updated_at: 2026-02-09T01:19:50.546Z
