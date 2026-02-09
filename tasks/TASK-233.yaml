@@ -1,0 +1,21 @@
+id: TASK-233
+title: DnD Task B 1770603216151
+description: ""
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: human
+story_id: STORY-42
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-09T02:13:36.856Z
+updated_at: 2026-02-09T02:13:36.856Z
+phase_entered_at: 2026-02-09T02:13:36.856Z
+loop_count: 0
+archived: false
