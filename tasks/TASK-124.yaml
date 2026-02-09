@@ -1,0 +1,20 @@
+id: TASK-124
+title: Debug Test 2
+description: test
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: human
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-09T00:20:47.171Z
+updated_at: 2026-02-09T00:20:47.171Z
+phase_entered_at: 2026-02-09T00:20:47.171Z
+loop_count: 0
+archived: false
