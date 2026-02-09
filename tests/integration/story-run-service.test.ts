@@ -117,5 +117,42 @@ describe('StoryRunService integration', () => {
     const updatedStory = storyService.getById(story.id);
     expect(updatedStory?.execution.status).toBe('ready_to_merge');
   });
-});
 
+  it('keeps story running when unresolved merge failures exist', async () => {
+    const story = await storyService.create({
+      title: 'Blocked ready state',
+      description: 'desc',
+      created_by: 'human',
+    });
+
+    const task = await taskService.create({
+      title: 'Task',
+      description: 'desc',
+      story_id: story.id,
+      created_by: 'human',
+    });
+    await storyService.addTask(story.id, task.id);
+
+    await storyRunService.startStory(story.id);
+    await taskService.transitionPhase(task.id, 'done');
+    await storyService.update(story.id, {
+      execution: {
+        status: 'running',
+        branch_name: `mark2/${story.id.toLowerCase()}`,
+        base_branch: 'main',
+        target_branch: 'main',
+        started_at: new Date().toISOString(),
+        task_merge_failures: [{
+          task_id: task.id,
+          error: 'Merge conflicts detected',
+          failed_at: new Date().toISOString(),
+        }],
+      },
+    });
+
+    await storyRunService.refreshReadyToMergeStatus(story.id);
+
+    const updatedStory = storyService.getById(story.id);
+    expect(updatedStory?.execution.status).toBe('running');
+  });
+});

@@ -169,10 +169,16 @@ export const StorySchema = z.object({
     merge_pr_url: z.string().optional(),
     merge_pr_number: z.number().int().optional(),
     merge_requested_at: z.string().datetime().optional(),
+    task_merge_failures: z.array(z.object({
+      task_id: z.string().regex(/^TASK-\d+$/),
+      error: z.string(),
+      failed_at: z.string().datetime(),
+    })).default([]),
   }).default({
     status: 'idle',
     base_branch: 'main',
     target_branch: 'main',
+    task_merge_failures: [],
   }),
   created_by: z.string(),
   created_at: z.string().datetime(),

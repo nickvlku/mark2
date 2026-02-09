@@ -63,6 +63,7 @@ describe('CloneService branch handling', () => {
         base_branch: 'main',
         target_branch: 'main',
         started_at: new Date().toISOString(),
+        task_merge_failures: [],
       },
     });
 
@@ -75,6 +76,7 @@ describe('CloneService branch handling', () => {
     await storyService.addTask(story.id, task.id);
 
     const cloneInfo = await cloneService.createClone(task.id);
+    expect(cloneInfo.branchName).toBe(`${storyBranch}--task-${task.id.toLowerCase()}`);
     const fileName = 'task-change.txt';
     writeFileSync(path.join(cloneInfo.clonePath, fileName), 'from task branch\n', 'utf-8');
     run(`git add "${fileName}"`, cloneInfo.clonePath);
@@ -82,6 +84,11 @@ describe('CloneService branch handling', () => {
 
     expect(() => run(`git show-ref --verify --quiet "refs/heads/${cloneInfo.branchName}"`, projectRoot))
       .toThrow();
+
+    const pushResult = await cloneService.push(task.id);
+    expect(pushResult.success).toBe(true);
+    expect(() => run(`git show-ref --verify --quiet "refs/heads/${cloneInfo.branchName}"`, projectRoot))
+      .not.toThrow();
 
     const mergeResult = await cloneService.mergeTaskIntoStory(task.id, storyBranch, 'squash');
     if (!mergeResult.success) {
@@ -120,9 +127,54 @@ describe('CloneService branch handling', () => {
         base_branch: 'main',
         target_branch: 'main',
         started_at: new Date().toISOString(),
+        task_merge_failures: [],
       },
     });
 
     expect(cloneService.getBranchName(task.id)).toBe(`mark2/${task.id}`);
+  });
+
+  it('normalizes legacy story-task branch names before publish operations', async () => {
+    const story = await storyService.create({
+      title: 'Story',
+      description: 'desc',
+      created_by: 'human',
+    });
+    const storyBranch = `mark2/${story.id.toLowerCase()}`;
+    run(`git branch "${storyBranch}" main`, projectRoot);
+    await storyService.update(story.id, {
+      execution: {
+        status: 'running',
+        branch_name: storyBranch,
+        base_branch: 'main',
+        target_branch: 'main',
+        started_at: new Date().toISOString(),
+        task_merge_failures: [],
+      },
+    });
+
+    const task = await taskService.create({
+      title: 'Task',
+      description: 'desc',
+      story_id: story.id,
+      created_by: 'human',
+    });
+    await storyService.addTask(story.id, task.id);
+
+    const cloneInfo = await cloneService.createClone(task.id);
+    const normalizedBranch = cloneInfo.branchName;
+    const legacyBranch = `${storyBranch}/task-${task.id.toLowerCase()}`;
+    run(`git -C "${cloneInfo.clonePath}" branch -m "${normalizedBranch}" "${legacyBranch}"`, projectRoot);
+    rmSync(path.join(cloneInfo.clonePath, '.git', 'mark2-task-branch'), { force: true });
+
+    const pushResult = await cloneService.push(task.id);
+    if (!pushResult.success) {
+      throw new Error(`Expected push success, got: ${pushResult.error}`);
+    }
+    expect(cloneService.getBranchName(task.id)).toBe(normalizedBranch);
+    expect(() => run(`git show-ref --verify --quiet "refs/heads/${normalizedBranch}"`, projectRoot))
+      .not.toThrow();
+    expect(() => run(`git show-ref --verify --quiet "refs/heads/${legacyBranch}"`, projectRoot))
+      .toThrow();
   });
 });

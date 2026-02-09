@@ -44,6 +44,7 @@ function makeStory(id: string, overrides: Partial<Story> = {}): Story {
       status: 'idle',
       base_branch: 'main',
       target_branch: 'main',
+      task_merge_failures: [],
     },
     created_by: 'human',
     created_at: NOW,

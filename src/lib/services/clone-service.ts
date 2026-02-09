@@ -66,6 +66,11 @@ export class CloneService {
     return this.resolveBranchContext(taskId).branchName;
   }
 
+  async getPublishBranchName(taskId: string): Promise<string> {
+    const branchName = this.getBranchName(taskId);
+    return this.normalizeLegacyStoryTaskBranch(taskId, branchName);
+  }
+
   /**
    * Persist the task branch name inside clone git metadata so branch targeting
    * remains stable even if story execution status changes later.
@@ -369,13 +374,15 @@ export class CloneService {
    */
   async push(taskId: string): Promise<PushResult> {
     const clonePath = this.getClonePath(taskId);
-    const branchName = this.getBranchName(taskId);
+    let branchName = this.getBranchName(taskId);
 
     if (!this.cloneExists(taskId)) {
       return { success: false, error: 'Clone does not exist' };
     }
 
     try {
+      branchName = await this.normalizeLegacyStoryTaskBranch(taskId, branchName);
+
       // Sync .mark2 files and commit any changes before pushing
       this.syncMark2FilesToClone(taskId);
 
@@ -459,15 +466,16 @@ export class CloneService {
     strategy: 'merge' | 'squash' = 'squash',
   ): Promise<MergeResult> {
     const clonePath = this.getClonePath(taskId);
-    const taskBranch = this.getBranchName(taskId);
+    let taskBranch = this.getBranchName(taskId);
     const mergeBranch = `mark2/tmp-story-merge-${taskId.toLowerCase()}`;
-    this.persistTaskBranch(taskId, taskBranch);
 
     if (!this.cloneExists(taskId)) {
       return { success: false, error: 'Clone does not exist' };
     }
 
     try {
+      taskBranch = await this.normalizeLegacyStoryTaskBranch(taskId, taskBranch);
+      this.persistTaskBranch(taskId, taskBranch);
       await exec(`git -C "${clonePath}" fetch origin "${storyBranch}"`);
       await exec(`git -C "${clonePath}" checkout -B "${mergeBranch}" "origin/${storyBranch}"`);
 
@@ -630,6 +638,63 @@ export class CloneService {
     return clones;
   }
 
+  private getStoryTaskBranchName(storyBranch: string, taskId: string): string {
+    // Use a flat suffix format to avoid git ref namespace collisions with the
+    // story branch (e.g. mark2/story-1 vs mark2/story-1/task-...).
+    return `${storyBranch}--task-${taskId.toLowerCase()}`;
+  }
+
+  private getLegacyStoryTaskBranchName(storyBranch: string, taskId: string): string {
+    return `${storyBranch}/task-${taskId.toLowerCase()}`;
+  }
+
+  private async normalizeLegacyStoryTaskBranch(taskId: string, branchName: string): Promise<string> {
+    if (!this.cloneExists(taskId)) {
+      return branchName;
+    }
+
+    const task = this.taskService.getById(taskId);
+    if (!task?.story_id) {
+      return branchName;
+    }
+
+    const story = this.storyService.getById(task.story_id);
+    const storyBranch = story?.execution?.branch_name;
+    if (!storyBranch) {
+      return branchName;
+    }
+
+    const legacyBranch = this.getLegacyStoryTaskBranchName(storyBranch, taskId);
+    if (branchName !== legacyBranch) {
+      return branchName;
+    }
+
+    const clonePath = this.getClonePath(taskId);
+    const normalizedBranch = this.getStoryTaskBranchName(storyBranch, taskId);
+
+    const normalizedBranchExists = await exec(
+      `git -C "${clonePath}" show-ref --verify --quiet "refs/heads/${normalizedBranch}"`,
+    ).then(() => true).catch(() => false);
+
+    try {
+      if (!normalizedBranchExists) {
+        await exec(`git -C "${clonePath}" branch -m "${legacyBranch}" "${normalizedBranch}"`);
+      } else {
+        const { stdout: currentBranch } = await exec(`git -C "${clonePath}" rev-parse --abbrev-ref HEAD`);
+        if (currentBranch.trim() === legacyBranch) {
+          await exec(`git -C "${clonePath}" checkout "${normalizedBranch}"`);
+        }
+        await exec(`git -C "${clonePath}" branch -D "${legacyBranch}"`).catch(() => {});
+      }
+
+      this.persistTaskBranch(taskId, normalizedBranch);
+      this.logActivity(taskId, `Normalized task branch from ${legacyBranch} to ${normalizedBranch}`);
+      return normalizedBranch;
+    } catch {
+      return branchName;
+    }
+  }
+
   private resolveBranchContext(taskId: string): { branchName: string; baseRef: string; storyBranch?: string } {
     const fallback = { branchName: `mark2/${taskId}`, baseRef: 'origin/HEAD' };
     const task = this.taskService.getById(taskId);
@@ -638,14 +703,22 @@ export class CloneService {
     const story = this.storyService.getById(task.story_id);
     const storyBranch = story?.execution?.branch_name;
     const storyStatus = story?.execution?.status;
-    const storyTaskBranch = storyBranch ? `${storyBranch}/task-${taskId.toLowerCase()}` : undefined;
+    const storyTaskBranch = storyBranch
+      ? this.getStoryTaskBranchName(storyBranch, taskId)
+      : undefined;
+    const legacyStoryTaskBranch = storyBranch
+      ? this.getLegacyStoryTaskBranchName(storyBranch, taskId)
+      : undefined;
 
     if (this.cloneExists(taskId)) {
       const persistedTaskBranch = this.getPersistedTaskBranch(taskId);
       const currentCloneBranch = this.getCurrentCloneBranch(taskId);
       const cloneBranch = persistedTaskBranch ?? currentCloneBranch;
       if (cloneBranch) {
-        if (storyTaskBranch && cloneBranch === storyTaskBranch) {
+        if (
+          (storyTaskBranch && cloneBranch === storyTaskBranch)
+          || (legacyStoryTaskBranch && cloneBranch === legacyStoryTaskBranch)
+        ) {
           return {
             branchName: cloneBranch,
             baseRef: `origin/${storyBranch}`,

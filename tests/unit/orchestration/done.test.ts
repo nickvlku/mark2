@@ -10,6 +10,8 @@ const mockTaskGetBlocking = vi.hoisted(() => vi.fn());
 const mockTaskRemoveBlocker = vi.hoisted(() => vi.fn());
 const mockStartReadyTasks = vi.hoisted(() => vi.fn());
 const mockRefreshReadyToMergeStatus = vi.hoisted(() => vi.fn());
+const mockMarkTaskMergeFailure = vi.hoisted(() => vi.fn());
+const mockClearTaskMergeFailure = vi.hoisted(() => vi.fn());
 const mockCreatePR = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/db', () => ({
@@ -44,6 +46,8 @@ vi.mock('@/lib/services/story-run-service', () => ({
   StoryRunService: class {
     startReadyTasks = mockStartReadyTasks;
     refreshReadyToMergeStatus = mockRefreshReadyToMergeStatus;
+    markTaskMergeFailure = mockMarkTaskMergeFailure;
+    clearTaskMergeFailure = mockClearTaskMergeFailure;
   },
 }));
 
@@ -106,6 +110,7 @@ describe('handleDone story merge gating', () => {
         branch_name: 'mark2/story-1',
         base_branch: 'main',
         target_branch: 'main',
+        task_merge_failures: [],
       },
     });
     mockTaskGetBlocking.mockReturnValue([]);
@@ -116,6 +121,8 @@ describe('handleDone story merge gating', () => {
       failed: [],
     });
     mockRefreshReadyToMergeStatus.mockResolvedValue({});
+    mockMarkTaskMergeFailure.mockResolvedValue(undefined);
+    mockClearTaskMergeFailure.mockResolvedValue(undefined);
     mockCreatePR.mockResolvedValue({
       success: false,
       error: 'PR disabled in test',
@@ -131,6 +138,8 @@ describe('handleDone story merge gating', () => {
     await handleDone(buildTask(), '/tmp/project', '/tmp/project/.mark2');
 
     expect(mockStartReadyTasks).toHaveBeenCalledWith('STORY-1');
+    expect(mockMarkTaskMergeFailure).toHaveBeenCalledWith('STORY-1', 'TASK-1', 'Merge conflicts detected');
+    expect(mockClearTaskMergeFailure).not.toHaveBeenCalled();
     expect(mockRefreshReadyToMergeStatus).not.toHaveBeenCalled();
   });
 
@@ -142,6 +151,8 @@ describe('handleDone story merge gating', () => {
 
     await handleDone(buildTask(), '/tmp/project', '/tmp/project/.mark2');
 
+    expect(mockClearTaskMergeFailure).toHaveBeenCalledWith('STORY-1', 'TASK-1');
+    expect(mockMarkTaskMergeFailure).not.toHaveBeenCalled();
     expect(mockRefreshReadyToMergeStatus).toHaveBeenCalledWith('STORY-1');
     expect(mockCreatePR).not.toHaveBeenCalled();
   });

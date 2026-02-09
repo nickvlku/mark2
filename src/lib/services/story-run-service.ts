@@ -73,6 +73,7 @@ export class StoryRunService {
       status: 'idle' as const,
       base_branch: 'main',
       target_branch: 'main',
+      task_merge_failures: [],
     };
 
     const baseBranch = options?.base_branch ?? currentExecution.base_branch ?? 'main';
@@ -90,6 +91,10 @@ export class StoryRunService {
         target_branch: targetBranch,
         started_at: currentExecution.started_at ?? new Date().toISOString(),
         completed_at: undefined,
+        merge_pr_url: undefined,
+        merge_pr_number: undefined,
+        merge_requested_at: undefined,
+        task_merge_failures: [],
       },
     });
 
@@ -176,8 +181,11 @@ export class StoryRunService {
 
     const storyTasks = this.taskService.list({ story_id: storyId, archived: false });
     const allDone = storyTasks.length > 0 && storyTasks.every((task) => task.phase === 'done');
+    const mergeFailures = this.getTaskMergeFailures(story);
+    const hasMergeFailures = mergeFailures.length > 0;
+    const canBeReadyToMerge = allDone && !hasMergeFailures;
 
-    if (allDone && story.execution.status !== 'ready_to_merge') {
+    if (canBeReadyToMerge && story.execution.status !== 'ready_to_merge') {
       return this.storyService.update(storyId, {
         execution: {
           ...story.execution,
@@ -187,7 +195,7 @@ export class StoryRunService {
       });
     }
 
-    if (!allDone && story.execution.status === 'ready_to_merge') {
+    if (!canBeReadyToMerge && story.execution.status === 'ready_to_merge') {
       return this.storyService.update(storyId, {
         execution: {
           ...story.execution,
@@ -214,6 +222,14 @@ export class StoryRunService {
     const allDone = storyTasks.length > 0 && storyTasks.every((task) => task.phase === 'done');
     if (!allDone) {
       return { success: false, error: `Story ${storyId} is not complete. All tasks must be in done.` };
+    }
+    const mergeFailures = this.getTaskMergeFailures(story);
+    if (mergeFailures.length > 0) {
+      const failureTasks = mergeFailures.map((failure) => failure.task_id).join(', ');
+      return {
+        success: false,
+        error: `Story ${storyId} has unresolved task-to-story merge failures: ${failureTasks}`,
+      };
     }
 
     const resolvedTargetBranch = targetBranch ?? story.execution.target_branch ?? 'main';
@@ -280,6 +296,47 @@ export class StoryRunService {
     }
   }
 
+  async markTaskMergeFailure(storyId: string, taskId: string, error: string): Promise<void> {
+    const story = this.storyService.getById(storyId);
+    if (!story) {
+      throw new Error(`Story ${storyId} not found`);
+    }
+
+    const failures = this.getTaskMergeFailures(story)
+      .filter((failure) => failure.task_id !== taskId);
+    failures.push({
+      task_id: taskId,
+      error,
+      failed_at: new Date().toISOString(),
+    });
+
+    await this.storyService.update(storyId, {
+      execution: {
+        ...story.execution,
+        task_merge_failures: failures,
+      },
+    });
+  }
+
+  async clearTaskMergeFailure(storyId: string, taskId: string): Promise<void> {
+    const story = this.storyService.getById(storyId);
+    if (!story) {
+      throw new Error(`Story ${storyId} not found`);
+    }
+
+    const failures = this.getTaskMergeFailures(story);
+    if (!failures.some((failure) => failure.task_id === taskId)) {
+      return;
+    }
+
+    await this.storyService.update(storyId, {
+      execution: {
+        ...story.execution,
+        task_merge_failures: failures.filter((failure) => failure.task_id !== taskId),
+      },
+    });
+  }
+
   private async startPhase(taskId: string, phase: Phase): Promise<void> {
     if (this.startPhaseFn) {
       await this.startPhaseFn(taskId, phase);
@@ -334,5 +391,9 @@ export class StoryRunService {
 
   private async execGit(args: string): Promise<ExecResult> {
     return this.execFn(`git ${args}`, this.projectRoot);
+  }
+
+  private getTaskMergeFailures(story: Story): Story['execution']['task_merge_failures'] {
+    return story.execution.task_merge_failures ?? [];
   }
 }

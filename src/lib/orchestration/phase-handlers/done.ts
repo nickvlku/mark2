@@ -71,9 +71,33 @@ export async function handleDone(
       if (mergeResult.success) {
         mergedIntoStoryBranch = true;
         result.storyBranchMerged = storyBranch;
+        await storyRunService.clearTaskMergeFailure(task.story_id, task.id).catch((error: any) => {
+          db.insert(activityEntries)
+            .values({
+              task_id: task.id,
+              timestamp: now,
+              source: 'orchestration',
+              type: 'error',
+              message: `Failed to clear story merge-failure marker: ${error?.message ?? String(error)}`,
+              metadata_json: JSON.stringify({ story_id: task.story_id }),
+            })
+            .run();
+        });
       } else {
         storyMergeFailed = true;
         result.prError = mergeResult.error ?? 'Story merge failed';
+        await storyRunService.markTaskMergeFailure(task.story_id, task.id, result.prError).catch((error: any) => {
+          db.insert(activityEntries)
+            .values({
+              task_id: task.id,
+              timestamp: now,
+              source: 'orchestration',
+              type: 'error',
+              message: `Failed to persist story merge-failure marker: ${error?.message ?? String(error)}`,
+              metadata_json: JSON.stringify({ story_id: task.story_id }),
+            })
+            .run();
+        });
         db.insert(activityEntries)
           .values({
             task_id: task.id,

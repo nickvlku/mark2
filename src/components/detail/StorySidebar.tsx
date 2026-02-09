@@ -113,9 +113,7 @@ export function StorySidebar({ story: initialStory, onClose, onTaskClick, onUpda
   const progressPercent = totalCount > 0 ? (doneCount / totalCount) * 100 : 0;
   const executionStatus = story.execution?.status ?? 'idle';
   const canStartStory = executionStatus === 'idle';
-  const canCreateMergePr =
-    executionStatus === 'ready_to_merge'
-    || (executionStatus === 'running' && totalCount > 0 && doneCount === totalCount);
+  const canCreateMergePr = executionStatus === 'ready_to_merge';
 
   // Handle escape key
   const handleKeyDown = useCallback(

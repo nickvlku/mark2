@@ -16,6 +16,7 @@ function makeStory(overrides: Partial<Story> = {}): Story {
       base_branch: 'main',
       target_branch: 'main',
       started_at: NOW,
+      task_merge_failures: [],
     },
     created_by: 'human',
     created_at: NOW,
@@ -91,7 +92,7 @@ describe('StoryRunService', () => {
     const service = new StoryRunService('/tmp/mark2', {
       storyService: storyService as any,
       taskService: taskService as any,
-      startPhaseFn,
+      startPhaseFn: startPhaseFn as any,
     });
 
     const result = await service.startReadyTasks('STORY-1');
@@ -108,13 +109,14 @@ describe('StoryRunService', () => {
         status: 'idle',
         base_branch: 'main',
         target_branch: 'main',
+        task_merge_failures: [],
       },
     }));
 
     const service = new StoryRunService('/tmp/mark2', {
       storyService: storyService as any,
       taskService: taskService as any,
-      startPhaseFn,
+      startPhaseFn: startPhaseFn as any,
     });
 
     const result = await service.startReadyTasks('STORY-1');
@@ -138,7 +140,7 @@ describe('StoryRunService', () => {
     const service = new StoryRunService('/tmp/mark2', {
       storyService: storyService as any,
       taskService: taskService as any,
-      startPhaseFn,
+      startPhaseFn: startPhaseFn as any,
     });
 
     await service.refreshReadyToMergeStatus('STORY-1');
@@ -147,5 +149,69 @@ describe('StoryRunService', () => {
     const [, updates] = storyService.update.mock.calls[0];
     expect(updates.execution.status).toBe('ready_to_merge');
   });
-});
 
+  it('does not mark story ready_to_merge when merge failures exist', async () => {
+    storyService.getById.mockReturnValue(makeStory({
+      execution: {
+        status: 'running',
+        branch_name: 'mark2/story-1',
+        base_branch: 'main',
+        target_branch: 'main',
+        started_at: NOW,
+        task_merge_failures: [{
+          task_id: 'TASK-1',
+          error: 'Merge conflicts detected',
+          failed_at: NOW,
+        }],
+      },
+    }));
+    taskService.list.mockReturnValue([
+      makeTask('TASK-1', 'done'),
+      makeTask('TASK-2', 'done'),
+    ]);
+
+    const service = new StoryRunService('/tmp/mark2', {
+      storyService: storyService as any,
+      taskService: taskService as any,
+      startPhaseFn: startPhaseFn as any,
+    });
+
+    await service.refreshReadyToMergeStatus('STORY-1');
+
+    expect(storyService.update).not.toHaveBeenCalled();
+  });
+
+  it('blocks merge PR creation when merge failures exist', async () => {
+    storyService.getById.mockReturnValue(makeStory({
+      execution: {
+        status: 'running',
+        branch_name: 'mark2/story-1',
+        base_branch: 'main',
+        target_branch: 'main',
+        started_at: NOW,
+        task_merge_failures: [{
+          task_id: 'TASK-2',
+          error: 'Merge failed',
+          failed_at: NOW,
+        }],
+      },
+    }));
+    taskService.list.mockReturnValue([
+      makeTask('TASK-1', 'done'),
+      makeTask('TASK-2', 'done'),
+    ]);
+
+    const service = new StoryRunService('/tmp/mark2', {
+      storyService: storyService as any,
+      taskService: taskService as any,
+      startPhaseFn: startPhaseFn as any,
+      execFn: vi.fn(),
+    });
+
+    const result = await service.createMergePR('STORY-1');
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('unresolved task-to-story merge failures');
+    expect(storyService.update).not.toHaveBeenCalled();
+  });
+});
