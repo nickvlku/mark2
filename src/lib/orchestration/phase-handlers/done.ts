@@ -57,6 +57,7 @@ export async function handleDone(
 
   // Step 1: Story-mode merge (task -> story branch) or standalone task PR.
   let mergedIntoStoryBranch = false;
+  let storyMergeFailed = false;
   if (task.story_id) {
     const story = storyService.getById(task.story_id);
     const storyBranch = story?.execution.branch_name;
@@ -71,6 +72,7 @@ export async function handleDone(
         mergedIntoStoryBranch = true;
         result.storyBranchMerged = storyBranch;
       } else {
+        storyMergeFailed = true;
         result.prError = mergeResult.error ?? 'Story merge failed';
         db.insert(activityEntries)
           .values({
@@ -186,7 +188,9 @@ export async function handleDone(
     try {
       const startResult = await storyRunService.startReadyTasks(task.story_id);
       result.autoStartedTasks = startResult.started_task_ids;
-      await storyRunService.refreshReadyToMergeStatus(task.story_id);
+      if (!storyMergeFailed) {
+        await storyRunService.refreshReadyToMergeStatus(task.story_id);
+      }
     } catch (error: any) {
       db.insert(activityEntries)
         .values({
