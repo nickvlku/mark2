@@ -4,7 +4,8 @@ description: POST /login
 phase: pending
 phase_agents: {}
 phase_overrides: {}
-blockers: []
+blockers:
+  - TASK-250
 priority: P2
 artifacts: []
 ports: []
@@ -15,7 +16,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-09T02:15:28.736Z
-updated_at: 2026-02-09T02:15:28.736Z
+updated_at: 2026-02-09T02:15:32.206Z
 phase_entered_at: 2026-02-09T02:15:28.736Z
 loop_count: 0
 archived: false
