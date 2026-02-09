@@ -76,7 +76,7 @@ export async function DELETE(
     if (!isValidTaskId(id)) {
       return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
     }
-    service.delete(id);
+    await service.delete(id);
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json(
