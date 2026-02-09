@@ -1,0 +1,18 @@
+id: PLAN-48
+title: Revise Test
+prompt: Testing revise
+phase: prd_review
+artifacts:
+  - name: prd
+    phase: prd
+    path: prd.md
+    mime_type: text/markdown
+    created_at: 2026-02-09T02:22:02.328Z
+    source: agent
+proposed_stories: []
+created_stories: []
+created_tasks: []
+created_by: human
+created_at: 2026-02-09T02:21:03.000Z
+updated_at: 2026-02-09T02:22:06.765Z
+phase_entered_at: 2026-02-09T02:22:06.765Z
