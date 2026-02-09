@@ -1,0 +1,20 @@
+id: TASK-141
+title: Test Done Task 1770596620280-1
+description: test
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: human
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-09T00:23:40.284Z
+updated_at: 2026-02-09T00:23:40.284Z
+phase_entered_at: 2026-02-09T00:23:40.284Z
+loop_count: 0
+archived: false
