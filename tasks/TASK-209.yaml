@@ -1,0 +1,21 @@
+id: TASK-209
+title: Task A 1770602241376
+description: A
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: human
+story_id: STORY-27
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-09T01:57:21.386Z
+updated_at: 2026-02-09T01:57:21.386Z
+phase_entered_at: 2026-02-09T01:57:21.386Z
+loop_count: 0
+archived: false
