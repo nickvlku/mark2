@@ -1,0 +1,20 @@
+id: TASK-120
+title: API Verify 1
+description: test
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: human
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-09T00:19:48.408Z
+updated_at: 2026-02-09T00:19:48.408Z
+phase_entered_at: 2026-02-09T00:19:48.408Z
+loop_count: 0
+archived: false
