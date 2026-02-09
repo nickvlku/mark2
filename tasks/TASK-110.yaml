@@ -1,0 +1,20 @@
+id: TASK-110
+title: Test Done Task 4
+description: Test task for archive all testing
+phase: pending
+phase_agents: {}
+phase_overrides: {}
+blockers: []
+priority: P2
+artifacts: []
+ports: []
+worktrees: {}
+created_by: human
+merge_strategy: squash
+auto_advance: true
+auto_approve: false
+created_at: 2026-02-09T00:13:49.819Z
+updated_at: 2026-02-09T00:13:49.819Z
+phase_entered_at: 2026-02-09T00:13:49.819Z
+loop_count: 0
+archived: false
