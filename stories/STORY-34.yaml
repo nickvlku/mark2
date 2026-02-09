@@ -1,0 +1,11 @@
+id: STORY-34
+title: Minimal Story
+description: ""
+tasks: []
+execution:
+  status: idle
+  base_branch: main
+  target_branch: main
+created_by: human
+created_at: 2026-02-09T01:58:10.892Z
+updated_at: 2026-02-09T01:58:10.892Z
