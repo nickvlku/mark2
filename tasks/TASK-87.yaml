@@ -1,7 +1,7 @@
 id: TASK-87
 title: Can we create a "archive all tasks" button in the Done step.
 description: We have a lot of done tasks on a board, can we make it easier to move them to archived
-phase: run_test_plan
+phase: done
 phase_agents: {}
 phase_overrides: {}
 blockers: []
@@ -68,7 +68,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T20:28:17.140Z
-updated_at: 2026-02-09T00:28:56.523Z
-phase_entered_at: 2026-02-09T00:09:22.860Z
+updated_at: 2026-02-09T00:29:25.552Z
+phase_entered_at: 2026-02-09T00:29:25.551Z
 loop_count: 0
 archived: false
