@@ -1,7 +1,7 @@
 id: PLAN-37
 title: Blocker Test
 prompt: Testing blocker resolution
-phase: task_review
+phase: done
 artifacts: []
 proposed_stories:
   - title: Story with Blockers
@@ -21,9 +21,13 @@ proposed_stories:
         priority: P2
         blockers:
           - 1
-created_stories: []
-created_tasks: []
+created_stories:
+  - STORY-49
+created_tasks:
+  - TASK-253
+  - TASK-254
+  - TASK-255
 created_by: human
 created_at: 2026-02-09T02:15:44.981Z
-updated_at: 2026-02-09T02:15:45.728Z
-phase_entered_at: 2026-02-09T02:15:44.981Z
+updated_at: 2026-02-09T02:15:52.716Z
+phase_entered_at: 2026-02-09T02:15:52.716Z
