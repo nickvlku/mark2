@@ -37,6 +37,12 @@ artifacts:
     mime_type: text/markdown
     created_at: 2026-02-15T22:24:23.012Z
     source: agent
+  - name: test-execution-report
+    phase: run_test_plan
+    path: run_test_plan-test-execution-report-1771198812104-zvrmnf.md
+    mime_type: text/markdown
+    created_at: 2026-02-15T23:40:12.107Z
+    source: agent
 ports: []
 worktrees: {}
 created_by: plan
@@ -45,7 +51,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T19:00:20.411Z
-updated_at: 2026-02-15T23:38:29.468Z
+updated_at: 2026-02-15T23:40:12.107Z
 phase_entered_at: 2026-02-15T23:38:29.468Z
 loop_count: 0
 archived: false

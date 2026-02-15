@@ -19,6 +19,12 @@ artifacts:
     mime_type: text/markdown
     created_at: 2026-02-15T23:22:50.926Z
     source: agent
+  - name: review
+    phase: code_review
+    path: code_review-review-1771198996229-r4taq8.md
+    mime_type: text/markdown
+    created_at: 2026-02-15T23:43:16.230Z
+    source: agent
 ports: []
 worktrees: {}
 created_by: plan
@@ -27,7 +33,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T19:00:24.823Z
-updated_at: 2026-02-15T23:39:47.404Z
+updated_at: 2026-02-15T23:43:16.230Z
 phase_entered_at: 2026-02-15T23:39:47.404Z
 loop_count: 0
 archived: false

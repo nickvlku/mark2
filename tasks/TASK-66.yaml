@@ -1,7 +1,7 @@
 id: TASK-66
 title: Implement MCP configuration generation (.codex/config.toml)
 description: Write setupMcpConfig() method in CodexCLIAdapter. Generate .codex/config.toml with proper TOML format, point to mark2 MCP server via STDIO, pass environment variables (MARK2_DIR, MARK2_TASK_ID, etc.). Create .codex directory in worktree if needed.
-phase: code_review
+phase: final_testing
 phase_agents: {}
 phase_overrides: {}
 blockers: []
@@ -25,6 +25,12 @@ artifacts:
     mime_type: text/markdown
     created_at: 2026-02-15T23:36:24.608Z
     source: agent
+  - name: review
+    phase: code_review
+    path: code_review-review-1771199022399-pp12a0.md
+    mime_type: text/markdown
+    created_at: 2026-02-15T23:43:42.399Z
+    source: agent
 ports: []
 worktrees: {}
 created_by: plan
@@ -33,7 +39,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T19:00:21.805Z
-updated_at: 2026-02-15T23:39:28.583Z
-phase_entered_at: 2026-02-15T23:39:28.583Z
+updated_at: 2026-02-15T23:45:50.612Z
+phase_entered_at: 2026-02-15T23:45:50.612Z
 loop_count: 0
 archived: false
