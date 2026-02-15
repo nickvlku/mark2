@@ -13,6 +13,12 @@ artifacts:
     mime_type: text/markdown
     created_at: 2026-02-15T23:11:28.127Z
     source: agent
+  - name: test-results
+    phase: testing
+    path: testing-test-results-1771197770926-ynwduk.md
+    mime_type: text/markdown
+    created_at: 2026-02-15T23:22:50.926Z
+    source: agent
 ports: []
 worktrees: {}
 created_by: plan
@@ -21,7 +27,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T19:00:24.823Z
-updated_at: 2026-02-15T23:19:27.710Z
+updated_at: 2026-02-15T23:22:50.926Z
 phase_entered_at: 2026-02-15T23:19:27.710Z
 loop_count: 0
 archived: false
