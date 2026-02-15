@@ -1,7 +1,7 @@
 id: TASK-72
 title: Implement getEnvironment() method
 description: Write getEnvironment() method in CodexCLIAdapter to return all required environment variables (NODE_ENV, MARK2_AGENT_TOKEN, MARK2_API_URL, MARK2_TASK_ID, MARK2_STORAGE_DIR, MARK2_ARTIFACTS_DIR, MARK2_PROMPTS_DIR, MARK2_SESSIONS_DIR). These are used by MCP server.
-phase: run_test_plan
+phase: done
 phase_agents: {}
 phase_overrides: {}
 blockers: []
@@ -57,7 +57,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T19:00:31.109Z
-updated_at: 2026-02-15T23:55:16.020Z
-phase_entered_at: 2026-02-15T23:49:48.538Z
+updated_at: 2026-02-15T23:57:17.662Z
+phase_entered_at: 2026-02-15T23:57:17.661Z
 loop_count: 0
 archived: false
