@@ -39,6 +39,25 @@ check_dependency "node" || missing=1
 check_dependency "npm" || missing=1
 check_dependency "tmux" || missing=1
 
+# Build tools needed for native modules (better-sqlite3)
+check_dependency "make" || missing=1
+if command -v python3 &> /dev/null; then
+  echo -e "${GREEN}✓${NC} python3 found"
+elif command -v python &> /dev/null; then
+  echo -e "${GREEN}✓${NC} python found"
+else
+  echo -e "${RED}✗ python3 is not installed${NC}"
+  echo "  Please install python3 first (needed to compile native modules)."
+  missing=1
+fi
+if command -v gcc &> /dev/null || command -v g++ &> /dev/null || command -v cc &> /dev/null; then
+  echo -e "${GREEN}✓${NC} C/C++ compiler found"
+else
+  echo -e "${RED}✗ C/C++ compiler not found${NC}"
+  echo "  Please install gcc/g++ or clang (needed to compile native modules)."
+  missing=1
+fi
+
 if [ $missing -eq 1 ]; then
   echo ""
   echo -e "${RED}Missing required dependencies. Please install them and try again.${NC}"
@@ -47,6 +66,12 @@ if [ $missing -eq 1 ]; then
   echo "  - Node.js 18+ (https://nodejs.org/)"
   echo "  - npm or pnpm"
   echo "  - tmux (brew install tmux / apt install tmux)"
+  echo "  - Build tools: make, python3, gcc/g++ (for native modules)"
+  echo ""
+  echo "  On Debian/Ubuntu:  sudo apt install build-essential python3"
+  echo "  On Fedora/RHEL:    sudo dnf groupinstall 'Development Tools'"
+  echo "  On Arch:           sudo pacman -S base-devel"
+  echo "  On macOS:          xcode-select --install"
   exit 1
 fi
 
@@ -62,15 +87,63 @@ echo "Installing dependencies..."
 
 # Prefer pnpm if available
 if command -v pnpm &> /dev/null; then
+  PKG_MANAGER="pnpm"
   pnpm install
 else
+  PKG_MANAGER="npm"
   npm install
+fi
+
+# Verify native modules (better-sqlite3 requires compiled C++ bindings)
+echo ""
+echo "Verifying native modules..."
+
+if node -e "require('better-sqlite3')" 2>/dev/null; then
+  echo -e "${GREEN}✓${NC} better-sqlite3 native bindings OK"
+else
+  echo -e "${YELLOW}!${NC} better-sqlite3 native bindings not found, rebuilding..."
+
+  # Try package-manager rebuild first
+  if [ "$PKG_MANAGER" = "pnpm" ]; then
+    pnpm rebuild better-sqlite3 2>/dev/null || true
+  else
+    npm rebuild better-sqlite3 2>/dev/null || true
+  fi
+
+  # If that still didn't work, fall back to node-gyp directly
+  if ! node -e "require('better-sqlite3')" 2>/dev/null; then
+    echo -e "${YELLOW}!${NC} Rebuild via $PKG_MANAGER didn't work, trying node-gyp directly..."
+
+    SQLITE_DIR=$(node -e "console.log(require.resolve('better-sqlite3/package.json').replace('/package.json',''))")
+    if [ -d "$SQLITE_DIR" ] && [ -f "$SQLITE_DIR/binding.gyp" ]; then
+      (cd "$SQLITE_DIR" && npx node-gyp rebuild 2>&1) || true
+    fi
+  fi
+
+  # Final check
+  if node -e "require('better-sqlite3')" 2>/dev/null; then
+    echo -e "${GREEN}✓${NC} better-sqlite3 native bindings rebuilt successfully"
+  else
+    echo -e "${RED}✗ Failed to build better-sqlite3 native bindings${NC}"
+    echo ""
+    echo "  This usually means build tools are missing. Please install:"
+    echo "    - gcc/g++ (or clang)"
+    echo "    - make"
+    echo "    - python3"
+    echo ""
+    echo "  On Debian/Ubuntu:  sudo apt install build-essential python3"
+    echo "  On Fedora/RHEL:    sudo dnf groupinstall 'Development Tools'"
+    echo "  On Arch:           sudo pacman -S base-devel"
+    echo "  On macOS:          xcode-select --install"
+    echo ""
+    exit 1
+  fi
 fi
 
 echo ""
 echo "Building mark2..."
 
-if command -v pnpm &> /dev/null; then
+if [ "$PKG_MANAGER" = "pnpm" ]; then
   pnpm build
 else
   npm run build
