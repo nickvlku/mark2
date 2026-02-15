@@ -21,6 +21,14 @@ execution:
       error: |
         Command failed: git -C "/home/nick/Developer/mark2/.mark2/clones/TASK-65" commit -m "Merge TASK-65 into mark2/story-12"
       failed_at: 2026-02-15T23:48:25.685Z
+    - task_id: TASK-66
+      error: |
+        Command failed: git -C "/home/nick/Developer/mark2/.mark2/clones/TASK-66" checkout -B "mark2/tmp-story-merge-task-66" "origin/mark2/story-12"
+        error: Your local changes to the following files would be overwritten by checkout:
+        	tests/unit/codex-cli-adapter.test.ts
+        Please commit your changes or stash them before you switch branches.
+        Aborting
+      failed_at: 2026-02-15T23:58:33.209Z
 created_by: plan
 created_at: 2026-02-08T19:00:19.297Z
-updated_at: 2026-02-15T23:48:25.686Z
+updated_at: 2026-02-15T23:58:33.209Z
