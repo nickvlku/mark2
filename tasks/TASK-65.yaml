@@ -19,6 +19,24 @@ artifacts:
     mime_type: text/markdown
     created_at: 2026-02-15T22:14:49.062Z
     source: agent
+  - name: test-execution-report
+    phase: final_testing
+    path: final_testing-test-execution-report-1771194143901-b1xp0y.md
+    mime_type: text/markdown
+    created_at: 2026-02-15T22:22:23.901Z
+    source: agent
+  - name: final-test-results
+    phase: final_testing
+    path: final_testing-final-test-results-1771194196252-q9554x.md
+    mime_type: text/markdown
+    created_at: 2026-02-15T22:23:16.252Z
+    source: agent
+  - name: test-plan
+    phase: final_testing
+    path: final_testing-test-plan-1771194263012-z2r0rz.md
+    mime_type: text/markdown
+    created_at: 2026-02-15T22:24:23.012Z
+    source: agent
 ports: []
 worktrees: {}
 created_by: plan
@@ -27,7 +45,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T19:00:20.411Z
-updated_at: 2026-02-15T22:21:00.155Z
+updated_at: 2026-02-15T22:24:23.012Z
 phase_entered_at: 2026-02-15T22:21:00.155Z
 loop_count: 0
 archived: false

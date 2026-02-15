@@ -6,7 +6,13 @@ phase_agents: {}
 phase_overrides: {}
 blockers: []
 priority: P1
-artifacts: []
+artifacts:
+  - name: design
+    phase: design
+    path: design-design-1771194612185-utvg54.md
+    mime_type: text/markdown
+    created_at: 2026-02-15T22:30:12.186Z
+    source: agent
 ports: []
 worktrees: {}
 created_by: plan
@@ -15,7 +21,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T19:00:26.703Z
-updated_at: 2026-02-15T22:19:46.040Z
+updated_at: 2026-02-15T22:30:12.186Z
 phase_entered_at: 2026-02-15T22:19:46.039Z
 loop_count: 0
 archived: false
