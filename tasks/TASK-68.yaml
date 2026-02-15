@@ -4,8 +4,7 @@ description: Write buildCommand() method in CodexCLIAdapter. Build 'codex' comma
 phase: pending
 phase_agents: {}
 phase_overrides: {}
-blockers:
-  - TASK-65
+blockers: []
 priority: P0
 artifacts: []
 ports: []
@@ -16,7 +15,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T19:00:24.823Z
-updated_at: 2026-02-08T19:00:56.814Z
+updated_at: 2026-02-15T22:16:54.868Z
 phase_entered_at: 2026-02-08T19:00:24.823Z
 loop_count: 0
 archived: false
