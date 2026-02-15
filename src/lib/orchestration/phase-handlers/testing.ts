@@ -7,6 +7,7 @@ import { TmuxManager } from '../tmux-manager';
 import { PromptAssembler, type PromptContext } from '../prompt-assembler';
 import type { CLIAdapter } from '../../adapters/types';
 import type { AgentInvocationParams } from '../../../types';
+import { savePromptFiles } from '../../utils/storage';
 
 export interface TestingResult {
   tmuxSession: string;
@@ -45,6 +46,9 @@ export async function handleTesting(
   // Assemble the prompts with split parts for CLI flags
   const assembler = new PromptAssembler(mark2Dir);
   const prompts = assembler.buildAgentAndTaskPrompts(task, agent, 'testing', promptContext);
+
+  // Save prompts for debugging/audit
+  savePromptFiles(mark2Dir, task.id, 'testing', prompts);
 
   // Build invocation params with split prompts
   const params: AgentInvocationParams = {

@@ -7,6 +7,7 @@ import { getDb } from '../../db';
 import { activityEntries } from '../../db/schema';
 import { TmuxManager } from '../tmux-manager';
 import { PromptAssembler } from '../prompt-assembler';
+import { savePromptFiles } from '../../utils/storage';
 
 /** Role configuration used by phase handlers (resolved from role + phase defaults + overrides). */
 export interface RoleConfig {
@@ -107,6 +108,9 @@ export async function runPhase<TExtra = Record<string, never>>(
   const promptContext = rawContext ?? {};
   const assembler = new PromptAssembler(mark2Dir);
   const promptParts = assembler.buildAgentAndTaskPrompts(task, role as any, phase, promptContext);
+
+  // Save prompts for debugging/audit
+  savePromptFiles(mark2Dir, task.id, phase, promptParts);
 
   const params: AgentInvocationParams = {
     prompt: promptParts.taskPrompt,

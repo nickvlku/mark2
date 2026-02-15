@@ -60,12 +60,6 @@ export class ClaudeCodeAdapter implements CLIAdapter {
     // Generate a session ID for tracking
     const sessionId = crypto.randomUUID();
 
-    // Save prompts for debugging/review
-    const storagePaths = getTaskStoragePaths(projectRoot, params.taskId);
-    fs.writeFileSync(path.join(storagePaths.prompts, `${params.phase}-orchestration.md`), params.orchestrationPrompt ?? '', 'utf-8');
-    fs.writeFileSync(path.join(storagePaths.prompts, `${params.phase}-agent.md`), params.agentPrompt ?? '', 'utf-8');
-    fs.writeFileSync(path.join(storagePaths.prompts, `${params.phase}-task.md`), params.taskPrompt ?? '', 'utf-8');
-
     // Build agent definition for --agents flag (personality/role only)
     const agentSlug = params.agentSlug ?? `mark2-${params.phase}`;
     const agentDef = {

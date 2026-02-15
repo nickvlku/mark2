@@ -8,6 +8,7 @@ import { PromptAssembler } from '../prompt-assembler';
 import type { CLIAdapter } from '../../adapters/types';
 import type { AgentInvocationParams } from '../../../types';
 import type { PromptContext } from '../prompt-assembler';
+import { savePromptFiles } from '../../utils/storage';
 
 export interface DesignResult {
   tmuxSession: string;
@@ -48,6 +49,9 @@ export async function handleDesign(
     ? { humanComments: loopContext.humanComments, testFailures: loopContext.testFailures, reviewComments: loopContext.reviewComments }
     : undefined;
   const prompts = assembler.buildAgentAndTaskPrompts(task, agent, 'design', promptContext);
+
+  // Save prompts for debugging/audit
+  savePromptFiles(mark2Dir, task.id, 'design', prompts);
 
   // Build invocation params with split prompts for CLI flags
   const params: AgentInvocationParams = {
