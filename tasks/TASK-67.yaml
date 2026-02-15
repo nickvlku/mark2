@@ -1,7 +1,7 @@
 id: TASK-67
 title: Implement AGENTS.md generation
 description: Write setupAgentsMd() method in CodexCLIAdapter. Combine agent role prompt + orchestration instructions in single markdown file. Include end token protocol instructions (call mark2_signal_complete MCP tool). Document available MCP tools. Save to worktree root and debug directory.
-phase: coding
+phase: run_test_plan
 phase_agents: {}
 phase_overrides: {}
 blockers: []
@@ -13,6 +13,36 @@ artifacts:
     mime_type: text/markdown
     created_at: 2026-02-15T22:32:34.016Z
     source: agent
+  - name: coding-summary
+    phase: coding
+    path: coding-coding-summary-1771197820736-bxpzps.md
+    mime_type: text/markdown
+    created_at: 2026-02-15T23:23:40.736Z
+    source: agent
+  - name: test-results
+    phase: testing
+    path: testing-test-results-1771198001735-7lx5bi.md
+    mime_type: text/markdown
+    created_at: 2026-02-15T23:26:41.735Z
+    source: agent
+  - name: review
+    phase: code_review
+    path: code_review-review-1771198168278-torozw.md
+    mime_type: text/markdown
+    created_at: 2026-02-15T23:29:28.279Z
+    source: agent
+  - name: final-test-results
+    phase: final_testing
+    path: final_testing-final-test-results-1771198251392-r5z96t.md
+    mime_type: text/markdown
+    created_at: 2026-02-15T23:30:51.392Z
+    source: agent
+  - name: test-plan
+    phase: final_testing
+    path: final_testing-test-plan-1771198295532-05xiut.md
+    mime_type: text/markdown
+    created_at: 2026-02-15T23:31:35.532Z
+    source: agent
 ports: []
 worktrees: {}
 created_by: plan
@@ -21,7 +51,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: true
 created_at: 2026-02-08T19:00:23.247Z
-updated_at: 2026-02-15T23:05:54.816Z
-phase_entered_at: 2026-02-15T23:04:51.650Z
+updated_at: 2026-02-15T23:31:44.204Z
+phase_entered_at: 2026-02-15T23:31:44.204Z
 loop_count: 0
 archived: false

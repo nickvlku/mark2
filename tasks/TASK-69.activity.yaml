@@ -43,3 +43,10 @@ entries:
     metadata:
       old_phase: coding
       new_phase: testing
+  - timestamp: 2026-02-15T23:27:17.215Z
+    source: hook
+    type: phase_change
+    message: End token "[TESTING_PASSED]" detected via Claude Code hook
+    metadata:
+      token: "[TESTING_PASSED]"
+      phase: testing

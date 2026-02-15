@@ -33,3 +33,31 @@ entries:
     metadata:
       old_phase: design
       new_phase: coding
+  - timestamp: 2026-02-15T23:23:47.326Z
+    source: hook
+    type: phase_change
+    message: End token "[CODING_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[CODING_COMPLETED]"
+      phase: coding
+  - timestamp: 2026-02-15T23:27:06.523Z
+    source: hook
+    type: phase_change
+    message: End token "[TESTING_PASSED]" detected via Claude Code hook
+    metadata:
+      token: "[TESTING_PASSED]"
+      phase: testing
+  - timestamp: 2026-02-15T23:29:34.209Z
+    source: hook
+    type: phase_change
+    message: End token "[REVIEW_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[REVIEW_COMPLETED]"
+      phase: code_review
+  - timestamp: 2026-02-15T23:31:44.195Z
+    source: hook
+    type: phase_change
+    message: End token "[FINAL_TESTING_PASSED]" detected via Claude Code hook
+    metadata:
+      token: "[FINAL_TESTING_PASSED]"
+      phase: final_testing

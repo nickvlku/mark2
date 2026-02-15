@@ -19,6 +19,12 @@ artifacts:
     mime_type: text/markdown
     created_at: 2026-02-15T23:12:55.747Z
     source: agent
+  - name: test-results
+    phase: testing
+    path: testing-test-results-1771198025950-o6gj0r.md
+    mime_type: text/markdown
+    created_at: 2026-02-15T23:27:05.951Z
+    source: agent
 ports: []
 worktrees: {}
 created_by: plan
@@ -27,7 +33,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T19:00:26.703Z
-updated_at: 2026-02-15T23:22:32.663Z
+updated_at: 2026-02-15T23:27:05.951Z
 phase_entered_at: 2026-02-15T23:22:32.663Z
 loop_count: 0
 archived: false

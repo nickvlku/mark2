@@ -47,3 +47,17 @@ entries:
     metadata:
       old_phase: design
       new_phase: coding
+  - timestamp: 2026-02-15T23:23:47.731Z
+    source: hook
+    type: phase_change
+    message: End token "[CODING_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[CODING_COMPLETED]"
+      phase: coding
+  - timestamp: 2026-02-15T23:32:00.279Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from coding to testing
+    metadata:
+      old_phase: coding
+      new_phase: testing
