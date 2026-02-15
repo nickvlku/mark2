@@ -25,6 +25,12 @@ artifacts:
     mime_type: text/markdown
     created_at: 2026-02-15T23:43:16.230Z
     source: agent
+  - name: fixes-summary
+    phase: fix_review
+    path: fix_review-fixes-summary-1771199427153-itevsr.md
+    mime_type: text/markdown
+    created_at: 2026-02-15T23:50:27.154Z
+    source: agent
 ports: []
 worktrees: {}
 created_by: plan
@@ -33,7 +39,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T19:00:24.823Z
-updated_at: 2026-02-15T23:46:50.837Z
+updated_at: 2026-02-15T23:50:27.154Z
 phase_entered_at: 2026-02-15T23:46:50.836Z
 loop_count: 0
 archived: false
