@@ -7,6 +7,9 @@ import type { AgentInvocationParams } from '../../types';
  * Adapter for OpenAI's Codex CLI.
  * Runs in full-auto mode with approval workflow.
  * Preparing for future MCP and session naming support.
+ *
+ * Note: buildCommand() performs filesystem I/O as a side effect
+ * (writes MCP config and AGENTS.md). This matches the ClaudeCodeAdapter pattern.
  */
 export class CodexCLIAdapter implements CLIAdapter {
   readonly toolId = 'codex-cli' as const;
@@ -18,11 +21,13 @@ export class CodexCLIAdapter implements CLIAdapter {
     this.setupMcpConfig(params);
     this.setupAgentsMd(params);
 
+    // TODO: Verify exact Codex CLI flag names when integration is finalized.
+    // --approval-mode full-auto is used instead of separate --full-auto and
+    // --ask-for-approval flags to avoid potential flag conflicts.
     const parts: string[] = [
       'codex',
-      '--full-auto',
+      '--approval-mode', 'full-auto',
       '--model', this.shellQuote(params.model),
-      '--ask-for-approval',
       this.shellQuote(params.prompt),
     ];
 
@@ -44,18 +49,17 @@ export class CodexCLIAdapter implements CLIAdapter {
    */
   private setupMcpConfig(params: AgentInvocationParams): void {
     const mcpConfigPath = path.join(params.workingDirectory, '.codex', 'mcp-config.json');
+    // TODO: When Codex adds MCP support, restructure to match ClaudeCodeAdapter's
+    // buildMcpConfig() format with command/args/env per server entry.
     const mcpConfig = {
-      // Placeholder for future MCP server configuration
       mcpServers: {},
       taskId: params.taskId,
       apiBaseUrl: params.apiBaseUrl,
     };
 
-    // Ensure .codex directory exists
+    // Ensure .codex directory exists (recursive is a no-op if it already exists)
     const codexDir = path.dirname(mcpConfigPath);
-    if (!fs.existsSync(codexDir)) {
-      fs.mkdirSync(codexDir, { recursive: true });
-    }
+    fs.mkdirSync(codexDir, { recursive: true });
 
     // Write MCP config file
     fs.writeFileSync(mcpConfigPath, JSON.stringify(mcpConfig, null, 2), 'utf-8');
@@ -80,7 +84,7 @@ export class CodexCLIAdapter implements CLIAdapter {
 ${params.agentPrompt || 'AI coding agent'}
 
 ### Orchestration
-${params.orchestrationPrompt ? '```\n' + params.orchestrationPrompt + '\n```' : 'Standard orchestration'}
+${params.orchestrationPrompt ? '``````\n' + params.orchestrationPrompt + '\n``````' : 'Standard orchestration'}
 
 ### Task Description
 ${params.taskPrompt || params.prompt}
