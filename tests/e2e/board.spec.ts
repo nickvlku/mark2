@@ -39,8 +39,7 @@ async function findTaskIdByTitle(
   request: APIRequestContext,
   title: string,
 ): Promise<string | undefined> {
-  const res = await request.get('/api/tasks');
-  const { tasks } = await res.json();
+  const { tasks } = await getJsonWithRetry(request, '/api/tasks');
   const match = tasks.find((t: any) => t.title === title);
   return match?.id;
 }
@@ -49,10 +48,32 @@ async function findStoryIdByTitle(
   request: APIRequestContext,
   title: string,
 ): Promise<string | undefined> {
-  const res = await request.get('/api/stories');
-  const { stories } = await res.json();
+  const { stories } = await getJsonWithRetry(request, '/api/stories');
   const match = stories.find((s: any) => s.title === title);
   return match?.id;
+}
+
+async function getJsonWithRetry(
+  request: APIRequestContext,
+  url: string,
+  attempts: number = 4,
+): Promise<any> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const res = await request.get(url);
+      if (!res.ok()) {
+        throw new Error(`GET ${url} failed with ${res.status()}`);
+      }
+      return await res.json();
+    } catch (error) {
+      lastError = error;
+      if (attempt === attempts) break;
+      await new Promise((resolve) => setTimeout(resolve, attempt * 200));
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(`GET ${url} failed`);
 }
 
 // ===========================================================================

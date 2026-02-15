@@ -56,6 +56,7 @@ export const stories = sqliteTable('stories', {
   created_at: text('created_at').notNull(),
   updated_at: text('updated_at').notNull(),
   tasks_json: text('tasks_json').notNull().default('[]'),
+  execution_json: text('execution_json').notNull().default('{}'),
 });
 
 // ── Plans ───────────────────────────────────────────────────────────────────

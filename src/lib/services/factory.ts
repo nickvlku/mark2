@@ -12,6 +12,7 @@ import { MergeService } from './merge-service';
 import { StateBranchService } from './state-branch-service';
 import { PlanService } from './plan-service';
 import { EnhanceService } from './enhance-service';
+import { StoryRunService } from './story-run-service';
 import path from 'path';
 
 /**
@@ -39,6 +40,7 @@ export function createServices(mark2DirOverride?: string) {
     worktree: new WorktreeService(mark2Dir),
     pr: new PRService(mark2Dir),
     merge: new MergeService(projectRoot, mark2Dir),
+    storyRun: new StoryRunService(mark2Dir),
     stateBranch,
     mark2Dir,
     projectRoot,
@@ -101,4 +103,8 @@ export function createPlanService(mark2Dir?: string) {
 export function createEnhanceService(mark2Dir?: string) {
   const configService = createConfigService(mark2Dir);
   return new EnhanceService(configService);
+}
+
+export function createStoryRunService(mark2Dir?: string) {
+  return new StoryRunService(mark2Dir ?? getMark2Dir());
 }

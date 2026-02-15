@@ -26,6 +26,9 @@ export type Priority = z.infer<typeof Priority>;
 export const StoryStatus = z.enum(['pending', 'in_progress', 'completed']);
 export type StoryStatus = z.infer<typeof StoryStatus>;
 
+export const StoryExecutionStatus = z.enum(['idle', 'running', 'ready_to_merge', 'merged']);
+export type StoryExecutionStatus = z.infer<typeof StoryExecutionStatus>;
+
 export const MergeStrategy = z.enum(['squash', 'preserve']);
 export type MergeStrategy = z.infer<typeof MergeStrategy>;
 
@@ -156,6 +159,27 @@ export const StorySchema = z.object({
   description: z.string(),
   tasks: z.array(z.string()).default([]),
   plan_id: z.string().regex(/^PLAN-\d+$/).optional(),
+  execution: z.object({
+    status: StoryExecutionStatus.default('idle'),
+    branch_name: z.string().optional(),
+    base_branch: z.string().default('main'),
+    target_branch: z.string().default('main'),
+    started_at: z.string().datetime().optional(),
+    completed_at: z.string().datetime().optional(),
+    merge_pr_url: z.string().optional(),
+    merge_pr_number: z.number().int().optional(),
+    merge_requested_at: z.string().datetime().optional(),
+    task_merge_failures: z.array(z.object({
+      task_id: z.string().regex(/^TASK-\d+$/),
+      error: z.string(),
+      failed_at: z.string().datetime(),
+    })).default([]),
+  }).default({
+    status: 'idle',
+    base_branch: 'main',
+    target_branch: 'main',
+    task_merge_failures: [],
+  }),
   created_by: z.string(),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),

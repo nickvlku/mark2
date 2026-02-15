@@ -47,7 +47,6 @@ export class PRService {
     }
 
     const clonePath = this.cloneService.getClonePath(taskId);
-    const branchName = this.cloneService.getBranchName(taskId);
 
     // Check if clone exists
     if (!this.cloneService.cloneExists(taskId)) {
@@ -55,6 +54,8 @@ export class PRService {
     }
 
     try {
+      const branchName = await this.cloneService.getPublishBranchName(taskId);
+
       // Step 1: Get the GitHub remote URL from the main project
       // The clone's origin is file:// pointing to the local repo, so we need
       // to get the actual GitHub URL from the main project's origin

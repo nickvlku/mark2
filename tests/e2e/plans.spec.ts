@@ -51,7 +51,7 @@ test.describe('Plans Navigation', () => {
     await page.goto('/');
     await page.getByRole('link', { name: 'Plans' }).click();
     await expect(page).toHaveURL('/plans');
-    await expect(page.getByText('Mark2')).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Plans/i })).toBeVisible();
   });
 
   test('plans page renders with header', async ({ page }) => {
@@ -74,9 +74,9 @@ test.describe('Plans Page', () => {
 
   test('has phase filter buttons', async ({ page }) => {
     await page.goto('/plans');
-    await expect(page.getByRole('button', { name: 'All' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Active' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Done' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'All', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Active', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Done', exact: true })).toBeVisible();
   });
 
   test('can open create plan dialog', async ({ page }) => {

@@ -44,6 +44,12 @@ const mockStory: Story = {
   title: 'Simple story',
   description: 'A simple story description',
   tasks: [],
+  execution: {
+    status: 'idle',
+    base_branch: 'main',
+    target_branch: 'main',
+    task_merge_failures: [],
+  },
   created_by: 'human',
   created_at: '2025-01-15T10:00:00.000Z',
   updated_at: '2025-01-15T10:00:00.000Z',

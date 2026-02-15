@@ -37,7 +37,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid story ID' }, { status: 400 });
     }
     const body = await request.json();
-    const story = service.update(id, body);
+    const story = await service.update(id, body);
     return NextResponse.json({ story });
   } catch (error: any) {
     if (error.message?.includes('not found')) {
@@ -65,7 +65,7 @@ export async function DELETE(
     if (!isValidStoryId(id)) {
       return NextResponse.json({ error: 'Invalid story ID' }, { status: 400 });
     }
-    service.delete(id);
+    await service.delete(id);
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json(

@@ -22,7 +22,7 @@ export async function POST(
       );
     }
 
-    const story = service.addTask(id, body.task_id);
+    const story = await service.addTask(id, body.task_id);
     return NextResponse.json({ story });
   } catch (error: any) {
     if (error.message?.includes('not found')) {
@@ -54,7 +54,7 @@ export async function DELETE(
       );
     }
 
-    const story = service.removeTask(id, taskId);
+    const story = await service.removeTask(id, taskId);
     return NextResponse.json({ story });
   } catch (error: any) {
     if (error.message?.includes('not found')) {
