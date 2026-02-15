@@ -14,3 +14,10 @@ entries:
     metadata:
       old_phase: design
       new_phase: pending
+  - timestamp: 2026-02-15T22:17:27.329Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from pending to design
+    metadata:
+      old_phase: pending
+      new_phase: design
