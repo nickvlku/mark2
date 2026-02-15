@@ -4,8 +4,7 @@ description: Test setupMcpConfig() creates .codex/config.toml in correct locatio
 phase: pending
 phase_agents: {}
 phase_overrides: {}
-blockers:
-  - TASK-66
+blockers: []
 priority: P0
 artifacts: []
 ports: []
@@ -16,7 +15,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T19:00:38.565Z
-updated_at: 2026-02-08T19:01:03.969Z
+updated_at: 2026-02-15T23:59:52.310Z
 phase_entered_at: 2026-02-08T19:00:38.565Z
 loop_count: 0
 archived: false
