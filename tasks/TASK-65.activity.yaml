@@ -32,3 +32,10 @@ entries:
     metadata:
       token: "[CODING_COMPLETED]"
       phase: coding
+  - timestamp: 2026-02-15T22:15:55.119Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from coding to done
+    metadata:
+      old_phase: coding
+      new_phase: done
