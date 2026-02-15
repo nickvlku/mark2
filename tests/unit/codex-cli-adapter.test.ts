@@ -51,13 +51,31 @@ describe('CodexCLIAdapter', () => {
     expect(command).toContain('gpt-5.2-codex');
   });
 
-  it('returns environment variables', () => {
+  it('returns environment variables including storage paths', () => {
     const adapter = new CodexCLIAdapter();
-    const params = createTestParams();
+    const workingDirectory = '/tmp/project/.mark2/clones/TASK-999';
+    const params = createTestParams({ workingDirectory });
     const env = adapter.getEnvironment(params);
+
+    // Core variables
     expect(env.MARK2_TASK_ID).toBe('TASK-999');
     expect(env.MARK2_API_URL).toBe('http://localhost:3100');
     expect(env.MARK2_AGENT_TOKEN).toBe('mark2-local');
     expect(env.NODE_ENV).toBe('development');
+
+    // Storage path variables
+    expect(env.MARK2_STORAGE_DIR).toBe('/tmp/project/.mark2/storage/TASK-999');
+    expect(env.MARK2_ARTIFACTS_DIR).toBe('/tmp/project/.mark2/storage/TASK-999/artifacts');
+    expect(env.MARK2_PROMPTS_DIR).toBe('/tmp/project/.mark2/storage/TASK-999/prompts');
+    expect(env.MARK2_SESSIONS_DIR).toBe('/tmp/project/.mark2/storage/TASK-999/sessions');
+  });
+
+  it('returns storage paths with fallback project root', () => {
+    const adapter = new CodexCLIAdapter();
+    const params = createTestParams({ workingDirectory: '/tmp/some-project' });
+    const env = adapter.getEnvironment(params);
+
+    expect(env.MARK2_STORAGE_DIR).toBe('/tmp/some-project/.mark2/storage/TASK-999');
+    expect(env.MARK2_ARTIFACTS_DIR).toBe('/tmp/some-project/.mark2/storage/TASK-999/artifacts');
   });
 });
