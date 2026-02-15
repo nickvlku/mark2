@@ -78,4 +78,28 @@ describe('CodexCLIAdapter', () => {
     expect(env.MARK2_STORAGE_DIR).toBe('/tmp/some-project/.mark2/storage/TASK-999');
     expect(env.MARK2_ARTIFACTS_DIR).toBe('/tmp/some-project/.mark2/storage/TASK-999/artifacts');
   });
+
+  it('returns storage paths for worktree pattern', () => {
+    const adapter = new CodexCLIAdapter();
+    const workingDirectory = '/tmp/project/.worktrees/TASK-999/coding';
+    const params = createTestParams({ workingDirectory });
+    const env = adapter.getEnvironment(params);
+
+    // Should extract project root from .worktrees path
+    expect(env.MARK2_STORAGE_DIR).toBe('/tmp/project/.mark2/storage/TASK-999');
+    expect(env.MARK2_ARTIFACTS_DIR).toBe('/tmp/project/.mark2/storage/TASK-999/artifacts');
+    expect(env.MARK2_PROMPTS_DIR).toBe('/tmp/project/.mark2/storage/TASK-999/prompts');
+    expect(env.MARK2_SESSIONS_DIR).toBe('/tmp/project/.mark2/storage/TASK-999/sessions');
+  });
+
+  it('handles working directory with trailing slash', () => {
+    const adapter = new CodexCLIAdapter();
+    const workingDirectory = '/tmp/project/.mark2/clones/TASK-999/';
+    const params = createTestParams({ workingDirectory });
+    const env = adapter.getEnvironment(params);
+
+    // Should handle trailing slash correctly
+    expect(env.MARK2_STORAGE_DIR).toBe('/tmp/project/.mark2/storage/TASK-999');
+    expect(env.MARK2_ARTIFACTS_DIR).toBe('/tmp/project/.mark2/storage/TASK-999/artifacts');
+  });
 });
