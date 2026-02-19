@@ -25,3 +25,26 @@ entries:
     metadata:
       old_phase: design
       new_phase: coding
+  - timestamp: 2026-02-19T19:09:55.472Z
+    source: hook
+    type: phase_change
+    message: End token "[CODING_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[CODING_COMPLETED]"
+      phase: coding
+  - timestamp: 2026-02-19T19:10:07.968Z
+    source: hook
+    type: phase_change
+    message: End token "[CODING_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[CODING_COMPLETED]"
+      session_id: 8809f372-32f2-4c1c-a474-03ae5890ff89
+      transcript_path: /home/nick/.claude/projects/-home-nick-Developer-mark2--mark2-clones-TASK-70/8809f372-32f2-4c1c-a474-03ae5890ff89.jsonl
+      phase: coding
+  - timestamp: 2026-02-19T19:16:16.147Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from coding to testing
+    metadata:
+      old_phase: coding
+      new_phase: testing
