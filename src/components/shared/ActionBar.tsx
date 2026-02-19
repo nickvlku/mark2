@@ -7,12 +7,14 @@ import { MarkdownRenderer } from './MarkdownRenderer';
 
 interface ActionBarProps {
   task: Task;
+  loading?: boolean;
   onPhaseAction: (action: { phase: Phase } | { restart: true }) => void;
   onToggleAutoApprove: (value: boolean) => void;
   onArchive?: () => void;
   onRestore?: () => void;
   onDelete?: () => void;
   onEnhance?: () => void;
+  onCreatePR?: () => void;
 }
 
 interface PhaseButton {
@@ -78,7 +80,7 @@ function isForwardTransition(btn: PhaseButton, currentPhase: Phase): boolean {
   return targetIdx > currentIdx;
 }
 
-export function ActionBar({ task, onPhaseAction, onToggleAutoApprove, onArchive, onRestore, onDelete, onEnhance }: ActionBarProps) {
+export function ActionBar({ task, loading, onPhaseAction, onToggleAutoApprove, onArchive, onRestore, onDelete, onEnhance, onCreatePR }: ActionBarProps) {
   const [confirmButton, setConfirmButton] = useState<PhaseButton | null>(null);
   const [artifactContents, setArtifactContents] = useState<Record<string, string>>({});
   const [expandedArtifact, setExpandedArtifact] = useState<string | null>(null);
@@ -132,76 +134,102 @@ export function ActionBar({ task, onPhaseAction, onToggleAutoApprove, onArchive,
   const isReviewDialog = confirmButton ? needsArtifactReview(confirmButton) : false;
   const isMarkdown = (name: string) => name.endsWith('.md') || name.endsWith('.markdown');
 
-  if (actions.length === 0) return null;
+  const showPRButton = task.phase === 'done' && !task.archived && !!onCreatePR;
+  if (actions.length === 0 && !loading && !showPRButton) return null;
 
   return (
     <>
       <div className="flex items-center gap-2 border-t border-border px-4 py-3">
-        {actions.map((btn) => (
-          <button
-            key={btn.label}
-            onClick={() => handleButtonClick(btn)}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${variantStyles[btn.variant]}`}
-          >
-            {btn.label}
-          </button>
-        ))}
+        {loading ? (
+          /* Progress indicator replaces buttons during phase transition */
+          <div className="flex flex-1 items-center gap-3">
+            <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-bg-hover">
+              <div className="absolute inset-0 h-full animate-[progress_1.5s_ease-in-out_infinite] rounded-full bg-accent" />
+            </div>
+            <span className="text-sm text-text-secondary whitespace-nowrap">Transitioning...</span>
+          </div>
+        ) : (
+          <>
+            {actions.map((btn) => (
+              <button
+                key={btn.label}
+                onClick={() => handleButtonClick(btn)}
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${variantStyles[btn.variant]}`}
+              >
+                {btn.label}
+              </button>
+            ))}
 
-        {/* Enhance button - only show for pending tasks */}
-        {task.phase === 'pending' && !task.archived && onEnhance && (
-          <button
-            onClick={onEnhance}
-            className="flex items-center gap-2 rounded-lg border border-purple-500/50 bg-purple-500/10 px-3 py-1.5 text-sm font-medium text-purple-300 hover:bg-purple-500/20 transition-colors"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
-            </svg>
-            Enhance
-          </button>
-        )}
+            {/* Enhance button - only show for pending tasks */}
+            {task.phase === 'pending' && !task.archived && onEnhance && (
+              <button
+                onClick={onEnhance}
+                className="flex items-center gap-2 rounded-lg border border-purple-500/50 bg-purple-500/10 px-3 py-1.5 text-sm font-medium text-purple-300 hover:bg-purple-500/20 transition-colors"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
+                </svg>
+                Enhance
+              </button>
+            )}
 
-        {/* Spacer */}
-        <div className="flex-1" />
+            {/* Create PR button - only show for done tasks */}
+            {showPRButton && (
+              <button
+                onClick={onCreatePR}
+                className="flex items-center gap-2 rounded-lg border border-green-500/50 bg-green-500/10 px-3 py-1.5 text-sm font-medium text-green-300 hover:bg-green-500/20 transition-colors"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                </svg>
+                Create PR
+              </button>
+            )}
 
-        {/* Archive actions */}
-        {!task.archived && onArchive && (
-          <button
-            onClick={onArchive}
-            className="rounded-lg px-3 py-1.5 text-xs font-medium border border-border text-text-secondary hover:bg-bg-hover transition-colors"
-          >
-            Archive
-          </button>
-        )}
+            {/* Spacer */}
+            <div className="flex-1" />
 
-        {task.archived && onRestore && (
-          <button
-            onClick={onRestore}
-            className="rounded-lg px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
-          >
-            Restore
-          </button>
-        )}
+            {/* Archive actions */}
+            {!task.archived && onArchive && (
+              <button
+                onClick={onArchive}
+                className="rounded-lg px-3 py-1.5 text-xs font-medium border border-border text-text-secondary hover:bg-bg-hover transition-colors"
+              >
+                Archive
+              </button>
+            )}
 
-        {task.archived && onDelete && (
-          <button
-            onClick={onDelete}
-            className="rounded-lg px-3 py-1.5 text-xs font-medium bg-red-600 hover:bg-red-500 text-white transition-colors"
-          >
-            Delete
-          </button>
-        )}
+            {task.archived && onRestore && (
+              <button
+                onClick={onRestore}
+                className="rounded-lg px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-colors"
+              >
+                Restore
+              </button>
+            )}
 
-        {/* Auto-approve toggle - only show for non-archived tasks */}
-        {!task.archived && (
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={task.auto_approve}
-              onChange={(e) => onToggleAutoApprove(e.target.checked)}
-              className="h-3.5 w-3.5 rounded border-border accent-accent cursor-pointer"
-            />
-            <span className="text-xs text-text-secondary">Auto-approve</span>
-          </label>
+            {task.archived && onDelete && (
+              <button
+                onClick={onDelete}
+                className="rounded-lg px-3 py-1.5 text-xs font-medium bg-red-600 hover:bg-red-500 text-white transition-colors"
+              >
+                Delete
+              </button>
+            )}
+
+            {/* Auto-approve toggle - only show for non-archived tasks */}
+            {!task.archived && (
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={task.auto_approve}
+                  onChange={(e) => onToggleAutoApprove(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-border accent-accent cursor-pointer"
+                />
+                <span className="text-xs text-text-secondary">Auto-approve</span>
+              </label>
+            )}
+          </>
         )}
       </div>
 

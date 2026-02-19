@@ -19,6 +19,10 @@ import { DevServerPanel } from './DevServerPanel';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
+// Survives unmount/remount so the loading indicator persists across sidebar close/reopen.
+// Maps taskId -> target phase so we can detect completion via SWR polling.
+const inflightTransitions = new Map<string, string>();
+
 interface TaskDetailProps {
   task: Task;           // initial snapshot (used for first render)
   onClose: () => void;
@@ -44,6 +48,16 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // Phase transition loading state — initialized from module-level map so it
+  // persists across sidebar close/reopen while a transition is in-flight
+  const [phaseLoading, setPhaseLoading] = useState(() => inflightTransitions.has(initialTask.id));
+
+  // PR creation states
+  const [showPrDialog, setShowPrDialog] = useState(false);
+  const [prLoading, setPrLoading] = useState(false);
+  const [prResult, setPrResult] = useState<{ url: string; number: number } | null>(null);
+  const [prError, setPrError] = useState<string | null>(null);
+
   // Enhancement dialog states
   const [showEnhanceDialog, setShowEnhanceDialog] = useState(false);
   const [enhanceLoading, setEnhanceLoading] = useState(false);
@@ -64,6 +78,18 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
   );
   const task = data?.task ?? initialTask;
   const sessionStatus = (task as any).session_status as SessionStatus | undefined;
+
+  // Reconcile loading state after remount: if the transition completed while
+  // unmounted (finally ran and cleared the map, or task phase reached target),
+  // clear the loading indicator. SWR refreshes `task` every 5s so this
+  // effect re-evaluates periodically.
+  useEffect(() => {
+    if (!phaseLoading) return;
+    const target = inflightTransitions.get(task.id);
+    if (!target || task.phase === target) {
+      setPhaseLoading(false);
+    }
+  }, [task, phaseLoading]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -95,6 +121,9 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
   };
 
   const handlePhaseAction = async (action: { phase: string; targetBranch?: string } | { restart: true }) => {
+    const target = 'phase' in action ? action.phase : task.phase;
+    inflightTransitions.set(task.id, target);
+    setPhaseLoading(true);
     try {
       if ('restart' in action) {
         await fetch(`/api/tasks/${task.id}/phase/restart`, {
@@ -113,6 +142,9 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
       onUpdate();
     } catch (err) {
       console.error('Phase action failed:', err);
+    } finally {
+      inflightTransitions.delete(task.id);
+      setPhaseLoading(false);
     }
   };
 
@@ -186,6 +218,30 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
 
   const handleEnhanceRetry = () => {
     handleEnhance();
+  };
+
+  const handleCreatePR = async () => {
+    setShowPrDialog(true);
+    setPrLoading(true);
+    setPrError(null);
+    setPrResult(null);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/pr`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_branch: 'main' }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to create PR');
+      }
+      const result = await res.json();
+      setPrResult({ url: result.pr_url, number: result.pr_number });
+    } catch (err: any) {
+      setPrError(err.message);
+    } finally {
+      setPrLoading(false);
+    }
   };
 
   const confirmEnhancement = async (title: string, description: string) => {
@@ -301,12 +357,14 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
         {/* Action Bar */}
         <ActionBar
           task={task}
+          loading={phaseLoading}
           onPhaseAction={handlePhaseAction}
           onToggleAutoApprove={handleToggleAutoApprove}
           onArchive={handleArchive}
           onRestore={handleRestore}
           onDelete={handleDelete}
           onEnhance={handleEnhance}
+          onCreatePR={handleCreatePR}
         />
       </div>
 
@@ -330,6 +388,42 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
         variant="danger"
         onConfirm={confirmDelete}
       />
+
+      {/* PR Creation Dialog */}
+      <Dialog
+        open={showPrDialog}
+        onClose={() => { setShowPrDialog(false); setPrResult(null); setPrError(null); }}
+        title={prResult ? `PR #${prResult.number} Created` : 'Create Pull Request'}
+        confirmLabel={prResult ? 'Open PR' : 'Close'}
+        onConfirm={prResult
+          ? () => window.open(prResult.url, '_blank')
+          : !prLoading
+            ? () => { setShowPrDialog(false); setPrError(null); }
+            : undefined}
+      >
+        {prLoading && (
+          <div className="flex items-center gap-3 py-2">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+            <span className="text-sm text-text-secondary">Creating pull request...</span>
+          </div>
+        )}
+        {prResult && !prLoading && (
+          <div className="space-y-2">
+            <p className="text-sm text-text-secondary">Pull request created successfully.</p>
+            <a
+              href={prResult.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block truncate text-sm text-accent hover:underline font-mono"
+            >
+              {prResult.url}
+            </a>
+          </div>
+        )}
+        {prError && !prLoading && (
+          <p className="text-sm text-red-400">{prError}</p>
+        )}
+      </Dialog>
 
       {/* Enhancement Dialog */}
       <EnhanceDialog
