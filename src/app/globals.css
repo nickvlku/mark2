@@ -108,6 +108,22 @@ body {
   animation: fade-in 0.2s ease-out;
 }
 
+/* Indeterminate progress bar */
+@keyframes progress {
+  0% {
+    width: 0%;
+    left: 0;
+  }
+  50% {
+    width: 40%;
+    left: 30%;
+  }
+  100% {
+    width: 0%;
+    left: 100%;
+  }
+}
+
 /* Board pan improvements */
 .cursor-grab {
   cursor: grab;

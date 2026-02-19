@@ -289,3 +289,57 @@ export async function getStorageStats(projectRoot: string, taskId: string): Prom
 
   return stats;
 }
+
+/**
+ * Save orchestration, agent, and task prompts to the task's prompts directory.
+ * Used for debugging and audit trails.
+ *
+ * Files are saved with the naming convention:
+ *   {phase}-orchestration.md
+ *   {phase}-agent.md
+ *   {phase}-task.md
+ *
+ * @param mark2Dir - The .mark2 directory path
+ * @param taskId - The task identifier (e.g., "TASK-69")
+ * @param phase - The current phase (e.g., "design", "coding")
+ * @param prompts - The prompt parts from PromptAssembler
+ */
+export function savePromptFiles(
+  mark2Dir: string,
+  taskId: string,
+  phase: string,
+  prompts: {
+    orchestrationPrompt: string;
+    agentPrompt: string;
+    taskPrompt: string;
+  },
+): void {
+  try {
+    const projectRoot = path.dirname(mark2Dir);
+    const storagePaths = getTaskStoragePaths(projectRoot, taskId);
+
+    // Ensure prompt directory exists
+    fs.mkdirSync(storagePaths.prompts, { recursive: true });
+
+    // Write all three prompt files with explicit UTF-8 encoding
+    fs.writeFileSync(
+      path.join(storagePaths.prompts, `${phase}-orchestration.md`),
+      prompts.orchestrationPrompt,
+      'utf-8',
+    );
+    fs.writeFileSync(
+      path.join(storagePaths.prompts, `${phase}-agent.md`),
+      prompts.agentPrompt,
+      'utf-8',
+    );
+    fs.writeFileSync(
+      path.join(storagePaths.prompts, `${phase}-task.md`),
+      prompts.taskPrompt,
+      'utf-8',
+    );
+  } catch (err) {
+    // Log but don't throw — prompt saving is best-effort and should not
+    // prevent agent spawning
+    console.error(`[storage] Failed to save prompt files for ${taskId}/${phase}:`, err);
+  }
+}
