@@ -35,6 +35,7 @@ import { handleFinalTesting } from './phase-handlers/final-testing';
 import { handleRunTestPlan } from './phase-handlers/run-test-plan';
 import { handleDone } from './phase-handlers/done';
 import { ArtifactService } from '../services/artifact-service';
+import { CloneService } from '../services/clone-service';
 import { getTaskStoragePaths, ensureTaskStorageExistsSync, resolveArtifactPath, fileExistsSync } from '../utils/storage';
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -131,8 +132,24 @@ export class OrchestrationEngine {
     this.tmuxManager.markCompletedByPhase(taskId, phase);
     this.terminalStream.stop(taskId);
 
-    // Log the end token detection
-    db.insert(activityEntries)
+    // Resolve adapter + working directory for cleanup
+    let cleanupAdapter: CLIAdapter | null = null;
+    let cleanupWorkDir: string | null = null;
+    try {
+      const task = this.getTask(taskId);
+      if (task) {
+        const role = this.resolveAgent(task, phase);
+        cleanupAdapter = this.getAdapterForTool(role.cli_tool);
+        const cloneService = new CloneService(this.config.mark2Dir);
+        cleanupWorkDir = cloneService.getClonePath(taskId);
+      }
+    } catch (err) {
+      console.error(`[engine] Failed to resolve adapter for cleanup (${taskId}/${phase}):`, err);
+    }
+
+    try {
+      // Log the end token detection
+      db.insert(activityEntries)
       .values({
         task_id: taskId,
         timestamp: now,
@@ -290,11 +307,21 @@ export class OrchestrationEngine {
       loopContext = { isReReview: true };
     }
 
-    // Update task phase
-    this.updateTaskPhase(taskId, nextPhase);
+      // Update task phase
+      this.updateTaskPhase(taskId, nextPhase);
 
-    // Start the next phase
-    await this.startPhase(taskId, nextPhase, loopContext);
+      // Start the next phase
+      await this.startPhase(taskId, nextPhase, loopContext);
+    } finally {
+      // Best-effort adapter cleanup
+      if (cleanupAdapter?.cleanup && cleanupWorkDir) {
+        try {
+          await cleanupAdapter.cleanup(cleanupWorkDir);
+        } catch (err) {
+          console.error(`[engine] Adapter cleanup failed for ${taskId}/${phase}:`, err);
+        }
+      }
+    }
   }
 
   /**
@@ -440,6 +467,22 @@ export class OrchestrationEngine {
         }),
       })
       .run();
+
+    // Best-effort adapter cleanup
+    try {
+      const task = this.getTask(taskId);
+      if (task) {
+        const role = this.resolveAgent(task, phase);
+        const adapter = this.getAdapterForTool(role.cli_tool);
+        if (adapter.cleanup) {
+          const cloneService = new CloneService(this.config.mark2Dir);
+          const workDir = cloneService.getClonePath(taskId);
+          await adapter.cleanup(workDir);
+        }
+      }
+    } catch (err) {
+      console.error(`[engine] Adapter cleanup failed after crash for ${taskId}/${phase}:`, err);
+    }
   }
 
   /**
