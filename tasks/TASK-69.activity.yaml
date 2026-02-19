@@ -96,3 +96,10 @@ entries:
     source: agent
     type: note
     message: "[in_progress] Starting test plan execution phase"
+  - timestamp: 2026-02-19T18:37:14.153Z
+    source: hook
+    type: phase_change
+    message: End token "[RUN_TEST_PLAN_PASSED]" detected via Claude Code hook
+    metadata:
+      token: "[RUN_TEST_PLAN_PASSED]"
+      phase: run_test_plan

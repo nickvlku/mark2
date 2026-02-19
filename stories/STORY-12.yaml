@@ -33,6 +33,10 @@ execution:
       error: |
         Command failed: git -C "/home/nick/Developer/mark2/.mark2/clones/TASK-68" merge --squash "mark2/story-12--task-task-68"
       failed_at: 2026-02-19T18:34:27.521Z
+    - task_id: TASK-67
+      error: |
+        Command failed: git -C "/home/nick/Developer/mark2/.mark2/clones/TASK-67" merge --squash "mark2/story-12--task-task-67"
+      failed_at: 2026-02-19T18:39:10.284Z
 created_by: plan
 created_at: 2026-02-08T19:00:19.297Z
-updated_at: 2026-02-19T18:34:27.521Z
+updated_at: 2026-02-19T18:39:10.284Z
