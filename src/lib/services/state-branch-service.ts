@@ -1,8 +1,11 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { execSync, spawnSync } from 'child_process';
+import { execSync, spawnSync, exec as execCb } from 'child_process';
+import { promisify } from 'util';
 import YAML from 'yaml';
+
+const execAsync = promisify(execCb);
 import { getMark2Dir, getProjectRoot } from '../utils/mark2-dir';
 
 export interface LockInfo {
@@ -202,9 +205,8 @@ export class StateBranchService {
       // Push to remote if available
       if (this.hasRemote()) {
         try {
-          execSync(`git push -u origin ${this.branchName}`, {
+          await execAsync(`git push -u origin ${this.branchName}`, {
             cwd: this.projectRoot,
-            stdio: 'pipe',
           });
         } catch (e) {
           console.log(`   ⚠ Could not push to remote (may need to push manually)`);
@@ -280,7 +282,7 @@ export class StateBranchService {
 
     try {
       // Fetch latest
-      execSync('git fetch origin', { cwd: this.stateDir, stdio: 'pipe' });
+      await execAsync('git fetch origin', { cwd: this.stateDir });
 
       // Check if we have updates
       const localHead = execSync('git rev-parse HEAD', { cwd: this.stateDir, encoding: 'utf-8' }).trim();
@@ -374,9 +376,8 @@ export class StateBranchService {
 
     // Push if remote exists
     if (this.hasRemote()) {
-      execSync(`git push origin ${this.branchName}`, {
+      await execAsync(`git push origin ${this.branchName}`, {
         cwd: this.stateDir,
-        stdio: 'pipe',
       });
     }
   }
