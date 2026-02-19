@@ -22,10 +22,6 @@ export class CodexCLIAdapter implements CLIAdapter {
   readonly supportsNaming = false;
 
   buildCommand(params: AgentInvocationParams): string {
-    // Set up configuration files before building command
-    this.setupMcpConfig(params);
-    this.setupAgentsMd(params);
-
     // TODO: Verify exact Codex CLI flag names when integration is finalized.
     // --approval-mode full-auto is used instead of separate --full-auto and
     // --ask-for-approval flags to avoid potential flag conflicts.
@@ -34,10 +30,11 @@ export class CodexCLIAdapter implements CLIAdapter {
       params.taskId,
     );
 
-    // Ensure storage directories exist
+    // Ensure storage directories exist BEFORE setting up config files
     ensureTaskStorageExistsSync(projectRoot, params.taskId);
 
-    // Generate AGENTS.md for Codex CLI to discover
+    // Set up configuration files after storage directories exist
+    this.setupMcpConfig(params);
     this.setupAgentsMd(params);
 
     // Save individual prompt components for debugging (matches Claude adapter pattern)
@@ -291,10 +288,10 @@ Brief reference of mark2_* MCP tools available in your environment.
    * Best-effort: errors are logged but never thrown.
    */
   async cleanup(workingDirectory: string): Promise<void> {
-    // 1. Delete .codex/config.toml
+    // 1. Delete .codex/mcp-config.json (created by setupMcpConfig)
     try {
       await fs.promises.unlink(
-        path.join(workingDirectory, ".codex", "config.toml"),
+        path.join(workingDirectory, ".codex", "mcp-config.json"),
       );
     } catch (err: unknown) {
       const code =
@@ -302,7 +299,7 @@ Brief reference of mark2_* MCP tools available in your environment.
       if (code !== "ENOENT") {
         const message = err instanceof Error ? err.message : String(err);
         console.log(
-          `[codex-cli] cleanup: failed to delete .codex/config.toml: ${message}`,
+          `[codex-cli] cleanup: failed to delete .codex/mcp-config.json: ${message}`,
         );
       }
     }

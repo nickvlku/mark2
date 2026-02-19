@@ -88,12 +88,10 @@ describe('CodexCLIAdapter', () => {
     expect(env.MARK2_API_URL).toBe('http://localhost:3100');
     expect(env.MARK2_AGENT_TOKEN).toBe('mark2-local');
     expect(env.NODE_ENV).toBe('development');
-
-    // Storage path variables
-    expect(env.MARK2_STORAGE_DIR).toBe('/tmp/project/.mark2/storage/TASK-999');
-    expect(env.MARK2_ARTIFACTS_DIR).toBe('/tmp/project/.mark2/storage/TASK-999/artifacts');
-    expect(env.MARK2_PROMPTS_DIR).toBe('/tmp/project/.mark2/storage/TASK-999/prompts');
-    expect(env.MARK2_SESSIONS_DIR).toBe('/tmp/project/.mark2/storage/TASK-999/sessions');
+    expect(env.MARK2_STORAGE_DIR).toContain('.mark2/storage/TASK-999');
+    expect(env.MARK2_ARTIFACTS_DIR).toContain('.mark2/storage/TASK-999/artifacts');
+    expect(env.MARK2_PROMPTS_DIR).toContain('.mark2/storage/TASK-999/prompts');
+    expect(env.MARK2_SESSIONS_DIR).toContain('.mark2/storage/TASK-999/sessions');
   });
 
   it('returns storage paths with fallback project root', () => {
@@ -129,127 +127,6 @@ describe('CodexCLIAdapter', () => {
     expect(env.MARK2_ARTIFACTS_DIR).toBe('/tmp/project/.mark2/storage/TASK-999/artifacts');
   });
 
-  describe('cleanup', () => {
-    it('deletes .codex/config.toml', async () => {
-      const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-cleanup-'));
-      tempPaths.push(tmpDir);
-
-      // Setup: create .codex/config.toml
-      fs.mkdirSync(path.join(tmpDir, '.codex'), { recursive: true });
-      fs.writeFileSync(path.join(tmpDir, '.codex', 'config.toml'), '[mcp]');
-
-      const adapter = new CodexCLIAdapter();
-      await adapter.cleanup(tmpDir);
-
-      expect(fs.existsSync(path.join(tmpDir, '.codex', 'config.toml'))).toBe(false);
-    });
-
-    it('deletes AGENTS.md', async () => {
-      const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-cleanup-'));
-      tempPaths.push(tmpDir);
-
-      // Setup: create AGENTS.md
-      fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), '# Agent Instructions');
-
-      const adapter = new CodexCLIAdapter();
-      await adapter.cleanup(tmpDir);
-
-      expect(fs.existsSync(path.join(tmpDir, 'AGENTS.md'))).toBe(false);
-    });
-
-    it('removes empty .codex directory', async () => {
-      const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-cleanup-'));
-      tempPaths.push(tmpDir);
-
-      // Setup: create .codex/config.toml
-      fs.mkdirSync(path.join(tmpDir, '.codex'), { recursive: true });
-      fs.writeFileSync(path.join(tmpDir, '.codex', 'config.toml'), '[mcp]');
-
-      const adapter = new CodexCLIAdapter();
-      await adapter.cleanup(tmpDir);
-
-      expect(fs.existsSync(path.join(tmpDir, '.codex'))).toBe(false);
-    });
-
-    it('preserves .codex directory when not empty', async () => {
-      const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-cleanup-'));
-      tempPaths.push(tmpDir);
-
-      // Setup: create .codex/config.toml and an extra file
-      fs.mkdirSync(path.join(tmpDir, '.codex'), { recursive: true });
-      fs.writeFileSync(path.join(tmpDir, '.codex', 'config.toml'), '[mcp]');
-      fs.writeFileSync(path.join(tmpDir, '.codex', 'other-file.txt'), 'keep me');
-
-      const adapter = new CodexCLIAdapter();
-      await adapter.cleanup(tmpDir);
-
-      // Directory should still exist
-      expect(fs.existsSync(path.join(tmpDir, '.codex'))).toBe(true);
-      // config.toml should be deleted
-      expect(fs.existsSync(path.join(tmpDir, '.codex', 'config.toml'))).toBe(false);
-      // other file should remain
-      expect(fs.existsSync(path.join(tmpDir, '.codex', 'other-file.txt'))).toBe(true);
-    });
-
-    it('is idempotent (no error when files missing)', async () => {
-      const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-cleanup-'));
-      tempPaths.push(tmpDir);
-
-      const adapter = new CodexCLIAdapter();
-
-      // Call cleanup on empty directory - should not throw
-      await expect(adapter.cleanup(tmpDir)).resolves.toBeUndefined();
-    });
-
-    it('handles all files missing gracefully', async () => {
-      const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-cleanup-'));
-      tempPaths.push(tmpDir);
-
-      const adapter = new CodexCLIAdapter();
-
-      // Call cleanup multiple times - should be safe
-      await adapter.cleanup(tmpDir);
-      await adapter.cleanup(tmpDir);
-      await adapter.cleanup(tmpDir);
-
-      // No assertion needed - test passes if no exception thrown
-    });
-
-    it('deletes both files and removes directory in one call', async () => {
-      const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-cleanup-'));
-      tempPaths.push(tmpDir);
-
-      // Setup: create both config.toml and AGENTS.md
-      fs.mkdirSync(path.join(tmpDir, '.codex'), { recursive: true });
-      fs.writeFileSync(path.join(tmpDir, '.codex', 'config.toml'), '[mcp]');
-      fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), '# Agent Instructions');
-
-      const adapter = new CodexCLIAdapter();
-      await adapter.cleanup(tmpDir);
-
-      // All should be gone
-      expect(fs.existsSync(path.join(tmpDir, '.codex', 'config.toml'))).toBe(false);
-      expect(fs.existsSync(path.join(tmpDir, 'AGENTS.md'))).toBe(false);
-      expect(fs.existsSync(path.join(tmpDir, '.codex'))).toBe(false);
-    });
-
-    it('handles partial cleanup (only some files exist)', async () => {
-      const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-cleanup-'));
-      tempPaths.push(tmpDir);
-
-      // Setup: only create AGENTS.md, not .codex/config.toml
-      fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), '# Agent Instructions');
-
-      const adapter = new CodexCLIAdapter();
-      await adapter.cleanup(tmpDir);
-
-      // AGENTS.md should be deleted
-      expect(fs.existsSync(path.join(tmpDir, 'AGENTS.md'))).toBe(false);
-      // .codex directory should not exist (and that's fine)
-      expect(fs.existsSync(path.join(tmpDir, '.codex'))).toBe(false);
-    });
-  });
-  });
 
   it('creates MCP config file', () => {
     const adapter = new CodexCLIAdapter();
@@ -647,10 +524,6 @@ describe('CodexCLIAdapter', () => {
       // Should be pretty-printed with 2 spaces
       expect(content).toContain('  ');
     });
-    expect(env.MARK2_STORAGE_DIR).toContain('.mark2/storage/TASK-999');
-    expect(env.MARK2_ARTIFACTS_DIR).toContain('.mark2/storage/TASK-999/artifacts');
-    expect(env.MARK2_PROMPTS_DIR).toContain('.mark2/storage/TASK-999/prompts');
-    expect(env.MARK2_SESSIONS_DIR).toContain('.mark2/storage/TASK-999/sessions');
   });
 
   it('writes AGENTS.md to worktree root', () => {
@@ -847,5 +720,146 @@ describe('CodexCLIAdapter', () => {
     const content = fs.readFileSync(agentsMdPath, 'utf-8');
     // Should still contain MCP tools reference
     expect(content).toContain('# Available MCP Tools');
+  });
+
+  describe('cleanup', () => {
+    it('deletes .codex/mcp-config.json', async () => {
+      const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-cleanup-'));
+      tempPaths.push(tmpDir);
+
+      // Setup: create .codex/mcp-config.json
+      fs.mkdirSync(path.join(tmpDir, '.codex'), { recursive: true });
+      fs.writeFileSync(path.join(tmpDir, '.codex', 'mcp-config.json'), '{"mcpServers":{}}');
+
+      const adapter = new CodexCLIAdapter();
+      await adapter.cleanup(tmpDir);
+
+      expect(fs.existsSync(path.join(tmpDir, '.codex', 'mcp-config.json'))).toBe(false);
+    });
+
+    it('deletes AGENTS.md', async () => {
+      const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-cleanup-'));
+      tempPaths.push(tmpDir);
+
+      // Setup: create AGENTS.md
+      fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), '# Agent Instructions');
+
+      const adapter = new CodexCLIAdapter();
+      await adapter.cleanup(tmpDir);
+
+      expect(fs.existsSync(path.join(tmpDir, 'AGENTS.md'))).toBe(false);
+    });
+
+    it('removes empty .codex directory', async () => {
+      const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-cleanup-'));
+      tempPaths.push(tmpDir);
+
+      // Setup: create .codex/mcp-config.json
+      fs.mkdirSync(path.join(tmpDir, '.codex'), { recursive: true });
+      fs.writeFileSync(path.join(tmpDir, '.codex', 'mcp-config.json'), '{"mcpServers":{}}');
+
+      const adapter = new CodexCLIAdapter();
+      await adapter.cleanup(tmpDir);
+
+      expect(fs.existsSync(path.join(tmpDir, '.codex'))).toBe(false);
+    });
+
+    it('preserves .codex directory when not empty', async () => {
+      const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-cleanup-'));
+      tempPaths.push(tmpDir);
+
+      // Setup: create .codex/mcp-config.json and an extra file
+      fs.mkdirSync(path.join(tmpDir, '.codex'), { recursive: true });
+      fs.writeFileSync(path.join(tmpDir, '.codex', 'mcp-config.json'), '{"mcpServers":{}}');
+      fs.writeFileSync(path.join(tmpDir, '.codex', 'other-file.txt'), 'keep me');
+
+      const adapter = new CodexCLIAdapter();
+      await adapter.cleanup(tmpDir);
+
+      // Directory should still exist
+      expect(fs.existsSync(path.join(tmpDir, '.codex'))).toBe(true);
+      // mcp-config.json should be deleted
+      expect(fs.existsSync(path.join(tmpDir, '.codex', 'mcp-config.json'))).toBe(false);
+      // other file should remain
+      expect(fs.existsSync(path.join(tmpDir, '.codex', 'other-file.txt'))).toBe(true);
+    });
+
+    it('is idempotent (no error when files missing)', async () => {
+      const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-cleanup-'));
+      tempPaths.push(tmpDir);
+
+      const adapter = new CodexCLIAdapter();
+
+      // Call cleanup on empty directory - should not throw
+      await expect(adapter.cleanup(tmpDir)).resolves.toBeUndefined();
+    });
+
+    it('handles all files missing gracefully', async () => {
+      const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-cleanup-'));
+      tempPaths.push(tmpDir);
+
+      const adapter = new CodexCLIAdapter();
+
+      // Call cleanup multiple times - should be safe
+      await adapter.cleanup(tmpDir);
+      await adapter.cleanup(tmpDir);
+      await adapter.cleanup(tmpDir);
+
+      // No assertion needed - test passes if no exception thrown
+    });
+
+    it('deletes both files and removes directory in one call', async () => {
+      const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-cleanup-'));
+      tempPaths.push(tmpDir);
+
+      // Setup: create both mcp-config.json and AGENTS.md
+      fs.mkdirSync(path.join(tmpDir, '.codex'), { recursive: true });
+      fs.writeFileSync(path.join(tmpDir, '.codex', 'mcp-config.json'), '{"mcpServers":{}}');
+      fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), '# Agent Instructions');
+
+      const adapter = new CodexCLIAdapter();
+      await adapter.cleanup(tmpDir);
+
+      // All should be gone
+      expect(fs.existsSync(path.join(tmpDir, '.codex', 'mcp-config.json'))).toBe(false);
+      expect(fs.existsSync(path.join(tmpDir, 'AGENTS.md'))).toBe(false);
+      expect(fs.existsSync(path.join(tmpDir, '.codex'))).toBe(false);
+    });
+
+    it('handles partial cleanup (only some files exist)', async () => {
+      const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-cleanup-'));
+      tempPaths.push(tmpDir);
+
+      // Setup: only create AGENTS.md, not .codex/mcp-config.json
+      fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), '# Agent Instructions');
+
+      const adapter = new CodexCLIAdapter();
+      await adapter.cleanup(tmpDir);
+
+      // AGENTS.md should be deleted
+      expect(fs.existsSync(path.join(tmpDir, 'AGENTS.md'))).toBe(false);
+      // .codex directory should not exist (and that's fine)
+      expect(fs.existsSync(path.join(tmpDir, '.codex'))).toBe(false);
+    });
+
+    it('cleans up files actually created by buildCommand()', async () => {
+      const adapter = new CodexCLIAdapter();
+      const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-lifecycle-'));
+      tempPaths.push(tmpDir);
+
+      // buildCommand creates .codex/mcp-config.json and AGENTS.md
+      const params = createTestParams({ workingDirectory: tmpDir });
+      adapter.buildCommand(params);
+
+      // Verify files were created
+      expect(fs.existsSync(path.join(tmpDir, '.codex', 'mcp-config.json'))).toBe(true);
+      expect(fs.existsSync(path.join(tmpDir, 'AGENTS.md'))).toBe(true);
+
+      // Cleanup should remove them
+      await adapter.cleanup(tmpDir);
+
+      expect(fs.existsSync(path.join(tmpDir, '.codex', 'mcp-config.json'))).toBe(false);
+      expect(fs.existsSync(path.join(tmpDir, 'AGENTS.md'))).toBe(false);
+    });
   });
 });

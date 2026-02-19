@@ -31,4 +31,11 @@ export interface CLIAdapter {
    * the prompt inline (e.g. via --print / -p flags).
    */
   getPromptFilePath?(params: AgentInvocationParams): string | undefined;
+
+  /**
+   * Optional cleanup hook called after a phase session completes or crashes.
+   * Removes temporary configuration files created during buildCommand().
+   * Implementations must be best-effort: log errors but never throw.
+   */
+  cleanup?(workingDirectory: string): Promise<void>;
 }

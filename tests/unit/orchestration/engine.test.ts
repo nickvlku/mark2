@@ -78,24 +78,36 @@ vi.mock('@/lib/adapters/claude-code', () => ({
   ClaudeCodeAdapter: class {
     toolId = 'claude-code';
     launch = vi.fn();
+    // No cleanup method - test that optional cleanup works
   },
 }));
 vi.mock('@/lib/adapters/codex-cli', () => ({
   CodexCLIAdapter: class {
     toolId = 'codex-cli';
     launch = vi.fn();
+    cleanup = vi.fn().mockResolvedValue(undefined);
   },
 }));
 vi.mock('@/lib/adapters/gemini-cli', () => ({
   GeminiCLIAdapter: class {
     toolId = 'gemini-cli';
     launch = vi.fn();
+    // No cleanup method
   },
 }));
 vi.mock('@/lib/adapters/opencode', () => ({
   OpenCodeAdapter: class {
     toolId = 'opencode';
     launch = vi.fn();
+    // No cleanup method
+  },
+}));
+
+// Mock CloneService
+vi.mock('@/lib/services/clone-service', () => ({
+  CloneService: class {
+    getClonePath = vi.fn().mockReturnValue('/test/project/.mark2/clones/TASK-1');
+    cloneExists = vi.fn().mockReturnValue(true);
   },
 }));
 
@@ -292,9 +304,266 @@ describe('OrchestrationEngine', () => {
 
     it('stops all watchers', () => {
       engine.shutdown();
-      
+
       // Should not throw
       expect(true).toBe(true);
+    });
+  });
+
+  describe('processEndToken - adapter cleanup', () => {
+    beforeEach(() => {
+      engine = OrchestrationEngine.getInstance(mockConfig);
+
+      // Mock config with codex-cli role
+      const reader = (engine as any).reader;
+      (reader.readConfig as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: {
+          phase_defaults: {
+            coding: {
+              role: 'coder',
+              cli_tool: 'codex-cli',
+              model: 'gpt-4',
+            },
+            design: {
+              role: 'designer',
+              cli_tool: 'codex-cli',
+              model: 'gpt-4',
+            },
+          },
+        },
+      });
+
+      // Mock roles file
+      (reader as any).readRoles = vi.fn().mockReturnValue({
+        data: {
+          roles: [
+            {
+              name: 'coder',
+              uuid: 'uuid-1',
+              role_prompt: 'You are a coder',
+            },
+            {
+              name: 'designer',
+              uuid: 'uuid-2',
+              role_prompt: 'You are a designer',
+            },
+          ],
+        },
+      });
+    });
+
+    it('calls adapter.cleanup() after successful transition', async () => {
+      const mockStartPhase = vi.spyOn(engine, 'startPhase').mockResolvedValue();
+      const codexAdapter = engine.getAdapterForTool('codex-cli');
+      const cleanupSpy = vi.spyOn(codexAdapter, 'cleanup' as any);
+
+      await engine.processEndToken('TASK-1', 'test-agent', 'coding', '[CODING_COMPLETED]');
+
+      expect(cleanupSpy).toHaveBeenCalledWith('/test/project/.mark2/clones/TASK-1');
+      expect(mockStartPhase).toHaveBeenCalled();
+    });
+
+    it('calls adapter.cleanup() even when auto_advance is disabled (early return)', async () => {
+      const mockStartPhase = vi.spyOn(engine, 'startPhase').mockResolvedValue();
+      const reader = (engine as any).reader;
+      const taskWithAutoAdvanceDisabled = {
+        id: 'TASK-1',
+        title: 'Test Task',
+        phase: 'coding' as const,
+        loop_count: 0,
+        phase_agents: {},
+        blockers: [],
+        priority: 'P2',
+        artifacts: [],
+        ports: [],
+        worktrees: {},
+        created_by: 'test',
+        merge_strategy: 'squash' as const,
+        auto_advance: false,
+        auto_approve: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        phase_entered_at: new Date().toISOString(),
+      };
+      (reader.readTask as ReturnType<typeof vi.fn>).mockReturnValue({ data: taskWithAutoAdvanceDisabled });
+
+      const codexAdapter = engine.getAdapterForTool('codex-cli');
+      const cleanupSpy = vi.spyOn(codexAdapter, 'cleanup' as any);
+
+      await engine.processEndToken('TASK-1', 'test-agent', 'coding', '[CODING_COMPLETED]');
+
+      expect(cleanupSpy).toHaveBeenCalledWith('/test/project/.mark2/clones/TASK-1');
+      expect(mockStartPhase).not.toHaveBeenCalled();
+    });
+
+    it('calls adapter.cleanup() even when auto_approve is disabled (early return)', async () => {
+      const mockStartPhase = vi.spyOn(engine, 'startPhase').mockResolvedValue();
+      const reader = (engine as any).reader;
+      const taskWithAutoApproveDisabled = {
+        id: 'TASK-1',
+        title: 'Test Task',
+        phase: 'coding' as const,
+        loop_count: 0,
+        phase_agents: {},
+        blockers: [],
+        priority: 'P2',
+        artifacts: [],
+        ports: [],
+        worktrees: {},
+        created_by: 'test',
+        merge_strategy: 'squash' as const,
+        auto_advance: true,
+        auto_approve: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        phase_entered_at: new Date().toISOString(),
+      };
+      (reader.readTask as ReturnType<typeof vi.fn>).mockReturnValue({ data: taskWithAutoApproveDisabled });
+
+      const codexAdapter = engine.getAdapterForTool('codex-cli');
+      const cleanupSpy = vi.spyOn(codexAdapter, 'cleanup' as any);
+
+      await engine.processEndToken('TASK-1', 'test-agent', 'coding', '[CODING_COMPLETED]');
+
+      expect(cleanupSpy).toHaveBeenCalledWith('/test/project/.mark2/clones/TASK-1');
+      expect(mockStartPhase).not.toHaveBeenCalled();
+    });
+
+    it('calls adapter.cleanup() even when transition logic throws', async () => {
+      const mockStartPhase = vi.spyOn(engine, 'startPhase').mockRejectedValue(new Error('Phase start failed'));
+      const codexAdapter = engine.getAdapterForTool('codex-cli');
+      const cleanupSpy = vi.spyOn(codexAdapter, 'cleanup' as any);
+
+      await expect(
+        engine.processEndToken('TASK-1', 'test-agent', 'coding', '[CODING_COMPLETED]')
+      ).rejects.toThrow('Phase start failed');
+
+      expect(cleanupSpy).toHaveBeenCalledWith('/test/project/.mark2/clones/TASK-1');
+    });
+
+    it('does not fail when adapter has no cleanup method', async () => {
+      const mockStartPhase = vi.spyOn(engine, 'startPhase').mockResolvedValue();
+      const reader = (engine as any).reader;
+
+      // Configure to use claude-code which has no cleanup method
+      (reader.readConfig as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: {
+          phase_defaults: {
+            coding: {
+              role: 'coder',
+              cli_tool: 'claude-code',
+              model: 'opus',
+            },
+          },
+        },
+      });
+
+      await expect(
+        engine.processEndToken('TASK-1', 'test-agent', 'coding', '[CODING_COMPLETED]')
+      ).resolves.toBeUndefined();
+
+      expect(mockStartPhase).toHaveBeenCalled();
+    });
+
+    it('does not fail when cleanup throws', async () => {
+      const mockStartPhase = vi.spyOn(engine, 'startPhase').mockResolvedValue();
+      const codexAdapter = engine.getAdapterForTool('codex-cli');
+      const cleanupSpy = vi.spyOn(codexAdapter, 'cleanup' as any).mockRejectedValue(new Error('Cleanup failed'));
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      await expect(
+        engine.processEndToken('TASK-1', 'test-agent', 'coding', '[CODING_COMPLETED]')
+      ).resolves.toBeUndefined();
+
+      expect(cleanupSpy).toHaveBeenCalledWith('/test/project/.mark2/clones/TASK-1');
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[engine] Adapter cleanup failed'),
+        expect.any(Error)
+      );
+      expect(mockStartPhase).toHaveBeenCalled();
+
+      consoleErrorSpy.mockRestore();
+    });
+  });
+
+  describe('handleAgentCrash - adapter cleanup', () => {
+    beforeEach(() => {
+      engine = OrchestrationEngine.getInstance(mockConfig);
+
+      // Mock config with codex-cli role
+      const reader = (engine as any).reader;
+      (reader.readConfig as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: {
+          phase_defaults: {
+            coding: {
+              role: 'coder',
+              cli_tool: 'codex-cli',
+              model: 'gpt-4',
+            },
+          },
+        },
+      });
+
+      // Mock roles file
+      (reader as any).readRoles = vi.fn().mockReturnValue({
+        data: {
+          roles: [
+            {
+              name: 'coder',
+              uuid: 'uuid-1',
+              role_prompt: 'You are a coder',
+            },
+          ],
+        },
+      });
+    });
+
+    it('calls adapter.cleanup() after crash', async () => {
+      const codexAdapter = engine.getAdapterForTool('codex-cli');
+      const cleanupSpy = vi.spyOn(codexAdapter, 'cleanup' as any);
+
+      await engine.handleAgentCrash('TASK-1', 'test-agent', 'coding');
+
+      expect(cleanupSpy).toHaveBeenCalledWith('/test/project/.mark2/clones/TASK-1');
+    });
+
+    it('does not throw when cleanup fails after crash', async () => {
+      const codexAdapter = engine.getAdapterForTool('codex-cli');
+      const cleanupSpy = vi.spyOn(codexAdapter, 'cleanup' as any).mockRejectedValue(new Error('Cleanup failed'));
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      await expect(
+        engine.handleAgentCrash('TASK-1', 'test-agent', 'coding')
+      ).resolves.toBeUndefined();
+
+      expect(cleanupSpy).toHaveBeenCalledWith('/test/project/.mark2/clones/TASK-1');
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[engine] Adapter cleanup failed after crash'),
+        expect.any(Error)
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('does not fail when adapter has no cleanup method', async () => {
+      const reader = (engine as any).reader;
+
+      // Configure to use claude-code which has no cleanup method
+      (reader.readConfig as ReturnType<typeof vi.fn>).mockReturnValue({
+        data: {
+          phase_defaults: {
+            coding: {
+              role: 'coder',
+              cli_tool: 'claude-code',
+              model: 'opus',
+            },
+          },
+        },
+      });
+
+      await expect(
+        engine.handleAgentCrash('TASK-1', 'test-agent', 'coding')
+      ).resolves.toBeUndefined();
     });
   });
 });
