@@ -1,6 +1,8 @@
 import type { CLIAdapter } from './types';
 import type { AgentInvocationParams } from '../../types';
 import { getTaskStoragePaths } from '../utils/storage';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * Adapter for OpenAI's Codex CLI.
@@ -54,5 +56,44 @@ export class CodexCLIAdapter implements CLIAdapter {
 
   private shellQuote(value: string): string {
     return `'${value.replace(/'/g, "'\\''")}'`;
+  }
+
+  /**
+   * Remove configuration files created during buildCommand().
+   * Best-effort: errors are logged but never thrown.
+   */
+  async cleanup(workingDirectory: string): Promise<void> {
+    // 1. Delete .codex/config.toml
+    try {
+      await fs.promises.unlink(path.join(workingDirectory, '.codex', 'config.toml'));
+    } catch (err: unknown) {
+      const code = err && typeof err === 'object' && 'code' in err ? err.code : null;
+      if (code !== 'ENOENT') {
+        const message = err instanceof Error ? err.message : String(err);
+        console.log(`[codex-cli] cleanup: failed to delete .codex/config.toml: ${message}`);
+      }
+    }
+
+    // 2. Delete AGENTS.md
+    try {
+      await fs.promises.unlink(path.join(workingDirectory, 'AGENTS.md'));
+    } catch (err: unknown) {
+      const code = err && typeof err === 'object' && 'code' in err ? err.code : null;
+      if (code !== 'ENOENT') {
+        const message = err instanceof Error ? err.message : String(err);
+        console.log(`[codex-cli] cleanup: failed to delete AGENTS.md: ${message}`);
+      }
+    }
+
+    // 3. Remove .codex directory only if empty
+    try {
+      await fs.promises.rmdir(path.join(workingDirectory, '.codex'));
+    } catch (err: unknown) {
+      const code = err && typeof err === 'object' && 'code' in err ? err.code : null;
+      if (code !== 'ENOENT' && code !== 'ENOTEMPTY') {
+        const message = err instanceof Error ? err.message : String(err);
+        console.log(`[codex-cli] cleanup: failed to remove .codex directory: ${message}`);
+      }
+    }
   }
 }
