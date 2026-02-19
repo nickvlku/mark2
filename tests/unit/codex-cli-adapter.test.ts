@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { mkdtempSync, rmSync } from 'fs';
 import { CodexCLIAdapter } from '@/lib/adapters/codex-cli';
 import type { AgentInvocationParams } from '@/types';
 
