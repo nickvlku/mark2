@@ -1,7 +1,7 @@
 id: TASK-70
 title: Implement cleanup logic in adapter
 description: Write cleanup() method in CodexCLIAdapter. Delete .codex/config.toml from worktree. Delete AGENTS.md from worktree. Remove .codex directory if empty. Handle errors gracefully (non-fatal, just log).
-phase: final_testing
+phase: run_test_plan
 phase_agents: {}
 phase_overrides: {}
 blockers: []
@@ -31,6 +31,18 @@ artifacts:
     mime_type: text/markdown
     created_at: 2026-02-19T19:28:42.581Z
     source: agent
+  - name: final-test-results
+    phase: final_testing
+    path: final_testing-final-test-results-1771529495784-dkfq1t.md
+    mime_type: text/markdown
+    created_at: 2026-02-19T19:31:35.784Z
+    source: agent
+  - name: test-plan
+    phase: final_testing
+    path: final_testing-test-plan-1771529577897-29iyz7.md
+    mime_type: text/markdown
+    created_at: 2026-02-19T19:32:57.897Z
+    source: agent
 ports: []
 worktrees: {}
 created_by: plan
@@ -39,7 +51,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T19:00:28.082Z
-updated_at: 2026-02-19T19:29:52.857Z
-phase_entered_at: 2026-02-19T19:29:52.857Z
+updated_at: 2026-02-19T19:36:45.108Z
+phase_entered_at: 2026-02-19T19:36:45.108Z
 loop_count: 0
 archived: false
