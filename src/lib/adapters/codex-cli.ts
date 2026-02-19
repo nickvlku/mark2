@@ -2,11 +2,17 @@ import fs from 'fs';
 import path from 'path';
 import type { CLIAdapter } from './types';
 import type { AgentInvocationParams } from '../../types';
+<<<<<<< mark2/story-12--task-task-70
+import { getTaskStoragePaths } from '../utils/storage';
+import fs from 'fs';
+import path from 'path';
+=======
 import {
   getTaskStoragePaths,
   ensureTaskStorageExistsSync,
 } from '../utils/storage';
 import { getMark2InstallDir } from '../utils/mark2-dir';
+>>>>>>> main
 
 /**
  * Adapter for OpenAI's Codex CLI.
@@ -70,6 +76,8 @@ export class CodexCLIAdapter implements CLIAdapter {
       MARK2_ARTIFACTS_DIR: storagePaths.artifacts,
       MARK2_PROMPTS_DIR: storagePaths.prompts,
       MARK2_SESSIONS_DIR: storagePaths.sessions,
+<<<<<<< mark2/story-12--task-task-70
+=======
     };
   }
 
@@ -85,6 +93,7 @@ export class CodexCLIAdapter implements CLIAdapter {
       mcpServers: {},
       taskId: params.taskId,
       apiBaseUrl: params.apiBaseUrl,
+>>>>>>> main
     };
 
     // Ensure .codex directory exists (recursive is a no-op if it already exists)
@@ -247,9 +256,62 @@ Brief reference of mark2_* MCP tools available in your environment.
     return workingDirectory;
   }
 
+  private getProjectRoot(workingDirectory: string, _taskId: string): string {
+    const mark2Index = workingDirectory.indexOf('.mark2');
+    if (mark2Index !== -1) {
+      return workingDirectory.substring(0, mark2Index).replace(/\/$/, '');
+    }
+
+    const worktreesIndex = workingDirectory.indexOf('.worktrees');
+    if (worktreesIndex !== -1) {
+      return workingDirectory.substring(0, worktreesIndex).replace(/\/$/, '');
+    }
+
+    return workingDirectory;
+  }
+
   private shellQuote(value: string): string {
     // Handle single quotes in the value by escaping them properly
     // Using the POSIX shell quoting format: 'text'\''more text'
     return `'${value.replace(/'/g, "'\\''")}'`;
+  }
+
+  /**
+   * Remove configuration files created during buildCommand().
+   * Best-effort: errors are logged but never thrown.
+   */
+  async cleanup(workingDirectory: string): Promise<void> {
+    // 1. Delete .codex/config.toml
+    try {
+      await fs.promises.unlink(path.join(workingDirectory, '.codex', 'config.toml'));
+    } catch (err: unknown) {
+      const code = err && typeof err === 'object' && 'code' in err ? err.code : null;
+      if (code !== 'ENOENT') {
+        const message = err instanceof Error ? err.message : String(err);
+        console.log(`[codex-cli] cleanup: failed to delete .codex/config.toml: ${message}`);
+      }
+    }
+
+    // 2. Delete AGENTS.md
+    try {
+      await fs.promises.unlink(path.join(workingDirectory, 'AGENTS.md'));
+    } catch (err: unknown) {
+      const code = err && typeof err === 'object' && 'code' in err ? err.code : null;
+      if (code !== 'ENOENT') {
+        const message = err instanceof Error ? err.message : String(err);
+        console.log(`[codex-cli] cleanup: failed to delete AGENTS.md: ${message}`);
+      }
+    }
+
+    // 3. Remove .codex directory only if empty
+    try {
+      await fs.promises.rmdir(path.join(workingDirectory, '.codex'));
+    } catch (err: unknown) {
+      const code = err && typeof err === 'object' && 'code' in err ? err.code : null;
+      if (code !== 'ENOENT' && code !== 'ENOTEMPTY') {
+        const message = err instanceof Error ? err.message : String(err);
+        console.log(`[codex-cli] cleanup: failed to remove .codex directory: ${message}`);
+      }
+    }
   }
 }
