@@ -18,26 +18,36 @@ export class CodexCLIAdapter implements CLIAdapter {
   readonly supportsNaming = false;
 
   buildCommand(params: AgentInvocationParams): string {
-    const projectRoot = this.getProjectRoot(params.workingDirectory);
+    const projectRoot = this.getProjectRoot(params.workingDirectory, params.taskId);
 
     // Ensure storage directories exist
     ensureTaskStorageExistsSync(projectRoot, params.taskId);
 
-    // Generate .codex/config.toml for MCP server access
-    this.setupMcpConfig(params.workingDirectory, projectRoot, params.taskId, params.apiBaseUrl);
+    // Generate AGENTS.md for Codex CLI to discover
+    this.setupAgentsMd(params);
+
+    // Save individual prompt components for debugging (matches Claude adapter pattern)
+    const storagePaths = getTaskStoragePaths(projectRoot, params.taskId);
+    fs.writeFileSync(path.join(storagePaths.prompts, `${params.phase}-orchestration.md`), params.orchestrationPrompt ?? '', 'utf-8');
+    fs.writeFileSync(path.join(storagePaths.prompts, `${params.phase}-agent.md`), params.agentPrompt ?? '', 'utf-8');
+    fs.writeFileSync(path.join(storagePaths.prompts, `${params.phase}-task.md`), params.taskPrompt ?? params.prompt, 'utf-8');
+
+    // Use taskPrompt (just the task description) since AGENTS.md handles
+    // orchestration and role instructions
+    const taskPrompt = params.taskPrompt ?? params.prompt;
 
     const parts: string[] = [
       'codex',
       '--full-auto',
       '--model', this.shellQuote(params.model),
-      this.shellQuote(params.prompt),
+      this.shellQuote(taskPrompt),
     ];
 
     return parts.join(' ');
   }
 
   getEnvironment(params: AgentInvocationParams): Record<string, string> {
-    const projectRoot = this.getProjectRoot(params.workingDirectory);
+    const projectRoot = this.getProjectRoot(params.workingDirectory, params.taskId);
     const storagePaths = getTaskStoragePaths(projectRoot, params.taskId);
 
     return {
@@ -53,65 +63,144 @@ export class CodexCLIAdapter implements CLIAdapter {
   }
 
   /**
-   * Set up Codex CLI MCP configuration.
-   * Creates .codex/config.toml in the working directory with
-   * the mark2 MCP server configured for STDIO transport.
+   * Generate AGENTS.md file for Codex CLI to discover.
+   * Combines agent role prompt + orchestration instructions + MCP tools reference.
+   * Writes to both worktree root (for Codex to discover) and debug directory.
    */
-  private setupMcpConfig(workingDirectory: string, projectRoot: string, taskId: string, apiBaseUrl: string): void {
-    const codexDir = path.join(workingDirectory, '.codex');
-    const configPath = path.join(codexDir, 'config.toml');
+  private setupAgentsMd(params: AgentInvocationParams): void {
+    const content = this.buildAgentsMdContent(params);
 
-    if (!fs.existsSync(codexDir)) {
-      fs.mkdirSync(codexDir, { recursive: true });
-    }
+    // 1. Write to worktree root (where Codex CLI discovers it)
+    const agentsMdPath = path.join(params.workingDirectory, 'AGENTS.md');
+    fs.writeFileSync(agentsMdPath, content, 'utf-8');
 
-    const mark2Dir = path.join(projectRoot, '.mark2');
-    const installDir = getMark2InstallDir();
-    const mcpServerPath = path.join(installDir, 'src', 'lib', 'mcp', 'index.ts');
-    const tsxPath = path.join(installDir, 'node_modules', '.bin', 'tsx');
+    // 2. Write debug copy to storage/prompts/
+    const projectRoot = this.getProjectRoot(params.workingDirectory, params.taskId);
+    const storagePaths = getTaskStoragePaths(projectRoot, params.taskId);
+    fs.writeFileSync(
+      path.join(storagePaths.prompts, `${params.phase}-agents.md`),
+      content,
+      'utf-8',
+    );
 
-    const toml = this.generateToml(tsxPath, mcpServerPath, {
-      MARK2_DIR: mark2Dir,
-      MARK2_TASK_ID: taskId,
-      MARK2_PROJECT_ROOT: projectRoot,
-      MARK2_API_URL: apiBaseUrl,
-    });
-
-    fs.writeFileSync(configPath, toml, 'utf-8');
+    // 3. Exclude AGENTS.md from git tracking in this clone
+    this.excludeFromGit(params.workingDirectory, 'AGENTS.md');
   }
 
   /**
-   * Generate TOML configuration string for Codex CLI MCP servers.
+   * Build the complete AGENTS.md content from component parts.
    */
-  private generateToml(
-    command: string,
-    mcpServerPath: string,
-    env: Record<string, string>,
-  ): string {
-    const lines: string[] = [
-      '[mcp_servers.mark2]',
-      `command = ${this.tomlQuote(command)}`,
-      `args = [${this.tomlQuote(mcpServerPath)}]`,
-      '',
-      '[mcp_servers.mark2.env]',
-    ];
+  private buildAgentsMdContent(params: AgentInvocationParams): string {
+    const sections: string[] = [];
 
-    for (const [key, value] of Object.entries(env)) {
-      lines.push(`${key} = ${this.tomlQuote(value)}`);
+    // Section 1: Agent role/personality
+    if (params.agentPrompt) {
+      sections.push(`# Agent Role\n\n${params.agentPrompt}`);
     }
 
-    return lines.join('\n') + '\n';
+    // Section 2: Orchestration instructions (phase rules, completion protocol, etc.)
+    if (params.orchestrationPrompt) {
+      sections.push(params.orchestrationPrompt);
+    }
+
+    // Section 3: MCP tools quick-reference
+    sections.push(this.buildMcpToolsReference());
+
+    return sections.join('\n\n');
   }
 
   /**
-   * Quote a string for TOML basic string format.
-   * TOML basic strings use double quotes with backslash escaping.
+   * Build a quick-reference section documenting available MCP tools.
+   * This supplements the orchestration prompt's inline tool references.
    */
-  private tomlQuote(value: string): string {
-    return '"' + value.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+  private buildMcpToolsReference(): string {
+    return `# Available MCP Tools
+
+Brief reference of mark2_* MCP tools available in your environment.
+
+## Task Management
+- \`mark2_report_status(task_id, status, message)\` — Report progress
+- \`mark2_get_task(task_id)\` — Read full task details
+- \`mark2_log_activity(task_id, type, message)\` — Log activity
+
+## Artifacts
+- \`mark2_save_artifact(task_id, filename, content)\` — Save and register artifact
+- \`mark2_get_design(task_id)\` — Get design document
+- \`mark2_get_latest_artifact(task_id, name_pattern)\` — Get most recent artifact
+- \`mark2_list_artifacts(task_id)\` — List all artifacts
+- \`mark2_get_artifact(task_id, artifact_path)\` — Get specific artifact
+- \`mark2_get_paths(task_id)\` — Get storage paths
+
+## Git Operations
+- \`mark2_git_status(task_id)\` — Check git status
+- \`mark2_git_commit(task_id, message)\` — Stage all and commit
+- \`mark2_git_push(task_id)\` — Push branch to remote
+- \`mark2_git_sync(task_id)\` — Sync with main (fetch + rebase)
+- \`mark2_get_diff(task_id)\` — Get diff from origin/main
+
+## Phase Completion
+- \`mark2_signal_complete(task_id, token)\` — Signal phase completion
+
+## Planning (if needed)
+- \`mark2_create_task(title, description, priority?, story_id?)\` — Create task
+- \`mark2_create_story(title, description)\` — Create story
+- \`mark2_add_to_story(task_id, story_id)\` — Assign task to story
+- \`mark2_add_task_blocker(task_id, blocker_id)\` — Add dependency`;
   }
 
-  private getProjectRoot(workingDirectory: string): string {
+  /**
+   * Exclude a file from git tracking using .git/info/exclude.
+   * This is local to the clone and won't be committed.
+   */
+  private excludeFromGit(workingDirectory: string, filename: string): void {
+    const gitDir = this.getGitDir(workingDirectory);
+    const excludePath = path.join(gitDir, 'info', 'exclude');
+    const excludeDir = path.dirname(excludePath);
+
+    if (!fs.existsSync(excludeDir)) {
+      fs.mkdirSync(excludeDir, { recursive: true });
+    }
+
+    const existing = fs.existsSync(excludePath)
+      ? fs.readFileSync(excludePath, 'utf-8')
+      : '';
+
+    if (!existing.includes(filename)) {
+      fs.appendFileSync(excludePath, `\n${filename}\n`, 'utf-8');
+    }
+  }
+
+  /**
+   * Get the .git directory path, handling both regular clones and worktrees.
+   * For regular clones, .git is a directory.
+   * For worktrees, .git is a file pointing to the actual gitdir.
+   */
+  private getGitDir(workingDirectory: string): string {
+    const dotGit = path.join(workingDirectory, '.git');
+
+    if (!fs.existsSync(dotGit)) {
+      return dotGit;
+    }
+
+    const stat = fs.statSync(dotGit);
+    if (stat.isFile()) {
+      // Worktree: read the gitdir pointer
+      const content = fs.readFileSync(dotGit, 'utf-8').trim();
+      const match = content.match(/^gitdir:\s*(.+)$/);
+      if (match) {
+        const gitdir = match[1];
+        return path.isAbsolute(gitdir) ? gitdir : path.resolve(workingDirectory, gitdir);
+      }
+    }
+
+    return dotGit;
+  }
+
+  /**
+   * Extract the project root from the clone path.
+   * Clone paths follow patterns like: /path/to/project/.mark2/clones/TASK-123
+   */
+  private getProjectRoot(workingDirectory: string, _taskId: string): string {
     const mark2Index = workingDirectory.indexOf('.mark2');
     if (mark2Index !== -1) {
       return workingDirectory.substring(0, mark2Index).replace(/\/$/, '');
