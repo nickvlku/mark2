@@ -1,12 +1,12 @@
-import fs from 'fs';
-import path from 'path';
-import type { CLIAdapter } from './types';
-import type { AgentInvocationParams } from '../../types';
+import fs from "fs";
+import path from "path";
+import type { CLIAdapter } from "./types";
+import type { AgentInvocationParams } from "../../types";
 import {
   getTaskStoragePaths,
   ensureTaskStorageExistsSync,
-} from '../utils/storage';
-import { getMark2InstallDir } from '../utils/mark2-dir';
+} from "../utils/storage";
+import { getMark2InstallDir } from "../utils/mark2-dir";
 
 /**
  * Adapter for OpenAI's Codex CLI.
@@ -17,7 +17,7 @@ import { getMark2InstallDir } from '../utils/mark2-dir';
  * (writes MCP config and AGENTS.md). This matches the ClaudeCodeAdapter pattern.
  */
 export class CodexCLIAdapter implements CLIAdapter {
-  readonly toolId = 'codex-cli' as const;
+  readonly toolId = "codex-cli" as const;
   readonly supportsMCP = true;
   readonly supportsNaming = false;
 
@@ -25,7 +25,10 @@ export class CodexCLIAdapter implements CLIAdapter {
     // TODO: Verify exact Codex CLI flag names when integration is finalized.
     // --approval-mode full-auto is used instead of separate --full-auto and
     // --ask-for-approval flags to avoid potential flag conflicts.
-    const projectRoot = this.getProjectRoot(params.workingDirectory, params.taskId);
+    const projectRoot = this.getProjectRoot(
+      params.workingDirectory,
+      params.taskId,
+    );
 
     // Ensure storage directories exist BEFORE setting up config files
     ensureTaskStorageExistsSync(projectRoot, params.taskId);
@@ -36,30 +39,47 @@ export class CodexCLIAdapter implements CLIAdapter {
 
     // Save individual prompt components for debugging (matches Claude adapter pattern)
     const storagePaths = getTaskStoragePaths(projectRoot, params.taskId);
-    fs.writeFileSync(path.join(storagePaths.prompts, `${params.phase}-orchestration.md`), params.orchestrationPrompt ?? '', 'utf-8');
-    fs.writeFileSync(path.join(storagePaths.prompts, `${params.phase}-agent.md`), params.agentPrompt ?? '', 'utf-8');
-    fs.writeFileSync(path.join(storagePaths.prompts, `${params.phase}-task.md`), params.taskPrompt ?? params.prompt, 'utf-8');
+    fs.writeFileSync(
+      path.join(storagePaths.prompts, `${params.phase}-orchestration.md`),
+      params.orchestrationPrompt ?? "",
+      "utf-8",
+    );
+    fs.writeFileSync(
+      path.join(storagePaths.prompts, `${params.phase}-agent.md`),
+      params.agentPrompt ?? "",
+      "utf-8",
+    );
+    fs.writeFileSync(
+      path.join(storagePaths.prompts, `${params.phase}-task.md`),
+      params.taskPrompt ?? params.prompt,
+      "utf-8",
+    );
 
     // Use taskPrompt (just the task description) since AGENTS.md handles
     // orchestration and role instructions
     const taskPrompt = params.taskPrompt ?? params.prompt;
 
     const parts: string[] = [
-      'codex',
-      '--approval-mode', 'full-auto',
-      '--model', this.shellQuote(params.model),
+      "codex",
+      "--approval-mode",
+      "full-auto",
+      "--model",
+      this.shellQuote(params.model),
       this.shellQuote(taskPrompt),
     ];
 
-    return parts.join(' ');
+    return parts.join(" ");
   }
 
   getEnvironment(params: AgentInvocationParams): Record<string, string> {
-    const projectRoot = this.getProjectRoot(params.workingDirectory, params.taskId);
+    const projectRoot = this.getProjectRoot(
+      params.workingDirectory,
+      params.taskId,
+    );
     const storagePaths = getTaskStoragePaths(projectRoot, params.taskId);
 
     return {
-      NODE_ENV: 'development',
+      NODE_ENV: "development",
       MARK2_AGENT_TOKEN: params.agentToken,
       MARK2_API_URL: params.apiBaseUrl,
       MARK2_TASK_ID: params.taskId,
@@ -75,7 +95,11 @@ export class CodexCLIAdapter implements CLIAdapter {
    * Currently a placeholder - will be implemented when Codex adds MCP support.
    */
   private setupMcpConfig(params: AgentInvocationParams): void {
-    const mcpConfigPath = path.join(params.workingDirectory, '.codex', 'mcp-config.json');
+    const mcpConfigPath = path.join(
+      params.workingDirectory,
+      ".codex",
+      "mcp-config.json",
+    );
     // TODO: When Codex adds MCP support, restructure to match ClaudeCodeAdapter's
     // buildMcpConfig() format with command/args/env per server entry.
     const mcpConfig = {
@@ -89,7 +113,11 @@ export class CodexCLIAdapter implements CLIAdapter {
     fs.mkdirSync(codexDir, { recursive: true });
 
     // Write MCP config file
-    fs.writeFileSync(mcpConfigPath, JSON.stringify(mcpConfig, null, 2), 'utf-8');
+    fs.writeFileSync(
+      mcpConfigPath,
+      JSON.stringify(mcpConfig, null, 2),
+      "utf-8",
+    );
   }
 
   /**
@@ -101,20 +129,23 @@ export class CodexCLIAdapter implements CLIAdapter {
     const content = this.buildAgentsMdContent(params);
 
     // 1. Write to worktree root (where Codex CLI discovers it)
-    const agentsMdPath = path.join(params.workingDirectory, 'AGENTS.md');
-    fs.writeFileSync(agentsMdPath, content, 'utf-8');
+    const agentsMdPath = path.join(params.workingDirectory, "AGENTS.md");
+    fs.writeFileSync(agentsMdPath, content, "utf-8");
 
     // 2. Write debug copy to storage/prompts/
-    const projectRoot = this.getProjectRoot(params.workingDirectory, params.taskId);
+    const projectRoot = this.getProjectRoot(
+      params.workingDirectory,
+      params.taskId,
+    );
     const storagePaths = getTaskStoragePaths(projectRoot, params.taskId);
     fs.writeFileSync(
       path.join(storagePaths.prompts, `${params.phase}-agents.md`),
       content,
-      'utf-8',
+      "utf-8",
     );
 
     // 3. Exclude AGENTS.md from git tracking in this clone
-    this.excludeFromGit(params.workingDirectory, 'AGENTS.md');
+    this.excludeFromGit(params.workingDirectory, "AGENTS.md");
   }
 
   /**
@@ -136,7 +167,7 @@ export class CodexCLIAdapter implements CLIAdapter {
     // Section 3: MCP tools quick-reference
     sections.push(this.buildMcpToolsReference());
 
-    return sections.join('\n\n');
+    return sections.join("\n\n");
   }
 
   /**
@@ -184,7 +215,7 @@ Brief reference of mark2_* MCP tools available in your environment.
    */
   private excludeFromGit(workingDirectory: string, filename: string): void {
     const gitDir = this.getGitDir(workingDirectory);
-    const excludePath = path.join(gitDir, 'info', 'exclude');
+    const excludePath = path.join(gitDir, "info", "exclude");
     const excludeDir = path.dirname(excludePath);
 
     if (!fs.existsSync(excludeDir)) {
@@ -192,11 +223,11 @@ Brief reference of mark2_* MCP tools available in your environment.
     }
 
     const existing = fs.existsSync(excludePath)
-      ? fs.readFileSync(excludePath, 'utf-8')
-      : '';
+      ? fs.readFileSync(excludePath, "utf-8")
+      : "";
 
     if (!existing.includes(filename)) {
-      fs.appendFileSync(excludePath, `\n${filename}\n`, 'utf-8');
+      fs.appendFileSync(excludePath, `\n${filename}\n`, "utf-8");
     }
   }
 
@@ -206,7 +237,7 @@ Brief reference of mark2_* MCP tools available in your environment.
    * For worktrees, .git is a file pointing to the actual gitdir.
    */
   private getGitDir(workingDirectory: string): string {
-    const dotGit = path.join(workingDirectory, '.git');
+    const dotGit = path.join(workingDirectory, ".git");
 
     if (!fs.existsSync(dotGit)) {
       return dotGit;
@@ -215,11 +246,13 @@ Brief reference of mark2_* MCP tools available in your environment.
     const stat = fs.statSync(dotGit);
     if (stat.isFile()) {
       // Worktree: read the gitdir pointer
-      const content = fs.readFileSync(dotGit, 'utf-8').trim();
+      const content = fs.readFileSync(dotGit, "utf-8").trim();
       const match = content.match(/^gitdir:\s*(.+)$/);
       if (match) {
         const gitdir = match[1];
-        return path.isAbsolute(gitdir) ? gitdir : path.resolve(workingDirectory, gitdir);
+        return path.isAbsolute(gitdir)
+          ? gitdir
+          : path.resolve(workingDirectory, gitdir);
       }
     }
 
@@ -231,14 +264,14 @@ Brief reference of mark2_* MCP tools available in your environment.
    * Clone paths follow patterns like: /path/to/project/.mark2/clones/TASK-123
    */
   private getProjectRoot(workingDirectory: string, _taskId: string): string {
-    const mark2Index = workingDirectory.indexOf('.mark2');
+    const mark2Index = workingDirectory.indexOf(".mark2");
     if (mark2Index !== -1) {
-      return workingDirectory.substring(0, mark2Index).replace(/\/$/, '');
+      return workingDirectory.substring(0, mark2Index).replace(/\/$/, "");
     }
 
-    const worktreesIndex = workingDirectory.indexOf('.worktrees');
+    const worktreesIndex = workingDirectory.indexOf(".worktrees");
     if (worktreesIndex !== -1) {
-      return workingDirectory.substring(0, worktreesIndex).replace(/\/$/, '');
+      return workingDirectory.substring(0, worktreesIndex).replace(/\/$/, "");
     }
 
     return workingDirectory;
@@ -257,34 +290,45 @@ Brief reference of mark2_* MCP tools available in your environment.
   async cleanup(workingDirectory: string): Promise<void> {
     // 1. Delete .codex/mcp-config.json (created by setupMcpConfig)
     try {
-      await fs.promises.unlink(path.join(workingDirectory, '.codex', 'mcp-config.json'));
+      await fs.promises.unlink(
+        path.join(workingDirectory, ".codex", "mcp-config.json"),
+      );
     } catch (err: unknown) {
-      const code = err && typeof err === 'object' && 'code' in err ? err.code : null;
-      if (code !== 'ENOENT') {
+      const code =
+        err && typeof err === "object" && "code" in err ? err.code : null;
+      if (code !== "ENOENT") {
         const message = err instanceof Error ? err.message : String(err);
-        console.log(`[codex-cli] cleanup: failed to delete .codex/mcp-config.json: ${message}`);
+        console.log(
+          `[codex-cli] cleanup: failed to delete .codex/mcp-config.json: ${message}`,
+        );
       }
     }
 
     // 2. Delete AGENTS.md
     try {
-      await fs.promises.unlink(path.join(workingDirectory, 'AGENTS.md'));
+      await fs.promises.unlink(path.join(workingDirectory, "AGENTS.md"));
     } catch (err: unknown) {
-      const code = err && typeof err === 'object' && 'code' in err ? err.code : null;
-      if (code !== 'ENOENT') {
+      const code =
+        err && typeof err === "object" && "code" in err ? err.code : null;
+      if (code !== "ENOENT") {
         const message = err instanceof Error ? err.message : String(err);
-        console.log(`[codex-cli] cleanup: failed to delete AGENTS.md: ${message}`);
+        console.log(
+          `[codex-cli] cleanup: failed to delete AGENTS.md: ${message}`,
+        );
       }
     }
 
     // 3. Remove .codex directory only if empty
     try {
-      await fs.promises.rmdir(path.join(workingDirectory, '.codex'));
+      await fs.promises.rmdir(path.join(workingDirectory, ".codex"));
     } catch (err: unknown) {
-      const code = err && typeof err === 'object' && 'code' in err ? err.code : null;
-      if (code !== 'ENOENT' && code !== 'ENOTEMPTY') {
+      const code =
+        err && typeof err === "object" && "code" in err ? err.code : null;
+      if (code !== "ENOENT" && code !== "ENOTEMPTY") {
         const message = err instanceof Error ? err.message : String(err);
-        console.log(`[codex-cli] cleanup: failed to remove .codex directory: ${message}`);
+        console.log(
+          `[codex-cli] cleanup: failed to remove .codex directory: ${message}`,
+        );
       }
     }
   }

@@ -30,7 +30,7 @@ describe('CodexCLIAdapter', () => {
 
   afterEach(() => {
     for (const p of tempPaths.splice(0)) {
-      fs.rmSync(p, { recursive: true, force: true });
+      rmSync(p, { recursive: true, force: true });
     }
   });
 
@@ -55,6 +55,23 @@ describe('CodexCLIAdapter', () => {
     expect(command).toContain('gpt-5.2-codex');
   });
 
+  it('returns environment variables including storage paths', () => {
+    const adapter = new CodexCLIAdapter();
+    const workingDirectory = '/tmp/project/.mark2/clones/TASK-999';
+    const params = createTestParams({ workingDirectory });
+    const env = adapter.getEnvironment(params);
+    expect(env.MARK2_TASK_ID).toBe('TASK-999');
+    expect(env.MARK2_API_URL).toBe('http://localhost:3100');
+    expect(env.MARK2_AGENT_TOKEN).toBe('mark2-local');
+    expect(env.NODE_ENV).toBe('development');
+
+    // Storage path variables
+    expect(env.MARK2_STORAGE_DIR).toBe('/tmp/project/.mark2/storage/TASK-999');
+    expect(env.MARK2_ARTIFACTS_DIR).toBe('/tmp/project/.mark2/storage/TASK-999/artifacts');
+    expect(env.MARK2_PROMPTS_DIR).toBe('/tmp/project/.mark2/storage/TASK-999/prompts');
+    expect(env.MARK2_SESSIONS_DIR).toBe('/tmp/project/.mark2/storage/TASK-999/sessions');
+  });
+    
   it('returns environment variables', () => {
     const adapter = new CodexCLIAdapter();
 
@@ -76,6 +93,40 @@ describe('CodexCLIAdapter', () => {
     expect(env.MARK2_PROMPTS_DIR).toContain('.mark2/storage/TASK-999/prompts');
     expect(env.MARK2_SESSIONS_DIR).toContain('.mark2/storage/TASK-999/sessions');
   });
+
+  it('returns storage paths with fallback project root', () => {
+    const adapter = new CodexCLIAdapter();
+    const params = createTestParams({ workingDirectory: '/tmp/some-project' });
+    const env = adapter.getEnvironment(params);
+
+    expect(env.MARK2_STORAGE_DIR).toBe('/tmp/some-project/.mark2/storage/TASK-999');
+    expect(env.MARK2_ARTIFACTS_DIR).toBe('/tmp/some-project/.mark2/storage/TASK-999/artifacts');
+  });
+
+  it('returns storage paths for worktree pattern', () => {
+    const adapter = new CodexCLIAdapter();
+    const workingDirectory = '/tmp/project/.worktrees/TASK-999/coding';
+    const params = createTestParams({ workingDirectory });
+    const env = adapter.getEnvironment(params);
+
+    // Should extract project root from .worktrees path
+    expect(env.MARK2_STORAGE_DIR).toBe('/tmp/project/.mark2/storage/TASK-999');
+    expect(env.MARK2_ARTIFACTS_DIR).toBe('/tmp/project/.mark2/storage/TASK-999/artifacts');
+    expect(env.MARK2_PROMPTS_DIR).toBe('/tmp/project/.mark2/storage/TASK-999/prompts');
+    expect(env.MARK2_SESSIONS_DIR).toBe('/tmp/project/.mark2/storage/TASK-999/sessions');
+  });
+
+  it('handles working directory with trailing slash', () => {
+    const adapter = new CodexCLIAdapter();
+    const workingDirectory = '/tmp/project/.mark2/clones/TASK-999/';
+    const params = createTestParams({ workingDirectory });
+    const env = adapter.getEnvironment(params);
+
+    // Should handle trailing slash correctly
+    expect(env.MARK2_STORAGE_DIR).toBe('/tmp/project/.mark2/storage/TASK-999');
+    expect(env.MARK2_ARTIFACTS_DIR).toBe('/tmp/project/.mark2/storage/TASK-999/artifacts');
+  });
+
 
   it('creates MCP config file', () => {
     const adapter = new CodexCLIAdapter();
