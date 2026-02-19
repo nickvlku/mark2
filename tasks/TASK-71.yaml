@@ -1,7 +1,7 @@
 id: TASK-71
 title: Integrate cleanup into orchestration engine
 description: Update OrchestrationEngine.processEndToken() to call adapter.cleanup() after session completes. Add try/finally for safety. Test cleanup is called on both success and failure paths. Update CLIAdapter interface to include optional cleanup() method.
-phase: fix_review
+phase: code_review
 phase_agents: {}
 phase_overrides: {}
 blockers: []
@@ -31,6 +31,12 @@ artifacts:
     mime_type: text/markdown
     created_at: 2026-02-19T20:24:19.961Z
     source: agent
+  - name: fixes-summary
+    phase: fix_review
+    path: fix_review-fixes-summary-1771532884655-k32cup.md
+    mime_type: text/markdown
+    created_at: 2026-02-19T20:28:04.656Z
+    source: agent
 ports: []
 worktrees: {}
 created_by: plan
@@ -39,7 +45,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T19:00:29.644Z
-updated_at: 2026-02-19T20:25:07.471Z
-phase_entered_at: 2026-02-19T20:25:07.471Z
+updated_at: 2026-02-19T20:28:55.815Z
+phase_entered_at: 2026-02-19T20:28:55.815Z
 loop_count: 0
 archived: false
