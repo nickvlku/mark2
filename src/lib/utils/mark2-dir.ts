@@ -65,3 +65,22 @@ export function mark2DirExists(): boolean {
   const dir = getMark2Dir();
   return fs.existsSync(dir) && fs.statSync(dir).isDirectory();
 }
+
+/**
+ * Get the mark2 installation directory.
+ * This is where the package is installed (containing src/, cli/, etc.)
+ * When running from a global install, we need to find the correct path.
+ */
+export function getMark2InstallDir(): string {
+  // __dirname will be in src/lib/utils for this file
+  // Go up to find the root of the package
+  const possibleRoot = path.join(__dirname, '..', '..', '..');
+
+  // Verify by checking for server.ts
+  if (fs.existsSync(path.join(possibleRoot, 'server.ts'))) {
+    return possibleRoot;
+  }
+
+  // Fallback: assume cwd is the mark2 install
+  return process.cwd();
+}
