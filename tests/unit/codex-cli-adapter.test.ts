@@ -672,18 +672,18 @@ describe('CodexCLIAdapter', () => {
   });
 
   describe('cleanup', () => {
-    it('deletes .codex/config.toml', async () => {
+    it('deletes .codex/mcp-config.json', async () => {
       const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-cleanup-'));
       tempPaths.push(tmpDir);
 
-      // Setup: create .codex/config.toml
+      // Setup: create .codex/mcp-config.json
       fs.mkdirSync(path.join(tmpDir, '.codex'), { recursive: true });
-      fs.writeFileSync(path.join(tmpDir, '.codex', 'config.toml'), '[mcp]');
+      fs.writeFileSync(path.join(tmpDir, '.codex', 'mcp-config.json'), '{"mcpServers":{}}');
 
       const adapter = new CodexCLIAdapter();
       await adapter.cleanup(tmpDir);
 
-      expect(fs.existsSync(path.join(tmpDir, '.codex', 'config.toml'))).toBe(false);
+      expect(fs.existsSync(path.join(tmpDir, '.codex', 'mcp-config.json'))).toBe(false);
     });
 
     it('deletes AGENTS.md', async () => {
@@ -703,9 +703,9 @@ describe('CodexCLIAdapter', () => {
       const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-cleanup-'));
       tempPaths.push(tmpDir);
 
-      // Setup: create .codex/config.toml
+      // Setup: create .codex/mcp-config.json
       fs.mkdirSync(path.join(tmpDir, '.codex'), { recursive: true });
-      fs.writeFileSync(path.join(tmpDir, '.codex', 'config.toml'), '[mcp]');
+      fs.writeFileSync(path.join(tmpDir, '.codex', 'mcp-config.json'), '{"mcpServers":{}}');
 
       const adapter = new CodexCLIAdapter();
       await adapter.cleanup(tmpDir);
@@ -717,9 +717,9 @@ describe('CodexCLIAdapter', () => {
       const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-cleanup-'));
       tempPaths.push(tmpDir);
 
-      // Setup: create .codex/config.toml and an extra file
+      // Setup: create .codex/mcp-config.json and an extra file
       fs.mkdirSync(path.join(tmpDir, '.codex'), { recursive: true });
-      fs.writeFileSync(path.join(tmpDir, '.codex', 'config.toml'), '[mcp]');
+      fs.writeFileSync(path.join(tmpDir, '.codex', 'mcp-config.json'), '{"mcpServers":{}}');
       fs.writeFileSync(path.join(tmpDir, '.codex', 'other-file.txt'), 'keep me');
 
       const adapter = new CodexCLIAdapter();
@@ -727,8 +727,8 @@ describe('CodexCLIAdapter', () => {
 
       // Directory should still exist
       expect(fs.existsSync(path.join(tmpDir, '.codex'))).toBe(true);
-      // config.toml should be deleted
-      expect(fs.existsSync(path.join(tmpDir, '.codex', 'config.toml'))).toBe(false);
+      // mcp-config.json should be deleted
+      expect(fs.existsSync(path.join(tmpDir, '.codex', 'mcp-config.json'))).toBe(false);
       // other file should remain
       expect(fs.existsSync(path.join(tmpDir, '.codex', 'other-file.txt'))).toBe(true);
     });
@@ -761,16 +761,16 @@ describe('CodexCLIAdapter', () => {
       const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-cleanup-'));
       tempPaths.push(tmpDir);
 
-      // Setup: create both config.toml and AGENTS.md
+      // Setup: create both mcp-config.json and AGENTS.md
       fs.mkdirSync(path.join(tmpDir, '.codex'), { recursive: true });
-      fs.writeFileSync(path.join(tmpDir, '.codex', 'config.toml'), '[mcp]');
+      fs.writeFileSync(path.join(tmpDir, '.codex', 'mcp-config.json'), '{"mcpServers":{}}');
       fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), '# Agent Instructions');
 
       const adapter = new CodexCLIAdapter();
       await adapter.cleanup(tmpDir);
 
       // All should be gone
-      expect(fs.existsSync(path.join(tmpDir, '.codex', 'config.toml'))).toBe(false);
+      expect(fs.existsSync(path.join(tmpDir, '.codex', 'mcp-config.json'))).toBe(false);
       expect(fs.existsSync(path.join(tmpDir, 'AGENTS.md'))).toBe(false);
       expect(fs.existsSync(path.join(tmpDir, '.codex'))).toBe(false);
     });
@@ -779,7 +779,7 @@ describe('CodexCLIAdapter', () => {
       const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-cleanup-'));
       tempPaths.push(tmpDir);
 
-      // Setup: only create AGENTS.md, not .codex/config.toml
+      // Setup: only create AGENTS.md, not .codex/mcp-config.json
       fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), '# Agent Instructions');
 
       const adapter = new CodexCLIAdapter();
@@ -789,6 +789,26 @@ describe('CodexCLIAdapter', () => {
       expect(fs.existsSync(path.join(tmpDir, 'AGENTS.md'))).toBe(false);
       // .codex directory should not exist (and that's fine)
       expect(fs.existsSync(path.join(tmpDir, '.codex'))).toBe(false);
+    });
+
+    it('cleans up files actually created by buildCommand()', async () => {
+      const adapter = new CodexCLIAdapter();
+      const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'codex-lifecycle-'));
+      tempPaths.push(tmpDir);
+
+      // buildCommand creates .codex/mcp-config.json and AGENTS.md
+      const params = createTestParams({ workingDirectory: tmpDir });
+      adapter.buildCommand(params);
+
+      // Verify files were created
+      expect(fs.existsSync(path.join(tmpDir, '.codex', 'mcp-config.json'))).toBe(true);
+      expect(fs.existsSync(path.join(tmpDir, 'AGENTS.md'))).toBe(true);
+
+      // Cleanup should remove them
+      await adapter.cleanup(tmpDir);
+
+      expect(fs.existsSync(path.join(tmpDir, '.codex', 'mcp-config.json'))).toBe(false);
+      expect(fs.existsSync(path.join(tmpDir, 'AGENTS.md'))).toBe(false);
     });
   });
 });

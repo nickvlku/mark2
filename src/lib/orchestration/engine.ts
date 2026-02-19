@@ -160,152 +160,152 @@ export class OrchestrationEngine {
       })
       .run();
 
-    // Check if auto_advance is disabled for this task
-    const task = this.getTask(taskId);
-    if (!task) {
-      db.insert(activityEntries)
-        .values({
-          task_id: taskId,
-          timestamp: now,
-          source: 'orchestration',
-          type: 'error',
-          message: `Task ${taskId} not found when processing end token.`,
-        })
-        .run();
-      return;
-    }
+      // Check if auto_advance is disabled for this task
+      const task = this.getTask(taskId);
+      if (!task) {
+        db.insert(activityEntries)
+          .values({
+            task_id: taskId,
+            timestamp: now,
+            source: 'orchestration',
+            type: 'error',
+            message: `Task ${taskId} not found when processing end token.`,
+          })
+          .run();
+        return;
+      }
 
-    if (!task.auto_advance) {
-      db.insert(activityEntries)
-        .values({
-          task_id: taskId,
-          timestamp: now,
-          source: agentName,
-          type: 'note',
-          message: `Auto-advance disabled — no transition`,
-          metadata_json: JSON.stringify({ token, phase, agent: agentName, auto_advance: false }),
-        })
-        .run();
-      return;
-    }
+      if (!task.auto_advance) {
+        db.insert(activityEntries)
+          .values({
+            task_id: taskId,
+            timestamp: now,
+            source: agentName,
+            type: 'note',
+            message: `Auto-advance disabled — no transition`,
+            metadata_json: JSON.stringify({ token, phase, agent: agentName, auto_advance: false }),
+          })
+          .run();
+        return;
+      }
 
-    // Capture and save diff for coding phase (before any early returns)
-    if (phase === 'coding' && token === '[CODING_COMPLETED]') {
-      try {
-        const diff = await this.captureAndSaveDiff(taskId, phase);
-        if (diff) {
-          db.insert(activityEntries)
-            .values({
-              task_id: taskId,
-              timestamp: now,
-              source: agentName,
-              type: 'artifact',
-              message: `Code diff saved (${diff.split('\n').length} lines)`,
-            })
-            .run();
+      // Capture and save diff for coding phase (before any early returns)
+      if (phase === 'coding' && token === '[CODING_COMPLETED]') {
+        try {
+          const diff = await this.captureAndSaveDiff(taskId, phase);
+          if (diff) {
+            db.insert(activityEntries)
+              .values({
+                task_id: taskId,
+                timestamp: now,
+                source: agentName,
+                type: 'artifact',
+                message: `Code diff saved (${diff.split('\n').length} lines)`,
+              })
+              .run();
+          }
+        } catch (err) {
+          console.error(`[engine] Failed to capture diff for ${taskId}:`, err);
         }
-      } catch (err) {
-        console.error(`[engine] Failed to capture diff for ${taskId}:`, err);
       }
-    }
 
-    if (!task.auto_approve) {
-      db.insert(activityEntries)
-        .values({
-          task_id: taskId,
-          timestamp: now,
-          source: agentName,
-          type: 'phase_change',
-          message: `Phase complete — awaiting approval`,
-          metadata_json: JSON.stringify({ token, phase, agent: agentName, auto_approve: false }),
-        })
-        .run();
-      return;
-    }
+      if (!task.auto_approve) {
+        db.insert(activityEntries)
+          .values({
+            task_id: taskId,
+            timestamp: now,
+            source: agentName,
+            type: 'phase_change',
+            message: `Phase complete — awaiting approval`,
+            metadata_json: JSON.stringify({ token, phase, agent: agentName, auto_approve: false }),
+          })
+          .run();
+        return;
+      }
 
-    // Determine the transition
-    const transition = findTransitionByTrigger(phase, token);
-    if (!transition) {
-      db.insert(activityEntries)
-        .values({
-          task_id: taskId,
-          timestamp: now,
-          source: 'orchestration',
-          type: 'error',
-          message: `No valid transition found for token "${token}" in phase "${phase}".`,
-        })
-        .run();
-      return;
-    }
+      // Determine the transition
+      const transition = findTransitionByTrigger(phase, token);
+      if (!transition) {
+        db.insert(activityEntries)
+          .values({
+            task_id: taskId,
+            timestamp: now,
+            source: 'orchestration',
+            type: 'error',
+            message: `No valid transition found for token "${token}" in phase "${phase}".`,
+          })
+          .run();
+        return;
+      }
 
-    const nextPhase = transition.to;
+      const nextPhase = transition.to;
 
-    // Handle special loop-back cases
-    let loopContext: { testFailures?: string; reviewComments?: string; isReReview?: boolean } | undefined;
+      // Handle special loop-back cases
+      let loopContext: { testFailures?: string; reviewComments?: string; isReReview?: boolean } | undefined;
 
-    if (token === '[TESTING_FAILED]' && nextPhase === 'coding') {
-      // Capture test failure output from the TMUX session
-      const { capturePane } = await import('../utils/tmux');
-      const output = await capturePane(tmuxName, 200);
-      loopContext = { testFailures: output };
-    }
+      if (token === '[TESTING_FAILED]' && nextPhase === 'coding') {
+        // Capture test failure output from the TMUX session
+        const { capturePane } = await import('../utils/tmux');
+        const output = await capturePane(tmuxName, 200);
+        loopContext = { testFailures: output };
+      }
 
-    if (token === '[REVIEW_COMPLETED]:autofix' && nextPhase === 'coding') {
-      // Read review comments from the review.md artifact (legacy flow)
-      // Try storage location first (new structure), then fallback to worktree (legacy)
-      const storagePath = resolveArtifactPath(this.config.projectRoot, taskId, 'review.md');
-      const worktreePath = path.join(
-        this.config.projectRoot,
-        '.worktrees',
-        taskId,
-        'design',
-        'review.md',
-      );
+      if (token === '[REVIEW_COMPLETED]:autofix' && nextPhase === 'coding') {
+        // Read review comments from the review.md artifact (legacy flow)
+        // Try storage location first (new structure), then fallback to worktree (legacy)
+        const storagePath = resolveArtifactPath(this.config.projectRoot, taskId, 'review.md');
+        const worktreePath = path.join(
+          this.config.projectRoot,
+          '.worktrees',
+          taskId,
+          'design',
+          'review.md',
+        );
 
-      try {
-        if (fileExistsSync(storagePath)) {
-          loopContext = { reviewComments: fs.readFileSync(storagePath, 'utf-8') };
-        } else if (fs.existsSync(worktreePath)) {
-          loopContext = { reviewComments: fs.readFileSync(worktreePath, 'utf-8') };
+        try {
+          if (fileExistsSync(storagePath)) {
+            loopContext = { reviewComments: fs.readFileSync(storagePath, 'utf-8') };
+          } else if (fs.existsSync(worktreePath)) {
+            loopContext = { reviewComments: fs.readFileSync(worktreePath, 'utf-8') };
+          }
+        } catch {
+          // Best-effort
         }
-      } catch {
-        // Best-effort
       }
-    }
 
-    // New flow: code_review -> fix_review (review found issues)
-    if (token === '[REVIEW_NEEDS_FIXES]' && nextPhase === 'fix_review') {
-      const artifactService = new ArtifactService(this.config.mark2Dir);
-      const { content } = artifactService.getMostRecentContent(taskId, 'review');
-      if (content) {
-        loopContext = { reviewComments: content };
+      // New flow: code_review -> fix_review (review found issues)
+      if (token === '[REVIEW_NEEDS_FIXES]' && nextPhase === 'fix_review') {
+        const artifactService = new ArtifactService(this.config.mark2Dir);
+        const { content } = artifactService.getMostRecentContent(taskId, 'review');
+        if (content) {
+          loopContext = { reviewComments: content };
+        }
       }
-    }
 
-    // New flow: final_testing -> fix_review (tests failed after review approval)
-    if (token === '[FINAL_TESTING_FAILED]' && nextPhase === 'fix_review') {
-      const { capturePane } = await import('../utils/tmux');
-      const output = await capturePane(tmuxName, 200);
-      loopContext = { testFailures: output };
-    }
+      // New flow: final_testing -> fix_review (tests failed after review approval)
+      if (token === '[FINAL_TESTING_FAILED]' && nextPhase === 'fix_review') {
+        const { capturePane } = await import('../utils/tmux');
+        const output = await capturePane(tmuxName, 200);
+        loopContext = { testFailures: output };
+      }
 
-    // New flow: run_test_plan -> fix_review (manual tests failed)
-    if (token === '[RUN_TEST_PLAN_FAILED]' && nextPhase === 'fix_review') {
-      const artifactService = new ArtifactService(this.config.mark2Dir);
-      // Get review comments (historical context)
-      const { content: reviewComments } = artifactService.getMostRecentContent(taskId, 'review');
-      // Get test execution report (what to focus on)
-      const { content: testExecutionReport } = artifactService.getMostRecentContent(taskId, 'test-execution-report');
-      loopContext = {
-        reviewComments: reviewComments || undefined,
-        testFailures: testExecutionReport || undefined,
-      };
-    }
+      // New flow: run_test_plan -> fix_review (manual tests failed)
+      if (token === '[RUN_TEST_PLAN_FAILED]' && nextPhase === 'fix_review') {
+        const artifactService = new ArtifactService(this.config.mark2Dir);
+        // Get review comments (historical context)
+        const { content: reviewComments } = artifactService.getMostRecentContent(taskId, 'review');
+        // Get test execution report (what to focus on)
+        const { content: testExecutionReport } = artifactService.getMostRecentContent(taskId, 'test-execution-report');
+        loopContext = {
+          reviewComments: reviewComments || undefined,
+          testFailures: testExecutionReport || undefined,
+        };
+      }
 
-    // New flow: fix_review -> code_review (re-review after fixes)
-    if (token === '[FIX_REVIEW_COMPLETED]' && nextPhase === 'code_review') {
-      loopContext = { isReReview: true };
-    }
+      // New flow: fix_review -> code_review (re-review after fixes)
+      if (token === '[FIX_REVIEW_COMPLETED]' && nextPhase === 'code_review') {
+        loopContext = { isReReview: true };
+      }
 
       // Update task phase
       this.updateTaskPhase(taskId, nextPhase);

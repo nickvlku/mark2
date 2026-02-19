@@ -255,14 +255,14 @@ Brief reference of mark2_* MCP tools available in your environment.
    * Best-effort: errors are logged but never thrown.
    */
   async cleanup(workingDirectory: string): Promise<void> {
-    // 1. Delete .codex/config.toml
+    // 1. Delete .codex/mcp-config.json (created by setupMcpConfig)
     try {
-      await fs.promises.unlink(path.join(workingDirectory, '.codex', 'config.toml'));
+      await fs.promises.unlink(path.join(workingDirectory, '.codex', 'mcp-config.json'));
     } catch (err: unknown) {
       const code = err && typeof err === 'object' && 'code' in err ? err.code : null;
       if (code !== 'ENOENT') {
         const message = err instanceof Error ? err.message : String(err);
-        console.log(`[codex-cli] cleanup: failed to delete .codex/config.toml: ${message}`);
+        console.log(`[codex-cli] cleanup: failed to delete .codex/mcp-config.json: ${message}`);
       }
     }
 
