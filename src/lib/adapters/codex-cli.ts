@@ -6,11 +6,11 @@ import {
   getTaskStoragePaths,
   ensureTaskStorageExistsSync,
 } from '../utils/storage';
+import { getMark2InstallDir } from '../utils/mark2-dir';
 
 /**
  * Adapter for OpenAI's Codex CLI.
- * Runs in full-auto mode with MCP support for mark2 tools.
- * Uses AGENTS.md file for agent instructions (role + orchestration).
+ * Runs in full-auto mode with MCP support via .codex/config.toml.
  */
 export class CodexCLIAdapter implements CLIAdapter {
   readonly toolId = 'codex-cli' as const;
