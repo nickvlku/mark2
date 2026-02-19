@@ -8,7 +8,13 @@ blockers:
   - TASK-67
   - TASK-68
 priority: P0
-artifacts: []
+artifacts:
+  - name: design
+    phase: design
+    path: design-design-1771465075657-clhfzk.md
+    mime_type: text/markdown
+    created_at: 2026-02-19T01:37:55.657Z
+    source: agent
 ports: []
 worktrees: {}
 created_by: plan
@@ -17,7 +23,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T19:00:28.082Z
-updated_at: 2026-02-19T01:33:58.626Z
+updated_at: 2026-02-19T01:37:55.657Z
 phase_entered_at: 2026-02-19T01:33:58.625Z
 loop_count: 0
 archived: false
