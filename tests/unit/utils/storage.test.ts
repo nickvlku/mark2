@@ -14,6 +14,7 @@ import {
   migrateArtifact,
   getWorktreePath,
   getStorageStats,
+  savePromptFiles,
 } from '@/lib/utils/storage';
 
 describe('storage utilities', () => {
@@ -262,6 +263,68 @@ describe('storage utilities', () => {
       expect(stats.totalSize).toBeGreaterThan(0);
       expect(stats.artifactsSize).toBeGreaterThan(0);
       expect(stats.promptsSize).toBeGreaterThan(0);
+    });
+  });
+
+  describe('savePromptFiles', () => {
+    it('saves all three prompt files with UTF-8 encoding', () => {
+      ensureTaskStorageExistsSync(projectRoot, 'TASK-1');
+      savePromptFiles(mark2Dir, 'TASK-1', 'design', {
+        orchestrationPrompt: '# Orchestration Instructions\nUTF-8: café ñ 日本語',
+        agentPrompt: '# Agent Prompt',
+        taskPrompt: '# Task Prompt',
+      });
+
+      const paths = getTaskStoragePaths(projectRoot, 'TASK-1');
+      expect(fs.readFileSync(path.join(paths.prompts, 'design-orchestration.md'), 'utf-8'))
+        .toBe('# Orchestration Instructions\nUTF-8: café ñ 日本語');
+      expect(fs.readFileSync(path.join(paths.prompts, 'design-agent.md'), 'utf-8'))
+        .toBe('# Agent Prompt');
+      expect(fs.readFileSync(path.join(paths.prompts, 'design-task.md'), 'utf-8'))
+        .toBe('# Task Prompt');
+    });
+
+    it('creates prompts directory if it does not exist', () => {
+      // Don't call ensureTaskStorageExists first
+      savePromptFiles(mark2Dir, 'TASK-NEW', 'coding', {
+        orchestrationPrompt: 'orch',
+        agentPrompt: 'agent',
+        taskPrompt: 'task',
+      });
+
+      const paths = getTaskStoragePaths(projectRoot, 'TASK-NEW');
+      expect(fs.existsSync(path.join(paths.prompts, 'coding-orchestration.md'))).toBe(true);
+    });
+
+    it('does not throw when directory is read-only (best-effort)', () => {
+      // This tests the try/catch error handling — should log but not throw
+      expect(() => {
+        savePromptFiles('/nonexistent/path/.mark2', 'TASK-X', 'design', {
+          orchestrationPrompt: 'orch',
+          agentPrompt: 'agent',
+          taskPrompt: 'task',
+        });
+      }).not.toThrow();
+    });
+
+    it('overwrites existing prompt files on re-run', () => {
+      ensureTaskStorageExistsSync(projectRoot, 'TASK-1');
+
+      savePromptFiles(mark2Dir, 'TASK-1', 'fix_review', {
+        orchestrationPrompt: 'v1',
+        agentPrompt: 'v1',
+        taskPrompt: 'v1',
+      });
+
+      savePromptFiles(mark2Dir, 'TASK-1', 'fix_review', {
+        orchestrationPrompt: 'v2',
+        agentPrompt: 'v2',
+        taskPrompt: 'v2',
+      });
+
+      const paths = getTaskStoragePaths(projectRoot, 'TASK-1');
+      expect(fs.readFileSync(path.join(paths.prompts, 'fix_review-orchestration.md'), 'utf-8'))
+        .toBe('v2');
     });
   });
 });

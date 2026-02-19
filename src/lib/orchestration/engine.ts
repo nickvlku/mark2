@@ -316,23 +316,31 @@ export class OrchestrationEngine {
       throw new Error(`Task ${taskId} not found`);
     }
 
+    const { projectRoot, mark2Dir, apiBaseUrl, agentToken } = this.config;
+
+    // Handle terminal/non-agent phases before resolving role config
+    if (phase === 'pending') {
+      const result = await handlePending(task, mark2Dir);
+      if (result.canAdvance) {
+        this.updateTaskPhase(taskId, 'design');
+        await this.startPhase(taskId, 'design');
+      }
+      return;
+    }
+
+    if (phase === 'done') {
+      await handleDone(task, projectRoot, mark2Dir);
+      return;
+    }
+
     const role = this.resolveAgent(task, phase);
     // RoleConfig already has the right shape for phase handlers
     const adapter = this.getAdapterForTool(role.cli_tool);
-    const { projectRoot, mark2Dir, apiBaseUrl, agentToken } = this.config;
 
     let tmuxSession: string | undefined;
     let promptFile: string | undefined;
 
     switch (phase) {
-      case 'pending': {
-        const result = await handlePending(task, mark2Dir);
-        if (result.canAdvance) {
-          this.updateTaskPhase(taskId, 'design');
-          await this.startPhase(taskId, 'design');
-        }
-        return; // No watcher needed for pending
-      }
 
       case 'design': {
         const result = await handleDesign(
@@ -398,10 +406,6 @@ export class OrchestrationEngine {
         break;
       }
 
-      case 'done': {
-        await handleDone(task, projectRoot, mark2Dir);
-        return; // No watcher needed for done
-      }
     }
 
     // Start terminal streaming for the spawned session
