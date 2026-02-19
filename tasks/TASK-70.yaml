@@ -43,6 +43,12 @@ artifacts:
     mime_type: text/markdown
     created_at: 2026-02-19T19:32:57.897Z
     source: agent
+  - name: test-execution-report
+    phase: run_test_plan
+    path: run_test_plan-test-execution-report-1771530012437-3bk4vo.md
+    mime_type: text/markdown
+    created_at: 2026-02-19T19:40:12.438Z
+    source: agent
 ports: []
 worktrees: {}
 created_by: plan
@@ -51,7 +57,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T19:00:28.082Z
-updated_at: 2026-02-19T19:36:45.108Z
+updated_at: 2026-02-19T19:40:12.438Z
 phase_entered_at: 2026-02-19T19:36:45.108Z
 loop_count: 0
 archived: false
