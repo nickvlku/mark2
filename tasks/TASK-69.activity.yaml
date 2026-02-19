@@ -78,3 +78,10 @@ entries:
     metadata:
       old_phase: code_review
       new_phase: final_testing
+  - timestamp: 2026-02-19T18:27:34.035Z
+    source: hook
+    type: phase_change
+    message: End token "[FINAL_TESTING_PASSED]" detected via Claude Code hook
+    metadata:
+      token: "[FINAL_TESTING_PASSED]"
+      phase: final_testing
