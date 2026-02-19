@@ -8,25 +8,7 @@ import {
   getTaskStoragePaths,
   ensureTaskStorageExistsSync,
 } from '../utils/storage';
-
-/**
- * Get the mark2 installation directory.
- * This is where the package is installed (containing src/, cli/, etc.)
- * When running from a global install, we need to find the correct path.
- */
-function getMark2InstallDir(): string {
-  // __dirname will be in src/lib/adapters for this file
-  // Go up to find the root of the package
-  const possibleRoot = path.join(__dirname, '..', '..', '..');
-
-  // Verify by checking for server.ts
-  if (fs.existsSync(path.join(possibleRoot, 'server.ts'))) {
-    return possibleRoot;
-  }
-
-  // Fallback: assume cwd is the mark2 install
-  return process.cwd();
-}
+import { getMark2InstallDir } from '../utils/mark2-dir';
 
 /**
  * Adapter for Anthropic's Claude Code CLI.
