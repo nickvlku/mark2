@@ -44,7 +44,7 @@ export function LiveTerminal({
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resizeFrameRef = useRef<number | null>(null);
-  const modeRef = useRef<TerminalMode>(DEFAULT_MODE);
+  const resizeHandlerRef = useRef<(() => void) | null>(null);
 
   const [terminalReady, setTerminalReady] = useState(false);
   const [session, setSession] = useState<TerminalSessionInfo | null>(null);
@@ -56,8 +56,6 @@ export function LiveTerminal({
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [openingTerminal, setOpeningTerminal] = useState(false);
   const [openingFolder, setOpeningFolder] = useState(false);
-
-  modeRef.current = mode;
 
   const writeNotice = useCallback((message: string, color: '31' | '32' | '33') => {
     terminalRef.current?.writeln(`\r\n\x1b[${color}m${message}\x1b[0m`);
@@ -221,7 +219,7 @@ export function LiveTerminal({
           cursor: '#7c7cff',
           selectionBackground: '#3a3a5c',
         },
-        disableStdin: modeRef.current !== 'control',
+        disableStdin: true,
         scrollback: 5000,
       });
 
@@ -232,10 +230,6 @@ export function LiveTerminal({
       fitAddonRef.current = fitAddon;
 
       terminal.onData((data: string) => {
-        if (modeRef.current !== 'control') {
-          return;
-        }
-
         if (socketRef.current?.readyState === WebSocket.OPEN) {
           socketRef.current.send(JSON.stringify({ type: 'input', data }));
         }
@@ -251,6 +245,9 @@ export function LiveTerminal({
           resizeFrameRef.current = null;
         });
       };
+
+      // Store the handler so we can remove it in cleanup
+      resizeHandlerRef.current = debouncedResize;
 
       resizeObserverRef.current = new ResizeObserver(debouncedResize);
       resizeObserverRef.current.observe(containerRef.current);
@@ -276,6 +273,12 @@ export function LiveTerminal({
         resizeFrameRef.current = null;
       }
 
+      // Remove window resize listener
+      if (resizeHandlerRef.current) {
+        window.removeEventListener('resize', resizeHandlerRef.current);
+        resizeHandlerRef.current = null;
+      }
+
       resizeObserverRef.current?.disconnect();
       resizeObserverRef.current = null;
 
@@ -287,7 +290,7 @@ export function LiveTerminal({
       fitAddonRef.current = null;
       setTerminalReady(false);
     };
-  }, [closeSocket]);
+  }, [closeSocket, syncTerminalSize]);
 
   useEffect(() => {
     if (!terminalRef.current) {
@@ -309,14 +312,12 @@ export function LiveTerminal({
       return;
     }
 
-    terminal.options.disableStdin = modeRef.current !== 'control';
-
     const { cols, rows } = syncTerminalSize();
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = new URL(wsPath, `${protocol}//${window.location.host}`);
     wsUrl.searchParams.set('target', targetKind);
     wsUrl.searchParams.set('id', targetId);
-    wsUrl.searchParams.set('mode', modeRef.current);
+    wsUrl.searchParams.set('mode', mode);
     wsUrl.searchParams.set('cols', String(cols));
     wsUrl.searchParams.set('rows', String(rows));
 
@@ -398,6 +399,7 @@ export function LiveTerminal({
     };
   }, [
     closeSocket,
+    mode,
     session,
     syncTerminalSize,
     targetId,
