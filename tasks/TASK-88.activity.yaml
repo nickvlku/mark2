@@ -83,3 +83,17 @@ entries:
     metadata:
       old_phase: code_review
       new_phase: fix_review
+  - timestamp: 2026-03-18T17:34:11.336Z
+    source: hook
+    type: phase_change
+    message: End token "[FIX_REVIEW_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[FIX_REVIEW_COMPLETED]"
+      phase: fix_review
+  - timestamp: 2026-03-18T17:41:10.983Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from fix_review to code_review
+    metadata:
+      old_phase: fix_review
+      new_phase: code_review
