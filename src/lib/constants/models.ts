@@ -15,9 +15,11 @@ export const MODELS_BY_CLI: Record<CLITool, ModelDefinition[]> = {
     { id: 'claude-opus-4-6', name: 'Claude Opus 4.6' },
   ],
   'codex-cli': [
-    { id: 'gpt-5.2-codex', name: 'GPT-5.2 Codex', description: 'Latest agentic coding model' },
+    { id: 'gpt-5.4', name: 'GPT-5.4', description: 'Most capable GPT model' },
+    { id: 'gpt-5.3-codex', name: 'GPT-5.3 Codex', description: 'Latest agentic coding model' },
+    { id: 'gpt-5.2-codex', name: 'GPT-5.2 Codex', description: 'Fast agentic coding' },
     { id: 'gpt-5.1-codex-max', name: 'GPT-5.1 Codex Max', description: 'Long-horizon agentic tasks' },
-    { id: 'gpt-5.1-codex-mini', name: 'GPT-5.1 Codex Mini', description: 'Cost-effective' },
+    { id: 'gpt-5.1-codex-mini', name: 'GPT-5.1 Codex Mini', description: 'Cost-effective coding' },
     { id: 'o4-mini', name: 'O4 Mini', description: 'Fast reasoning' },
   ],
   'gemini-cli': [
