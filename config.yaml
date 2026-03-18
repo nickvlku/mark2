@@ -8,34 +8,34 @@ auto_fix:
 phase_defaults:
   design:
     role: expert-system-architect
-    cli_tool: claude-code
-    model: claude-opus-4-6
+    cli_tool: codex-cli
+    model: gpt-5.4
     auto_advance: false
   coding:
     role: expert-fullstack-coder
     cli_tool: codex-cli
     model: gpt-5.4
-    auto_advance: true
+    auto_advance: false
   testing:
     role: expert-test-engineer
     cli_tool: claude-code
     model: claude-sonnet-4-5
-    auto_advance: true
+    auto_advance: false
   code_review:
     role: expert-code-reviewer
     cli_tool: claude-code
     model: claude-opus-4-6
-    auto_advance: true
+    auto_advance: false
   fix_review:
     role: expert-fullstack-coder
     cli_tool: claude-code
     model: claude-sonnet-4-5
-    auto_advance: true
+    auto_advance: false
   final_testing:
     role: expert-e2e-tester
     cli_tool: claude-code
     model: claude-sonnet-4-5
-    auto_advance: true
+    auto_advance: false
   run_test_plan:
     role: expert-qa-analyst
     cli_tool: claude-code
