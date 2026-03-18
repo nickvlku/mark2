@@ -1,12 +1,18 @@
 id: TASK-88
 title: Fix the TMUX tab in the task details side panel
 description: The Terminal tab has a very broken view of the Tmux shell running the CLI command.  It isn't live (you have to push refresh), doesn't support colors and doesn't support the TUIs well (they look very broken).  It's basically useless.  Can we make it be a true shell, that we can therotically even interact with?  Research typescript libraries that do this well, I'm sure they exist.
-phase: design
+phase: coding
 phase_agents: {}
 phase_overrides: {}
 blockers: []
 priority: P2
-artifacts: []
+artifacts:
+  - name: design
+    phase: design
+    path: design-design-1773846819700-baqh63.md
+    mime_type: text/markdown
+    created_at: 2026-03-18T15:13:39.700Z
+    source: agent
 ports: []
 worktrees: {}
 created_by: human
@@ -14,7 +20,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-03-18T14:32:15.976Z
-updated_at: 2026-03-18T14:32:39.033Z
-phase_entered_at: 2026-03-18T14:32:39.033Z
+updated_at: 2026-03-18T15:17:16.463Z
+phase_entered_at: 2026-03-18T15:17:16.463Z
 loop_count: 0
 archived: false
