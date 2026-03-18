@@ -17,6 +17,17 @@ export type OpenTmuxSessionResult =
 export async function openTmuxSessionInNativeTerminal(
   sessionName: string,
 ): Promise<OpenTmuxSessionResult> {
+  // Validate session name to prevent command injection
+  // Only allow alphanumeric, underscore, hyphen, and dot
+  const sessionNameRegex = /^[a-zA-Z0-9_.-]+$/;
+  if (!sessionNameRegex.test(sessionName)) {
+    return {
+      success: false,
+      error: 'Invalid session name format',
+      manual_command: 'tmux attach-session -t <session>',
+    };
+  }
+
   const manualCommand = `tmux attach-session -t ${sessionName}`;
   const platform = process.platform;
 

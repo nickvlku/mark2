@@ -141,7 +141,22 @@ app.prepare().then(() => {
     void terminalBridgeManager.handleConnection(ws, request);
   });
 
+  // Ping/pong keepalive for terminal connections every 30s
+  const terminalPingInterval = setInterval(() => {
+    if (!terminalWss) return;
+    for (const client of terminalWss.clients) {
+      const sub = client as SubscribedClient;
+      if (sub.isAlive === false) {
+        sub.terminate();
+        continue;
+      }
+      sub.isAlive = false;
+      sub.ping();
+    }
+  }, 30000);
+
   terminalWss.on('close', () => {
+    clearInterval(terminalPingInterval);
     terminalBridgeManager.disposeAll();
   });
 

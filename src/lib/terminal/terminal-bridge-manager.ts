@@ -20,6 +20,7 @@ const DEFAULT_COLS = 120;
 const DEFAULT_ROWS = 32;
 const MAX_COLS = 400;
 const MAX_ROWS = 200;
+const MAX_INPUT_LENGTH = 65536; // 64KB max per input message
 const CLOSE_POLICY_VIOLATION = 1008;
 const CLOSE_TRY_AGAIN_LATER = 1013;
 const CLOSE_CONFLICT = 4409;
@@ -34,6 +35,12 @@ export class TerminalBridgeManager {
   private controlLocks = new Map<string, string>();
 
   async handleConnection(ws: WebSocket, request: IncomingMessage): Promise<void> {
+    // Set up keepalive tracking
+    (ws as any).isAlive = true;
+    ws.on('pong', () => {
+      (ws as any).isAlive = true;
+    });
+
     const requestUrl = new URL(request.url ?? '/', 'http://localhost');
     const kind = requestUrl.searchParams.get('target');
     const id = requestUrl.searchParams.get('id');
@@ -88,6 +95,21 @@ export class TerminalBridgeManager {
 
     let ptyProcess: IPty;
     try {
+      // Build minimal environment with only necessary variables
+      // to prevent leaking server secrets (API keys, DB URLs, etc.)
+      const env: Record<string, string> = {
+        TERM: process.env.TERM || 'xterm-256color',
+        COLORTERM: process.env.COLORTERM || 'truecolor',
+      };
+
+      // Include essential system variables if present
+      const safeVars = ['PATH', 'HOME', 'SHELL', 'USER', 'LANG', 'LC_ALL', 'TMPDIR'];
+      for (const key of safeVars) {
+        if (process.env[key]) {
+          env[key] = process.env[key]!;
+        }
+      }
+
       ptyProcess = pty.spawn(
         'tmux',
         mode === 'control'
@@ -98,11 +120,7 @@ export class TerminalBridgeManager {
           cols,
           rows,
           cwd: process.cwd(),
-          env: {
-            ...process.env,
-            TERM: process.env.TERM || 'xterm-256color',
-            COLORTERM: process.env.COLORTERM || 'truecolor',
-          },
+          env,
         },
       );
     } catch (error: any) {
@@ -200,6 +218,10 @@ export class TerminalBridgeManager {
 
       case 'input': {
         if (bridge.mode === 'control' && message.data) {
+          // Validate input length to prevent abuse
+          if (message.data.length > MAX_INPUT_LENGTH) {
+            return;
+          }
           bridge.ptyProcess.write(message.data);
         }
         return;

@@ -5,7 +5,6 @@ import { isValidPlanId, isValidTaskId } from '../utils/route-validation';
 import { isSessionAlive } from '../utils/tmux';
 import type {
   TerminalMetadata,
-  TerminalMode,
   TerminalSessionInfo,
   TerminalSessionResponse,
   TerminalTarget,
@@ -13,7 +12,7 @@ import type {
 } from './types';
 
 export const TERMINAL_WS_PATH = '/ws/terminal';
-export const DEFAULT_TERMINAL_MODE: TerminalMode = 'observe';
+export const DEFAULT_TERMINAL_MODE = 'observe' as const;
 
 const TERMINAL_METADATA: TerminalMetadata = {
   ws_path: TERMINAL_WS_PATH,

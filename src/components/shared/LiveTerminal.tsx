@@ -43,6 +43,7 @@ export function LiveTerminal({
   const socketRef = useRef<WebSocket | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resizeFrameRef = useRef<number | null>(null);
   const modeRef = useRef<TerminalMode>(DEFAULT_MODE);
 
   const [terminalReady, setTerminalReady] = useState(false);
@@ -240,11 +241,20 @@ export function LiveTerminal({
         }
       });
 
-      resizeObserverRef.current = new ResizeObserver(() => {
-        syncTerminalSize();
-      });
+      // Debounce resize events using requestAnimationFrame
+      const debouncedResize = () => {
+        if (resizeFrameRef.current) {
+          cancelAnimationFrame(resizeFrameRef.current);
+        }
+        resizeFrameRef.current = requestAnimationFrame(() => {
+          syncTerminalSize();
+          resizeFrameRef.current = null;
+        });
+      };
+
+      resizeObserverRef.current = new ResizeObserver(debouncedResize);
       resizeObserverRef.current.observe(containerRef.current);
-      window.addEventListener('resize', syncTerminalSize);
+      window.addEventListener('resize', debouncedResize);
 
       requestAnimationFrame(() => {
         if (!disposed) {
@@ -259,7 +269,13 @@ export function LiveTerminal({
     return () => {
       disposed = true;
       closeSocket();
-      window.removeEventListener('resize', syncTerminalSize);
+
+      // Cancel any pending resize animation frame
+      if (resizeFrameRef.current) {
+        cancelAnimationFrame(resizeFrameRef.current);
+        resizeFrameRef.current = null;
+      }
+
       resizeObserverRef.current?.disconnect();
       resizeObserverRef.current = null;
 
@@ -271,7 +287,7 @@ export function LiveTerminal({
       fitAddonRef.current = null;
       setTerminalReady(false);
     };
-  }, [closeSocket, syncTerminalSize]);
+  }, [closeSocket]);
 
   useEffect(() => {
     if (!terminalRef.current) {
@@ -293,15 +309,14 @@ export function LiveTerminal({
       return;
     }
 
-    terminal.reset();
-    terminal.options.disableStdin = mode !== 'control';
+    terminal.options.disableStdin = modeRef.current !== 'control';
 
     const { cols, rows } = syncTerminalSize();
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = new URL(wsPath, `${protocol}//${window.location.host}`);
     wsUrl.searchParams.set('target', targetKind);
     wsUrl.searchParams.set('id', targetId);
-    wsUrl.searchParams.set('mode', mode);
+    wsUrl.searchParams.set('mode', modeRef.current);
     wsUrl.searchParams.set('cols', String(cols));
     wsUrl.searchParams.set('rows', String(rows));
 
@@ -383,7 +398,6 @@ export function LiveTerminal({
     };
   }, [
     closeSocket,
-    mode,
     session,
     syncTerminalSize,
     targetId,
@@ -458,7 +472,7 @@ export function LiveTerminal({
               disabled={!runningSession}
               className="rounded border border-border/30 px-2 py-0.5 text-[10px] text-text-secondary/70 transition-colors hover:border-border/60 hover:text-text-primary disabled:opacity-50"
             >
-              {mode === 'control' ? 'Leave Observe Mode' : 'Enable Input'}
+              {mode === 'control' ? 'Disable Input' : 'Enable Input'}
             </button>
 
             <button
