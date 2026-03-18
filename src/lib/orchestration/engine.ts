@@ -23,7 +23,6 @@ import {
 } from './pipeline';
 import { TmuxManager } from './tmux-manager';
 import { sessionName as buildSessionName } from '../utils/tmux';
-import { TerminalStream } from '../ws/terminal-stream';
 
 import { handlePending } from './phase-handlers/pending';
 import { handleDesign } from './phase-handlers/design';
@@ -56,7 +55,6 @@ let instance: OrchestrationEngine | null = null;
 
 export class OrchestrationEngine {
   private tmuxManager: TmuxManager;
-  private terminalStream: TerminalStream;
   private adapters: Map<string, CLIAdapter>;
   private config: EngineConfig;
   private reader: YamlReader;
@@ -65,7 +63,6 @@ export class OrchestrationEngine {
   private constructor(config: EngineConfig) {
     this.config = config;
     this.tmuxManager = new TmuxManager(config.mark2Dir);
-    this.terminalStream = TerminalStream.getInstance();
     // Use the .state directory for reading/writing task YAML files
     const stateDir = path.join(config.mark2Dir, '.state');
     this.reader = new YamlReader(stateDir);
@@ -128,9 +125,8 @@ export class OrchestrationEngine {
       return;
     }
 
-    // Mark the current session as completed and stop streaming
+    // Mark the current session as completed
     this.tmuxManager.markCompletedByPhase(taskId, phase);
-    this.terminalStream.stop(taskId);
 
     // Resolve adapter + working directory for cleanup
     let cleanupAdapter: CLIAdapter | null = null;
@@ -435,11 +431,7 @@ export class OrchestrationEngine {
 
     }
 
-    // Start terminal streaming for the spawned session
-    // End token detection is handled by Claude Code's Stop hook (no polling needed)
-    if (tmuxSession) {
-      this.terminalStream.start(taskId, tmuxSession);
-    }
+    // Browser terminals attach on demand through the dedicated terminal bridge.
   }
 
   /**
@@ -452,9 +444,6 @@ export class OrchestrationEngine {
 
     // Mark session as failed
     this.tmuxManager.markFailedByPhase(taskId, phase);
-
-    // Stop terminal stream
-    this.terminalStream.stop(taskId);
 
     // Log the crash
     db.insert(activityEntries)
@@ -490,8 +479,8 @@ export class OrchestrationEngine {
   }
 
   /**
-   * Recover from a restart: scan for orphaned TMUX sessions, reconcile DB
-   * state, and re-attach watchers for running sessions.
+   * Recover from a restart by scanning for orphaned TMUX sessions and
+   * reconciling database state.
    */
   async recoverOnStartup(): Promise<{
     orphaned: number;
@@ -516,17 +505,7 @@ export class OrchestrationEngine {
         .run();
     }
 
-    // Re-attach terminal streaming for sessions still running
-    // End token detection is handled by Claude Code's Stop hook
-    const activeSessions = this.tmuxManager.getActiveSessions();
-    let reattached = 0;
-
-    for (const session of activeSessions) {
-      this.terminalStream.start(session.task_id, session.tmux_session);
-      reattached++;
-    }
-
-    return { orphaned: orphaned.length, reattached };
+    return { orphaned: orphaned.length, reattached: 0 };
   }
 
   /**
@@ -541,17 +520,16 @@ export class OrchestrationEngine {
   }
 
   /**
-   * Gracefully shut down terminal streams.
+   * Gracefully shut down orchestration state.
    */
   shutdown(): void {
-    this.terminalStream.stopAll();
+    // Terminal bridge connections are owned by server.ts and attach on demand.
   }
 
   /**
    * Cleanup all mark2 sessions (used for hard reset).
    */
   async cleanupAll(): Promise<number> {
-    this.terminalStream.stopAll();
     return this.tmuxManager.cleanupSessions();
   }
 

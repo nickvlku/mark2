@@ -1,4 +1,15 @@
 export * from '../lib/yaml/schemas';
+export type {
+  TerminalBridge,
+  TerminalClientMessage,
+  TerminalMetadata,
+  TerminalMode,
+  TerminalServerMessage,
+  TerminalSessionInfo,
+  TerminalSessionResponse,
+  TerminalTarget,
+  TerminalTargetKind,
+} from '../lib/terminal/types';
 
 import type {
   Task,

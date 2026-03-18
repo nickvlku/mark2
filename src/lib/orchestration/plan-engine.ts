@@ -16,7 +16,6 @@ import { OpenCodeAdapter } from '../adapters/opencode';
 
 import { YamlReader } from '../yaml/reader';
 import { TmuxManager } from './tmux-manager';
-import { TerminalStream } from '../ws/terminal-stream';
 import { PlanPromptAssembler } from './plan-prompt-assembler';
 import { PLAN_AGENT_PHASES, PLAN_PHASE_ROLES } from './plan-pipeline';
 import { PlanService } from '../services/plan-service';
@@ -37,7 +36,6 @@ export interface PlanEngineConfig {
 export class PlanEngine {
   private config: PlanEngineConfig;
   private tmuxManager: TmuxManager;
-  private terminalStream: TerminalStream;
   private adapters: Map<string, CLIAdapter>;
   private reader: YamlReader;
   private planService: PlanService;
@@ -45,7 +43,6 @@ export class PlanEngine {
   constructor(config: PlanEngineConfig) {
     this.config = config;
     this.tmuxManager = new TmuxManager(config.mark2Dir);
-    this.terminalStream = TerminalStream.getInstance();
     const stateDir = path.join(config.mark2Dir, '.state');
     this.reader = new YamlReader(stateDir);
     this.planService = new PlanService(config.mark2Dir);
@@ -159,9 +156,6 @@ export class PlanEngine {
       }),
     }).run();
 
-    // Start terminal streaming
-    this.terminalStream.start(planId, tmuxSession);
-
     return { tmuxSession };
   }
 
@@ -182,9 +176,8 @@ export class PlanEngine {
       return;
     }
 
-    // Mark session as completed and stop streaming
+    // Mark session as completed
     this.tmuxManager.markCompletedByPhase(planId, phase as any);
-    this.terminalStream.stop(planId);
 
     // Log
     const db = getDb(this.config.mark2Dir);

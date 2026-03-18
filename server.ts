@@ -5,6 +5,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import type { IncomingMessage } from 'http';
 import type { Duplex } from 'stream';
 import { setBroadcaster } from './src/lib/ws/broadcaster';
+import { TerminalBridgeManager } from './src/lib/terminal/terminal-bridge-manager';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = 'localhost';
@@ -21,6 +22,8 @@ interface SubscribedClient extends WebSocket {
 // ── Global broadcast function ───────────────────────────────────────────────
 
 let wss: WebSocketServer | null = null;
+let terminalWss: WebSocketServer | null = null;
+const terminalBridgeManager = new TerminalBridgeManager();
 
 export function broadcast(event: string, payload: Record<string, unknown>): void {
   if (!wss) return;
@@ -61,6 +64,7 @@ app.prepare().then(() => {
 
   // WebSocket server on same HTTP server (upgrade path)
   wss = new WebSocketServer({ noServer: true });
+  terminalWss = new WebSocketServer({ noServer: true });
 
   // Get the Next.js upgrade handler so HMR WebSockets work in dev mode.
   // Without this, /_next/webpack-hmr connections get destroyed, causing
@@ -73,6 +77,15 @@ app.prepare().then(() => {
     if (pathname === '/ws') {
       wss!.handleUpgrade(request, socket, head, (ws) => {
         wss!.emit('connection', ws, request);
+      });
+    } else if (pathname === '/ws/terminal') {
+      if (!isSameOriginRequest(request)) {
+        socket.destroy();
+        return;
+      }
+
+      terminalWss!.handleUpgrade(request, socket, head, (ws) => {
+        terminalWss!.emit('connection', ws, request);
       });
     } else if (nextUpgradeHandler) {
       // Pass all other upgrades (including /_next/webpack-hmr) to Next.js
@@ -124,12 +137,40 @@ app.prepare().then(() => {
     clearInterval(pingInterval);
   });
 
-  // Wire the broadcaster so TerminalStream (and other library code)
-  // can push messages to WebSocket clients.
+  terminalWss.on('connection', (ws, request) => {
+    void terminalBridgeManager.handleConnection(ws, request);
+  });
+
+  terminalWss.on('close', () => {
+    terminalBridgeManager.disposeAll();
+  });
+
+  // Wire the broadcaster so notification publishers can push messages to
+  // WebSocket clients.
   setBroadcaster(sendToTask);
 
   server.listen(port, () => {
     console.log(`> Mark2 server ready on http://${hostname}:${port}`);
     console.log(`> WebSocket available at ws://${hostname}:${port}/ws`);
+    console.log(`> Terminal WebSocket available at ws://${hostname}:${port}/ws/terminal`);
   });
 });
+
+function isSameOriginRequest(request: IncomingMessage): boolean {
+  const origin = request.headers.origin;
+  const host = request.headers.host;
+
+  if (!origin) {
+    return true;
+  }
+
+  if (!host) {
+    return false;
+  }
+
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
