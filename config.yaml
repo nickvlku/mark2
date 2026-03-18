@@ -1,55 +1,45 @@
 project_name: mark2
-server_port: 3100
 base_port: 3000
 ports_per_task: 10
-merge_strategy: squash
 auto_fix:
   P0: true
   P1: false
   P2: false
-max_loop_count: 5
 phase_defaults:
   design:
     role: expert-system-architect
     cli_tool: claude-code
     model: claude-opus-4-6
-    timeout_minutes: 30
     auto_advance: false
   coding:
     role: expert-fullstack-coder
-    cli_tool: claude-code
-    model: claude-sonnet-4-5
-    timeout_minutes: 120
+    cli_tool: codex-cli
+    model: gpt-5.4
     auto_advance: true
   testing:
     role: expert-test-engineer
     cli_tool: claude-code
     model: claude-sonnet-4-5
-    timeout_minutes: 60
     auto_advance: true
   code_review:
     role: expert-code-reviewer
     cli_tool: claude-code
     model: claude-opus-4-6
-    timeout_minutes: 30
     auto_advance: true
   fix_review:
     role: expert-fullstack-coder
     cli_tool: claude-code
     model: claude-sonnet-4-5
-    timeout_minutes: 90
     auto_advance: true
   final_testing:
     role: expert-e2e-tester
     cli_tool: claude-code
     model: claude-sonnet-4-5
-    timeout_minutes: 60
     auto_advance: true
   run_test_plan:
     role: expert-qa-analyst
     cli_tool: claude-code
     model: claude-sonnet-4-5
-    timeout_minutes: 15
     auto_advance: false
 plan_phase_defaults:
   prd:
@@ -70,11 +60,15 @@ plan_phase_defaults:
     model: claude-sonnet-4-5
     timeout_minutes: 60
     auto_advance: false
+max_loop_count: 5
+server_port: 3100
+merge_strategy: squash
+ide_commands:
+  - code
+  - cursor
+  - windsurf
 enhance_config:
   role: task-enhancer
   cli_tool: claude-code
   model: claude-sonnet-4-5
   timeout_minutes: 30
-state_sync:
-  lock_timeout_days: 5
-  auto_pull_on_start: true
