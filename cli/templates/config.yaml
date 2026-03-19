@@ -10,17 +10,68 @@ auto_fix:
 max_loop_count: 5
 phase_defaults:
   design:
-    timeout_minutes: 30
+    role: expert-system-architect
+    cli_tool: claude-code
+    model: claude-opus-4-6
+    timeout_minutes: 90
     auto_advance: false
   coding:
+    role: expert-fullstack-coder
+    cli_tool: claude-code
+    model: claude-sonnet-4-5
     timeout_minutes: 120
     auto_advance: true
   testing:
-    timeout_minutes: 60
+    role: expert-test-engineer
+    cli_tool: claude-code
+    model: claude-sonnet-4-5
+    timeout_minutes: 90
     auto_advance: true
   code_review:
-    timeout_minutes: 30
+    role: expert-code-reviewer
+    cli_tool: claude-code
+    model: claude-opus-4-6
+    timeout_minutes: 60
+    auto_advance: true
+  fix_review:
+    role: expert-fullstack-coder
+    cli_tool: claude-code
+    model: claude-sonnet-4-5
+    timeout_minutes: 90
+    auto_advance: true
+  final_testing:
+    role: expert-e2e-tester
+    cli_tool: claude-code
+    model: claude-sonnet-4-5
+    timeout_minutes: 60
     auto_advance: true
   run_test_plan:
-    timeout_minutes: 15
+    role: expert-qa-analyst
+    cli_tool: claude-code
+    model: claude-sonnet-4-5
+    timeout_minutes: 60
     auto_advance: false
+plan_phase_defaults:
+  prd:
+    role: prd-writer
+    cli_tool: claude-code
+    model: claude-opus-4-6
+    timeout_minutes: 60
+    auto_advance: false
+  tech_spec:
+    role: tech-spec-writer
+    cli_tool: claude-code
+    model: claude-opus-4-6
+    timeout_minutes: 90
+    auto_advance: false
+  task_generation:
+    role: story-planner
+    cli_tool: claude-code
+    model: claude-sonnet-4-5
+    timeout_minutes: 60
+    auto_advance: false
+enhance_config:
+  role: task-enhancer
+  cli_tool: claude-code
+  model: claude-sonnet-4-5
+  timeout_minutes: 30

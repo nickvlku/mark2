@@ -258,7 +258,14 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err);
+main().catch((error) => {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`Error: ${message}`);
+
+  if (process.env.MARK2_DEBUG && error instanceof Error && error.stack) {
+    console.error('');
+    console.error(error.stack);
+  }
+
   process.exit(1);
 });

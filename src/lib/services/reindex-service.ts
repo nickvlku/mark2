@@ -26,6 +26,7 @@ export class ReindexService {
     // Ensure worktree exists and pull latest
     await this.stateBranch.ensureWorktree();
     const pullResult = await this.stateBranch.pull();
+    this.stateBranch.mirrorRepoFilesToLocal();
 
     // Use a YamlReader pointed at the state directory
     const stateDir = this.stateBranch.getStateDir();

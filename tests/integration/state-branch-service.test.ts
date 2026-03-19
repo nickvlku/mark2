@@ -27,6 +27,38 @@ afterEach(() => {
 });
 
 describe('StateBranchService', () => {
+  describe('repo config mirroring', () => {
+    it('copies repo-backed config files from .state into .mark2', () => {
+      const repoBackedService = new StateBranchService(mark2Dir, false);
+      const stateDir = path.join(mark2Dir, '.state');
+      mkdirSync(stateDir, { recursive: true });
+
+      writeFileSync(path.join(stateDir, 'roles.yaml'), 'roles:\n  - name: synced-role\n    role_prompt: synced\n');
+      writeFileSync(path.join(stateDir, 'config.yaml'), 'project_name: synced-project\n');
+      writeFileSync(path.join(mark2Dir, 'roles.yaml'), 'roles:\n  - name: stale-role\n    role_prompt: stale\n');
+
+      repoBackedService.mirrorRepoFilesToLocal();
+
+      expect(readFileSync(path.join(mark2Dir, 'roles.yaml'), 'utf-8')).toContain('synced-role');
+      expect(readFileSync(path.join(mark2Dir, 'config.yaml'), 'utf-8')).toContain('synced-project');
+    });
+
+    it('copies local repo-backed config files into .state', () => {
+      const repoBackedService = new StateBranchService(mark2Dir, false);
+      const stateDir = path.join(mark2Dir, '.state');
+      mkdirSync(stateDir, { recursive: true });
+
+      writeFileSync(path.join(mark2Dir, 'roles.yaml'), 'roles:\n  - name: local-role\n    role_prompt: local\n');
+      writeFileSync(path.join(mark2Dir, 'config.yaml'), 'project_name: local-project\n');
+      writeFileSync(path.join(stateDir, 'roles.yaml'), 'roles:\n  - name: stale-role\n    role_prompt: stale\n');
+
+      repoBackedService.mirrorRepoFilesToState();
+
+      expect(readFileSync(path.join(stateDir, 'roles.yaml'), 'utf-8')).toContain('local-role');
+      expect(readFileSync(path.join(stateDir, 'config.yaml'), 'utf-8')).toContain('local-project');
+    });
+  });
+
   describe('localOnly mode', () => {
     it('writes directly to mark2Dir in localOnly mode', async () => {
       await stateBranch.writeYaml('tasks/TASK-1.yaml', {

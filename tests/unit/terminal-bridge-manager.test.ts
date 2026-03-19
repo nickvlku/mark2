@@ -1,4 +1,8 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { rmSync } from 'fs';
 import { WebSocket } from 'ws';
 
 const {
@@ -95,8 +99,14 @@ function createFakePty(): FakePty {
 }
 
 describe('TerminalBridgeManager', () => {
+  const originalPath = process.env.PATH;
+  const originalTmuxPath = process.env.MARK2_TMUX_PATH;
+  const tempPaths: string[] = [];
+
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.PATH = originalPath;
+    process.env.MARK2_TMUX_PATH = '/test/tmux';
     isValidTerminalTargetMock.mockReturnValue(true);
     resolveActiveTerminalSessionMock.mockResolvedValue({
       tmux_session: 'mark2_TASK-1_coder_coding',
@@ -104,6 +114,18 @@ describe('TerminalBridgeManager', () => {
       phase: 'coding',
       status: 'running',
     });
+  });
+
+  afterEach(() => {
+    process.env.PATH = originalPath;
+    if (originalTmuxPath === undefined) {
+      delete process.env.MARK2_TMUX_PATH;
+    } else {
+      process.env.MARK2_TMUX_PATH = originalTmuxPath;
+    }
+    for (const tempPath of tempPaths.splice(0)) {
+      rmSync(tempPath, { recursive: true, force: true });
+    }
   });
 
   it('spawns a read-only tmux client for observe mode and forwards output', async () => {
@@ -121,7 +143,7 @@ describe('TerminalBridgeManager', () => {
     );
 
     expect(spawnMock).toHaveBeenCalledWith(
-      'tmux',
+      '/test/tmux',
       ['attach-session', '-f', 'read-only', '-t', 'mark2_TASK-1_coder_coding'],
       expect.objectContaining({
         cols: 140,
@@ -162,6 +184,35 @@ describe('TerminalBridgeManager', () => {
 
     expect(pty.resize).toHaveBeenCalledWith(88, 22);
     expect(pty.write).toHaveBeenCalledWith('ls\r');
+  });
+
+  it('resolves tmux from PATH when no explicit override is set', async () => {
+    const pty = createFakePty();
+    spawnMock.mockReturnValue(pty);
+
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mark2-tmux-bin-'));
+    const tmuxPath = path.join(tempDir, 'tmux');
+    tempPaths.push(tempDir);
+
+    fs.writeFileSync(tmuxPath, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+    delete process.env.MARK2_TMUX_PATH;
+    process.env.PATH = `${tempDir}${path.delimiter}${originalPath ?? ''}`;
+
+    const manager = new TerminalBridgeManager();
+    const ws = new FakeWebSocket();
+
+    await manager.handleConnection(
+      ws as unknown as WebSocket,
+      {
+        url: '/ws/terminal?target=task&id=TASK-1&mode=observe',
+      } as any,
+    );
+
+    expect(spawnMock).toHaveBeenCalledWith(
+      tmuxPath,
+      ['attach-session', '-f', 'read-only', '-t', 'mark2_TASK-1_coder_coding'],
+      expect.any(Object),
+    );
   });
 
   it('enforces a single control connection per target', async () => {

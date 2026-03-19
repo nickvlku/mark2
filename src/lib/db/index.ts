@@ -9,6 +9,32 @@ let db: ReturnType<typeof drizzle> | null = null;
 let sqliteDb: Database.Database | null = null;
 let initialized = false;
 
+function isMissingBetterSqliteBindingsError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('Could not locate the bindings file');
+}
+
+function createBetterSqliteBindingsError(cause: unknown): Error {
+  const originalMessage = cause instanceof Error ? cause.message : String(cause);
+
+  return new Error(
+    [
+      'better-sqlite3 native bindings are missing.',
+      `Node.js runtime: ${process.version}`,
+      'This usually means the dependency install/build step was skipped.',
+      '',
+      'If you installed with pnpm:',
+      '  1. Ensure "better-sqlite3" is allowed in pnpm.onlyBuiltDependencies.',
+      '  2. Run `pnpm rebuild better-sqlite3`.',
+      '',
+      'If you installed with npm:',
+      '  Run `npm rebuild better-sqlite3`.',
+      '',
+      'If the rebuild still fails, install local build tools and reinstall dependencies.',
+      `Original error: ${originalMessage}`,
+    ].join('\n'),
+  );
+}
+
 export function getDb(mark2Dir?: string): ReturnType<typeof drizzle> {
   if (db) return db;
 
@@ -21,7 +47,15 @@ export function getDb(mark2Dir?: string): ReturnType<typeof drizzle> {
     fs.mkdirSync(dir, { recursive: true });
   }
 
-  sqliteDb = new Database(dbPath);
+  try {
+    sqliteDb = new Database(dbPath);
+  } catch (error) {
+    if (isMissingBetterSqliteBindingsError(error)) {
+      throw createBetterSqliteBindingsError(error);
+    }
+
+    throw error;
+  }
   sqliteDb.pragma('journal_mode = WAL');
   sqliteDb.pragma('foreign_keys = ON');
 

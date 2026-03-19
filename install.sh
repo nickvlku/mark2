@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 
 echo ""
 echo "┌─────────────────────────────────────────┐"
-echo "│         Installing Mark2               │"
+echo "│         Installing Mark2                │"
 echo "└─────────────────────────────────────────┘"
 echo ""
 
@@ -63,7 +63,7 @@ if [ $missing -eq 1 ]; then
   echo -e "${RED}Missing required dependencies. Please install them and try again.${NC}"
   echo ""
   echo "Required dependencies:"
-  echo "  - Node.js 18+ (https://nodejs.org/)"
+  echo "  - Node.js 20.9+ (https://nodejs.org/)"
   echo "  - npm or pnpm"
   echo "  - tmux (brew install tmux / apt install tmux)"
   echo "  - Build tools: make, python3, gcc/g++ (for native modules)"
@@ -76,10 +76,12 @@ if [ $missing -eq 1 ]; then
 fi
 
 # Check Node.js version
-node_version=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-if [ "$node_version" -lt 18 ]; then
+node_version=$(node -v | cut -d'v' -f2)
+node_major=$(echo "$node_version" | cut -d'.' -f1)
+node_minor=$(echo "$node_version" | cut -d'.' -f2)
+if [ "$node_major" -lt 20 ] || { [ "$node_major" -eq 20 ] && [ "$node_minor" -lt 9 ]; }; then
   echo ""
-  echo -e "${YELLOW}Warning: Node.js 18+ is recommended. You have Node.js v$(node -v)${NC}"
+  echo -e "${YELLOW}Warning: Node.js 20.9+ is recommended. You have Node.js v$(node -v)${NC}"
 fi
 
 echo ""
