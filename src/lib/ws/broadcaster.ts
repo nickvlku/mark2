@@ -3,7 +3,7 @@
  * and library code that needs to push messages to clients.
  *
  * server.ts calls `setBroadcaster()` once after the WSS is ready.
- * TerminalStream (and anything else) calls `broadcastToTask()`.
+ * Notification publishers call `broadcastToTask()`.
  */
 
 type SendFn = (taskId: string, event: string, payload: Record<string, unknown>) => void;
