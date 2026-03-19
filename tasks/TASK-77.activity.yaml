@@ -25,3 +25,18 @@ entries:
     metadata:
       old_phase: design
       new_phase: coding
+  - timestamp: 2026-03-19T13:11:59.338Z
+    source: agent
+    type: note
+    message: "[in_progress] Implemented AGENTS.md unit coverage with real PromptAssembler-based prompts and phase token assertions; targeted Vitest file passes."
+  - timestamp: 2026-03-19T13:12:54.517Z
+    source: agent
+    type: note
+    message: "[completed] Added AGENTS.md generation unit coverage, saved coding summary artifact, and committed the changes."
+  - timestamp: 2026-03-19T13:12:55.254Z
+    source: hook
+    type: phase_change
+    message: End token "[CODING_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[CODING_COMPLETED]"
+      phase: coding
