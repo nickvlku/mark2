@@ -15,7 +15,7 @@ mark2 provides a dashboard and orchestration layer for running AI coding agents 
 
 ## Requirements
 
-- **Node.js** 18+
+- **Node.js** 20.9+ (tested through Node 25)
 - **npm** or **pnpm**
 - **tmux** - for managing agent sessions
 - **sqlite3** - for local database (usually pre-installed)
@@ -64,6 +64,12 @@ cd mark2
 pnpm install
 pnpm build
 pnpm mark2 --help
+```
+
+If `pnpm` reports ignored builds for `better-sqlite3`, allow and rebuild it:
+
+```bash
+pnpm rebuild better-sqlite3
 ```
 
 ## Usage

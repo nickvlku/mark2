@@ -145,9 +145,11 @@ function createPromptBackedParams(phase: AgentsPhase, taskId = 'TASK-999') {
 }
 
 describe('CodexCLIAdapter', () => {
+  const originalHome = process.env.HOME;
   const tempPaths: string[] = [];
 
   afterEach(() => {
+    process.env.HOME = originalHome;
     for (const p of tempPaths.splice(0)) {
       rmSync(p, { recursive: true, force: true });
     }
@@ -168,8 +170,8 @@ describe('CodexCLIAdapter', () => {
     const params = createTestParams({ workingDirectory: tmpDir });
     const command = adapter.buildCommand(params);
     expect(command).toContain('codex');
-    expect(command).toContain('--approval-mode');
-    expect(command).toContain('full-auto');
+    expect(command).toContain('--dangerously-bypass-approvals-and-sandbox');
+    expect(command).toContain("-c 'mcp_servers.mark2.command=");
     expect(command).toContain('--model');
     expect(command).toContain('gpt-5.2-codex');
   });
@@ -261,7 +263,10 @@ describe('CodexCLIAdapter', () => {
     const config = JSON.parse(fs.readFileSync(mcpConfigPath, 'utf-8'));
     expect(config.taskId).toBe('TASK-999');
     expect(config.apiBaseUrl).toBe('http://localhost:3100');
-    expect(config.mcpServers).toBeDefined();
+    expect(config.mcpServers.mark2).toBeDefined();
+    expect(config.mcpServers.mark2.args).toEqual([
+      path.join(process.cwd(), 'src', 'lib', 'mcp', 'index.ts'),
+    ]);
   });
 
   it('creates AGENTS.md file', () => {
@@ -294,7 +299,7 @@ describe('CodexCLIAdapter', () => {
 
     const params = createTestParams({
       workingDirectory: tmpDir,
-      prompt: "Test with 'single quotes' and \"double quotes\"",
+      taskPrompt: "Test with 'single quotes' and \"double quotes\"",
       model: "gpt-4'test",
     });
     const command = adapter.buildCommand(params);
@@ -312,7 +317,7 @@ describe('CodexCLIAdapter', () => {
 
       const params = createTestParams({
         workingDirectory: tmpDir,
-        prompt: "Line 1\nLine 2\nLine 3",
+        taskPrompt: "Line 1\nLine 2\nLine 3",
       });
       const command = adapter.buildCommand(params);
 
@@ -327,7 +332,7 @@ describe('CodexCLIAdapter', () => {
 
       const params = createTestParams({
         workingDirectory: tmpDir,
-        prompt: "Path: C:\\Users\\test\\file.txt",
+        taskPrompt: "Path: C:\\Users\\test\\file.txt",
       });
       const command = adapter.buildCommand(params);
 
@@ -342,7 +347,7 @@ describe('CodexCLIAdapter', () => {
 
       const params = createTestParams({
         workingDirectory: tmpDir,
-        prompt: "",
+        taskPrompt: "",
       });
       const command = adapter.buildCommand(params);
 
@@ -357,7 +362,7 @@ describe('CodexCLIAdapter', () => {
 
       const params = createTestParams({
         workingDirectory: tmpDir,
-        prompt: "Test ''quotes''",
+        taskPrompt: "Test ''quotes''",
       });
       const command = adapter.buildCommand(params);
 
@@ -372,7 +377,7 @@ describe('CodexCLIAdapter', () => {
 
       const params = createTestParams({
         workingDirectory: tmpDir,
-        prompt: "Test: $VAR `cmd` $(cmd) & | ; < > # !",
+        taskPrompt: "Test: $VAR `cmd` $(cmd) & | ; < > # !",
       });
       const command = adapter.buildCommand(params);
 
@@ -382,6 +387,81 @@ describe('CodexCLIAdapter', () => {
   });
 
   describe('File Operations', () => {
+    it('adds an exact trusted clone entry when a parent project is already trusted', () => {
+      const adapter = new CodexCLIAdapter();
+      const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-home-'));
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-project-'));
+      const workingDirectory = path.join(projectRoot, '.mark2', 'clones', 'TASK-999');
+      tempPaths.push(homeDir, projectRoot);
+      process.env.HOME = homeDir;
+
+      fs.mkdirSync(workingDirectory, { recursive: true });
+      fs.mkdirSync(path.join(homeDir, '.codex'), { recursive: true });
+      fs.writeFileSync(
+        path.join(homeDir, '.codex', 'config.toml'),
+        `[projects."${projectRoot}"]\ntrust_level = "trusted"\n`,
+        'utf-8',
+      );
+
+      adapter.buildCommand(createTestParams({ workingDirectory }));
+
+      const config = fs.readFileSync(path.join(homeDir, '.codex', 'config.toml'), 'utf-8');
+      expect(config).toContain(`[projects."${workingDirectory}"]`);
+      expect(config).toContain('trust_level = "trusted"');
+    });
+
+    it('does not auto-trust a clone when no trusted ancestor exists', () => {
+      const adapter = new CodexCLIAdapter();
+      const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-home-'));
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-project-'));
+      const workingDirectory = path.join(projectRoot, '.mark2', 'clones', 'TASK-999');
+      tempPaths.push(homeDir, projectRoot);
+      process.env.HOME = homeDir;
+
+      fs.mkdirSync(workingDirectory, { recursive: true });
+      fs.mkdirSync(path.join(homeDir, '.codex'), { recursive: true });
+      fs.writeFileSync(
+        path.join(homeDir, '.codex', 'config.toml'),
+        `[projects."/some/other/project"]\ntrust_level = "trusted"\n`,
+        'utf-8',
+      );
+
+      adapter.buildCommand(createTestParams({ workingDirectory }));
+
+      const config = fs.readFileSync(path.join(homeDir, '.codex', 'config.toml'), 'utf-8');
+      expect(config).not.toContain(`[projects."${workingDirectory}"]`);
+    });
+
+    it('does not duplicate an existing exact trusted clone entry', () => {
+      const adapter = new CodexCLIAdapter();
+      const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-home-'));
+      const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-project-'));
+      const workingDirectory = path.join(projectRoot, '.mark2', 'clones', 'TASK-999');
+      tempPaths.push(homeDir, projectRoot);
+      process.env.HOME = homeDir;
+
+      fs.mkdirSync(workingDirectory, { recursive: true });
+      fs.mkdirSync(path.join(homeDir, '.codex'), { recursive: true });
+      fs.writeFileSync(
+        path.join(homeDir, '.codex', 'config.toml'),
+        [
+          `[projects."${projectRoot}"]`,
+          'trust_level = "trusted"',
+          '',
+          `[projects."${workingDirectory}"]`,
+          'trust_level = "trusted"',
+          '',
+        ].join('\n'),
+        'utf-8',
+      );
+
+      adapter.buildCommand(createTestParams({ workingDirectory }));
+
+      const config = fs.readFileSync(path.join(homeDir, '.codex', 'config.toml'), 'utf-8');
+      const matches = config.match(new RegExp(`\\[projects\\."${workingDirectory.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"\\]`, 'g'));
+      expect(matches).toHaveLength(1);
+    });
+
     it('overwrites existing MCP config file', () => {
       const adapter = new CodexCLIAdapter();
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-test-'));
@@ -399,6 +479,7 @@ describe('CodexCLIAdapter', () => {
       const config = JSON.parse(fs.readFileSync(mcpConfigPath, 'utf-8'));
       expect(config.old).toBeUndefined();
       expect(config.taskId).toBe('TASK-999');
+      expect(config.mcpServers.mark2).toBeDefined();
     });
 
     it('creates MCP config when .codex directory already exists', () => {
@@ -418,6 +499,7 @@ describe('CodexCLIAdapter', () => {
 
       const config = JSON.parse(fs.readFileSync(mcpConfigPath, 'utf-8'));
       expect(config.taskId).toBe('TASK-999');
+      expect(config.mcpServers.mark2).toBeDefined();
     });
 
     it('overwrites existing AGENTS.md file', () => {
@@ -552,7 +634,7 @@ describe('CodexCLIAdapter', () => {
   });
 
   describe('Command Structure', () => {
-    it('builds command with correct flag ordering', () => {
+    it('builds command with MCP overrides and correct flag ordering', () => {
       const adapter = new CodexCLIAdapter();
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-test-'));
       tempPaths.push(tmpDir);
@@ -561,11 +643,16 @@ describe('CodexCLIAdapter', () => {
         workingDirectory: tmpDir,
         model: 'test-model',
         prompt: 'test-prompt',
+        taskPrompt: 'test-prompt',
       });
       const command = adapter.buildCommand(params);
 
-      // Verify exact structure
-      expect(command).toBe("codex --approval-mode full-auto --model 'test-model' 'test-prompt'");
+      expect(command).toMatch(/^codex\s/);
+      expect(command).toContain('--dangerously-bypass-approvals-and-sandbox');
+      expect(command).toContain("'mcp_servers.mark2.command=");
+      expect(command).toContain("'mcp_servers.mark2.args=");
+      expect(command).toContain("--model 'test-model'");
+      expect(command).toContain("'test-prompt'");
     });
 
     it('is idempotent when called multiple times', () => {
@@ -601,15 +688,17 @@ describe('CodexCLIAdapter', () => {
 
       // Verify all required flags are present
       expect(command).toMatch(/^codex\s/);
-      expect(command).toContain('--approval-mode');
-      expect(command).toContain('full-auto');
+      expect(command).toContain('--dangerously-bypass-approvals-and-sandbox');
+      expect(command).toContain("-c 'mcp_servers.mark2.command=");
       expect(command).toContain('--model');
 
       // Verify flags appear in correct order
-      const approvalIndex = command.indexOf('--approval-mode');
+      const bypassIndex = command.indexOf('--dangerously-bypass-approvals-and-sandbox');
+      const mcpIndex = command.indexOf("mcp_servers.mark2.command=");
       const modelIndex = command.indexOf('--model');
 
-      expect(approvalIndex).toBeLessThan(modelIndex);
+      expect(bypassIndex).toBeLessThan(mcpIndex);
+      expect(mcpIndex).toBeLessThan(modelIndex);
     });
   });
 
@@ -635,6 +724,14 @@ describe('CodexCLIAdapter', () => {
       expect(config.taskId).toBe('TASK-123');
       expect(config.apiBaseUrl).toBe('https://api.example.com');
       expect(typeof config.mcpServers).toBe('object');
+      expect(config.mcpServers.mark2.command).toBe(
+        path.join(process.cwd(), 'node_modules', '.bin', 'tsx'),
+      );
+      expect(config.mcpServers.mark2.args).toEqual([
+        path.join(process.cwd(), 'src', 'lib', 'mcp', 'index.ts'),
+      ]);
+      expect(config.mcpServers.mark2.env.MARK2_TASK_ID).toBe('TASK-123');
+      expect(config.mcpServers.mark2.env.MARK2_API_URL).toBe('https://api.example.com');
     });
 
     it('creates valid JSON in MCP config', () => {

@@ -1,4 +1,5 @@
 import fs from "fs";
+import os from "os";
 import path from "path";
 import type { CLIAdapter } from "./types";
 import type { AgentInvocationParams } from "../../types";
@@ -10,7 +11,7 @@ import { getMark2InstallDir } from "../utils/mark2-dir";
 
 /**
  * Adapter for OpenAI's Codex CLI.
- * Runs in full-auto mode with approval workflow.
+ * Runs non-interactively with approvals and sandbox bypassed.
  * Preparing for future MCP and session naming support.
  *
  * Note: buildCommand() performs filesystem I/O as a side effect
@@ -22,9 +23,6 @@ export class CodexCLIAdapter implements CLIAdapter {
   readonly supportsNaming = false;
 
   buildCommand(params: AgentInvocationParams): string {
-    // TODO: Verify exact Codex CLI flag names when integration is finalized.
-    // --approval-mode full-auto is used instead of separate --full-auto and
-    // --ask-for-approval flags to avoid potential flag conflicts.
     const projectRoot = this.getProjectRoot(
       params.workingDirectory,
       params.taskId,
@@ -32,6 +30,9 @@ export class CodexCLIAdapter implements CLIAdapter {
 
     // Ensure storage directories exist BEFORE setting up config files
     ensureTaskStorageExistsSync(projectRoot, params.taskId);
+
+    // Codex trusts exact project paths, so clone worktrees need explicit entries.
+    this.ensureTrustedWorkingDirectory(params.workingDirectory);
 
     // Set up configuration files after storage directories exist
     this.setupMcpConfig(params);
@@ -58,11 +59,16 @@ export class CodexCLIAdapter implements CLIAdapter {
     // Use taskPrompt (just the task description) since AGENTS.md handles
     // orchestration and role instructions
     const taskPrompt = params.taskPrompt ?? params.prompt;
+    const mcpConfigOverrides = this.buildMcpConfigOverrides(
+      projectRoot,
+      params.taskId,
+      params.apiBaseUrl,
+    );
 
     const parts: string[] = [
       "codex",
-      "--approval-mode",
-      "full-auto",
+      "--dangerously-bypass-approvals-and-sandbox",
+      ...mcpConfigOverrides,
       "--model",
       this.shellQuote(params.model),
       this.shellQuote(taskPrompt),
@@ -91,22 +97,24 @@ export class CodexCLIAdapter implements CLIAdapter {
   }
 
   /**
-   * Set up MCP configuration for future MCP support.
-   * Currently a placeholder - will be implemented when Codex adds MCP support.
+   * Write a debug copy of the mark2 MCP server config next to the clone.
+   * Codex receives the same config via `-c mcp_servers...` overrides.
    */
   private setupMcpConfig(params: AgentInvocationParams): void {
+    const projectRoot = this.getProjectRoot(
+      params.workingDirectory,
+      params.taskId,
+    );
     const mcpConfigPath = path.join(
       params.workingDirectory,
       ".codex",
       "mcp-config.json",
     );
-    // TODO: When Codex adds MCP support, restructure to match ClaudeCodeAdapter's
-    // buildMcpConfig() format with command/args/env per server entry.
-    const mcpConfig = {
-      mcpServers: {},
-      taskId: params.taskId,
-      apiBaseUrl: params.apiBaseUrl,
-    };
+    const mcpConfig = this.buildMcpConfig(
+      projectRoot,
+      params.taskId,
+      params.apiBaseUrl,
+    );
 
     // Ensure .codex directory exists (recursive is a no-op if it already exists)
     const codexDir = path.dirname(mcpConfigPath);
@@ -281,6 +289,174 @@ Brief reference of mark2_* MCP tools available in your environment.
     // Handle single quotes in the value by escaping them properly
     // Using the POSIX shell quoting format: 'text'\''more text'
     return `'${value.replace(/'/g, "'\\''")}'`;
+  }
+
+  private tomlQuote(value: string): string {
+    return JSON.stringify(value);
+  }
+
+  private buildMcpConfig(
+    projectRoot: string,
+    taskId: string,
+    apiBaseUrl: string,
+  ): {
+    mcpServers: {
+      mark2: {
+        command: string;
+        args: string[];
+        env: Record<string, string>;
+      };
+    };
+    taskId: string;
+    apiBaseUrl: string;
+  } {
+    const mark2Dir = path.join(projectRoot, ".mark2");
+    const installDir = getMark2InstallDir();
+    const mcpServerPath = path.join(installDir, "src", "lib", "mcp", "index.ts");
+    const tsxPath = path.join(installDir, "node_modules", ".bin", "tsx");
+
+    return {
+      mcpServers: {
+        mark2: {
+          command: tsxPath,
+          args: [mcpServerPath],
+          env: {
+            MARK2_DIR: mark2Dir,
+            MARK2_TASK_ID: taskId,
+            MARK2_PROJECT_ROOT: projectRoot,
+            MARK2_API_URL: apiBaseUrl,
+          },
+        },
+      },
+      taskId,
+      apiBaseUrl,
+    };
+  }
+
+  private buildMcpConfigOverrides(
+    projectRoot: string,
+    taskId: string,
+    apiBaseUrl: string,
+  ): string[] {
+    const mcpConfig = this.buildMcpConfig(projectRoot, taskId, apiBaseUrl);
+    const mark2 = mcpConfig.mcpServers.mark2;
+
+    return [
+      "-c",
+      this.shellQuote(
+        `mcp_servers.mark2.command=${this.tomlQuote(mark2.command)}`,
+      ),
+      "-c",
+      this.shellQuote(
+        `mcp_servers.mark2.args=${JSON.stringify(mark2.args)}`,
+      ),
+      "-c",
+      this.shellQuote(
+        `mcp_servers.mark2.env.MARK2_DIR=${this.tomlQuote(mark2.env.MARK2_DIR)}`,
+      ),
+      "-c",
+      this.shellQuote(
+        `mcp_servers.mark2.env.MARK2_TASK_ID=${this.tomlQuote(mark2.env.MARK2_TASK_ID)}`,
+      ),
+      "-c",
+      this.shellQuote(
+        `mcp_servers.mark2.env.MARK2_PROJECT_ROOT=${this.tomlQuote(mark2.env.MARK2_PROJECT_ROOT)}`,
+      ),
+      "-c",
+      this.shellQuote(
+        `mcp_servers.mark2.env.MARK2_API_URL=${this.tomlQuote(mark2.env.MARK2_API_URL)}`,
+      ),
+    ];
+  }
+
+  /**
+   * If a parent project is already trusted in ~/.codex/config.toml, propagate
+   * that trust to the exact clone path so Codex doesn't prompt in tmux.
+   */
+  private ensureTrustedWorkingDirectory(workingDirectory: string): void {
+    try {
+      const configPath = path.join(os.homedir(), ".codex", "config.toml");
+      const configDir = path.dirname(configPath);
+      const normalizedWorkingDir = path.resolve(workingDirectory);
+
+      if (!fs.existsSync(configDir)) {
+        fs.mkdirSync(configDir, { recursive: true });
+      }
+
+      const existing = fs.existsSync(configPath)
+        ? fs.readFileSync(configPath, "utf-8")
+        : "";
+      const projectTrust = this.parseProjectTrust(existing);
+      const exactTrust = projectTrust.get(normalizedWorkingDir);
+
+      if (exactTrust) {
+        return;
+      }
+
+      const inheritedTrusted = Array.from(projectTrust.entries()).some(
+        ([projectPath, trustLevel]) =>
+          trustLevel === "trusted" &&
+          this.isSameOrDescendantPath(normalizedWorkingDir, projectPath),
+      );
+
+      if (!inheritedTrusted) {
+        return;
+      }
+
+      const escapedPath = normalizedWorkingDir
+        .replace(/\\/g, "\\\\")
+        .replace(/"/g, '\\"');
+      const prefix = existing.trim().length > 0 ? "\n\n" : "";
+      fs.appendFileSync(
+        configPath,
+        `${prefix}[projects."${escapedPath}"]\ntrust_level = "trusted"\n`,
+        "utf-8",
+      );
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.log(
+        `[codex-cli] trust setup: failed to seed trusted clone path: ${message}`,
+      );
+    }
+  }
+
+  private parseProjectTrust(config: string): Map<string, string> {
+    const trustByProject = new Map<string, string>();
+    let currentProject: string | null = null;
+
+    for (const rawLine of config.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      const projectMatch = line.match(/^\[projects\."((?:\\.|[^"])*)"\]$/);
+      if (projectMatch) {
+        currentProject = projectMatch[1]
+          .replace(/\\"/g, '"')
+          .replace(/\\\\/g, "\\");
+        continue;
+      }
+
+      if (line.startsWith("[") && line.endsWith("]")) {
+        currentProject = null;
+        continue;
+      }
+
+      const trustMatch = line.match(/^trust_level\s*=\s*"([^"]+)"$/);
+      if (currentProject && trustMatch) {
+        trustByProject.set(path.resolve(currentProject), trustMatch[1]);
+      }
+    }
+
+    return trustByProject;
+  }
+
+  private isSameOrDescendantPath(
+    childPath: string,
+    parentPath: string,
+  ): boolean {
+    const normalizedParent = path.resolve(parentPath);
+    return (
+      childPath === normalizedParent ||
+      childPath.startsWith(`${normalizedParent}${path.sep}`)
+    );
   }
 
   /**
