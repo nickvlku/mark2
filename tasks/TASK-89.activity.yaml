@@ -109,3 +109,17 @@ entries:
     metadata:
       old_phase: testing
       new_phase: code_review
+  - timestamp: 2026-03-19T18:16:51.913Z
+    source: hook
+    type: phase_change
+    message: End token "[REVIEW_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[REVIEW_COMPLETED]"
+      phase: code_review
+  - timestamp: 2026-03-19T18:20:57.580Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from code_review to fix_review
+    metadata:
+      old_phase: code_review
+      new_phase: fix_review
