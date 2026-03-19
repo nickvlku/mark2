@@ -52,3 +52,37 @@ entries:
     source: agent
     type: note
     message: "[in_progress] Reviewing design artifact and existing task detail sidebar/tmux implementation."
+  - timestamp: 2026-03-19T15:28:34.120Z
+    source: agent
+    type: note
+    message: "[in_progress] Running targeted tests for terminal metadata, interactive terminal fallback, and task detail maximize behavior."
+  - timestamp: 2026-03-19T15:29:11.294Z
+    source: agent
+    type: note
+    message: "[in_progress] Targeted tests passed. Production build is blocked by a Turbopack workspace-root issue in the isolated clone; running TypeScript compile validation instead."
+  - timestamp: 2026-03-19T15:30:20.556Z
+    source: agent
+    type: note
+    message: "[in_progress] Saved coding summary artifact and committing the interactive terminal/maximize changes."
+  - timestamp: 2026-03-19T15:30:26.607Z
+    source: agent
+    type: note
+    message: "[in_progress] Committed changes and pushing task branch before signaling coding completion."
+  - timestamp: 2026-03-19T15:30:30.420Z
+    source: agent
+    type: note
+    message: "[completed] Interactive task terminal mode, control-conflict fallback, and maximize/restore layout are implemented, tested, committed, and pushed."
+  - timestamp: 2026-03-19T15:30:30.476Z
+    source: hook
+    type: phase_change
+    message: End token "[CODING_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[CODING_COMPLETED]"
+      phase: coding
+  - timestamp: 2026-03-19T15:32:50.988Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from coding to testing
+    metadata:
+      old_phase: coding
+      new_phase: testing
