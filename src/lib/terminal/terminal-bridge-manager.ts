@@ -1,5 +1,7 @@
 import { randomUUID } from 'crypto';
+import fs from 'fs';
 import type { IncomingMessage } from 'http';
+import path from 'path';
 import * as pty from 'node-pty';
 import type { IPty } from 'node-pty';
 import { WebSocket } from 'ws';
@@ -24,10 +26,45 @@ const MAX_INPUT_LENGTH = 65536; // 64KB max per input message
 const CLOSE_POLICY_VIOLATION = 1008;
 const CLOSE_TRY_AGAIN_LATER = 1013;
 const CLOSE_CONFLICT = 4409;
+const TMUX_FALLBACK_PATHS = [
+  '/opt/homebrew/bin/tmux',
+  '/usr/local/bin/tmux',
+  '/usr/bin/tmux',
+  '/bin/tmux',
+];
 
 interface TerminalBridgeState extends TerminalBridge {
   ptyProcess: IPty;
   ws: WebSocket;
+}
+
+function isExecutable(filePath: string): boolean {
+  try {
+    fs.accessSync(filePath, fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function resolveTmuxCommand(): string {
+  const override = process.env.MARK2_TMUX_PATH?.trim();
+  if (override) {
+    return override;
+  }
+
+  const pathCandidates = (process.env.PATH ?? '')
+    .split(path.delimiter)
+    .filter(Boolean)
+    .map((dir) => path.join(dir, 'tmux'));
+
+  for (const candidate of [...pathCandidates, ...TMUX_FALLBACK_PATHS]) {
+    if (isExecutable(candidate)) {
+      return candidate;
+    }
+  }
+
+  return 'tmux';
 }
 
 export class TerminalBridgeManager {
@@ -92,6 +129,7 @@ export class TerminalBridgeManager {
       DEFAULT_ROWS,
       MAX_ROWS,
     );
+    const tmuxCommand = resolveTmuxCommand();
 
     let ptyProcess: IPty;
     try {
@@ -111,7 +149,7 @@ export class TerminalBridgeManager {
       }
 
       ptyProcess = pty.spawn(
-        'tmux',
+        tmuxCommand,
         mode === 'control'
           ? ['attach-session', '-t', session.tmux_session]
           : ['attach-session', '-f', 'read-only', '-t', session.tmux_session],

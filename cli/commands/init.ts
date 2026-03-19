@@ -185,6 +185,15 @@ state_sync:
   } else {
     console.log('   · .mark2/context.json already exists');
   }
+
+  // Roles
+  const rolesPath = path.join(mark2Dir, 'roles.yaml');
+  if (!fs.existsSync(rolesPath)) {
+    fs.copyFileSync(path.join(templatesDir, 'roles.yaml'), rolesPath);
+    console.log('   ✓ Created .mark2/roles.yaml (role templates)');
+  } else {
+    console.log('   · .mark2/roles.yaml already exists');
+  }
   console.log('');
 
   // Step 3: Set up orphan branch and worktree

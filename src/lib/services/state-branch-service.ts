@@ -39,6 +39,8 @@ const DEFAULT_CONFIG: StateSyncConfig = {
   auto_pull_on_start: true,
 };
 
+export const STATE_REPO_FILES = ['config.yaml', 'agents.yaml', 'context.json', 'roles.yaml'] as const;
+
 export class StateBranchService {
   private mark2Dir: string;
   private projectRoot: string;
@@ -179,8 +181,7 @@ export class StateBranchService {
       }
 
       // Copy config files if they exist in .mark2
-      const configFiles = ['config.yaml', 'agents.yaml', 'context.json', 'roles.yaml'];
-      for (const file of configFiles) {
+      for (const file of STATE_REPO_FILES) {
         const src = path.join(this.mark2Dir, file);
         if (fs.existsSync(src)) {
           fs.copyFileSync(src, path.join(tmpDir, file));
@@ -357,6 +358,7 @@ export class StateBranchService {
     }
 
     await this.ensureWorktree();
+    this.mirrorRepoFilesToState();
 
     // Stage all changes
     execSync('git add -A', { cwd: this.stateDir, stdio: 'pipe' });
@@ -576,6 +578,48 @@ export class StateBranchService {
   }
 
   /**
+   * Mirror repo-backed config files from the state worktree into .mark2/
+   * so local readers continue to see the latest synced configuration.
+   */
+  mirrorRepoFilesToLocal(): void {
+    if (this.stateDir === this.mark2Dir || !fs.existsSync(this.stateDir)) {
+      return;
+    }
+
+    for (const file of STATE_REPO_FILES) {
+      const sourcePath = path.join(this.stateDir, file);
+      const targetPath = path.join(this.mark2Dir, file);
+
+      if (fs.existsSync(sourcePath)) {
+        fs.copyFileSync(sourcePath, targetPath);
+      } else if (fs.existsSync(targetPath)) {
+        fs.unlinkSync(targetPath);
+      }
+    }
+  }
+
+  /**
+   * Mirror local repo-backed config files into the state worktree before push
+   * so manual edits in .mark2/ can be versioned with mark2 sync --push.
+   */
+  mirrorRepoFilesToState(): void {
+    if (this.stateDir === this.mark2Dir || !fs.existsSync(this.stateDir)) {
+      return;
+    }
+
+    for (const file of STATE_REPO_FILES) {
+      const sourcePath = path.join(this.mark2Dir, file);
+      const targetPath = path.join(this.stateDir, file);
+
+      if (fs.existsSync(sourcePath)) {
+        fs.copyFileSync(sourcePath, targetPath);
+      } else if (fs.existsSync(targetPath)) {
+        fs.unlinkSync(targetPath);
+      }
+    }
+  }
+
+  /**
    * Read a YAML file from the state directory
    */
   async readYaml<T>(relativePath: string): Promise<T | null> {
@@ -709,8 +753,7 @@ export class StateBranchService {
     }
 
     // Migrate config files
-    const configFiles = ['config.yaml', 'agents.yaml', 'context.json', 'roles.yaml'];
-    for (const file of configFiles) {
+    for (const file of STATE_REPO_FILES) {
       const src = path.join(this.mark2Dir, file);
       if (fs.existsSync(src)) {
         const dest = path.join(this.stateDir, file);

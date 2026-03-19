@@ -30,13 +30,10 @@ const FILE_TOOLS_WARNING = `
 
 You are running in an isolated git clone for this task.
 
-**For file operations**, use Claude Code's native tools:
-- Read: to read files
-- Write: to create new files
-- Edit: to modify existing files
-- Glob: to find files by pattern
-- Grep: to search file contents
-- Bash: for npm, running tests, dev server, etc.
+**For file operations**, use your CLI's built-in tools:
+- Read/search tools: inspect files and find code
+- Edit/write tools: create and modify files
+- Shell/command tools: run npm, tests, dev servers, etc.
 
 **For Mark2 operations**, use the mark2_* MCP tools:
 - mark2_save_artifact: save and register deliverables
