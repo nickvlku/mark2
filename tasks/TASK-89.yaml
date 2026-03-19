@@ -1,7 +1,7 @@
 id: TASK-89
 title: Make the tmux panel in the task detail side bar interactive
 description: We should make the tmux view interactive (so you can type in it) and we should also make it full screenable/maximizable.
-phase: design
+phase: coding
 phase_agents: {}
 phase_overrides: {}
 blockers: []
@@ -13,6 +13,12 @@ artifacts:
     mime_type: text/markdown
     created_at: 2026-03-19T13:13:54.993Z
     source: agent
+  - name: design
+    phase: design
+    path: design-design-1773927011235-vadcvx.md
+    mime_type: text/markdown
+    created_at: 2026-03-19T13:30:11.236Z
+    source: agent
 ports: []
 worktrees: {}
 created_by: human
@@ -20,7 +26,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-03-19T13:07:47.008Z
-updated_at: 2026-03-19T13:13:54.993Z
-phase_entered_at: 2026-03-19T13:07:54.020Z
+updated_at: 2026-03-19T15:22:24.333Z
+phase_entered_at: 2026-03-19T15:22:24.333Z
 loop_count: 0
 archived: false
