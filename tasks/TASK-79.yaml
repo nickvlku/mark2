@@ -7,7 +7,6 @@ phase_overrides: {}
 blockers:
   - TASK-75
   - TASK-76
-  - TASK-77
   - TASK-78
 priority: P0
 artifacts: []
@@ -19,7 +18,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T19:00:43.275Z
-updated_at: 2026-02-08T19:01:08.446Z
+updated_at: 2026-03-19T19:51:28.882Z
 phase_entered_at: 2026-02-08T19:00:43.275Z
 loop_count: 0
 archived: false
