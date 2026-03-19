@@ -1,7 +1,7 @@
 id: TASK-77
 title: Write unit tests for AGENTS.md generation
 description: Test setupAgentsMd() creates AGENTS.md in worktree root. Verify markdown structure includes all required sections (Agent Role, Orchestration Instructions, End Token Protocol, Available MCP Tools). Test content includes agent prompt and orchestration prompt. Test end token instructions are correct for each phase.
-phase: coding
+phase: testing
 phase_agents: {}
 phase_overrides: {}
 blockers: []
@@ -27,7 +27,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T19:00:40.140Z
-updated_at: 2026-03-19T13:12:44.725Z
-phase_entered_at: 2026-03-19T02:59:06.166Z
+updated_at: 2026-03-19T15:22:25.137Z
+phase_entered_at: 2026-03-19T15:22:25.137Z
 loop_count: 0
 archived: false
