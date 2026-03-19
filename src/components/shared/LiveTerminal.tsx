@@ -23,11 +23,28 @@ interface LiveTerminalProps {
   openTerminalEndpoint: string;
   openFolderEndpoint?: string;
   sessionVersion?: string;
+  isMaximized?: boolean;
+  maximizeSupported?: boolean;
+  onMaximizeToggle?: () => void;
 }
 
 const DEFAULT_WS_PATH = '/ws/terminal';
 const DEFAULT_MODE: TerminalMode = 'observe';
+const CONTROL_CONFLICT_CODE = 4409;
+const CONTROL_CONFLICT_MESSAGE =
+  'Another browser already has control of this terminal.';
 const RETRY_DELAY_MS = 1500;
+type ModeFallbackReason = 'control_conflict' | null;
+
+function isControlConflict(
+  closeCode?: number,
+  message?: string | null,
+): boolean {
+  return (
+    closeCode === CONTROL_CONFLICT_CODE
+    || message?.includes(CONTROL_CONFLICT_MESSAGE) === true
+  );
+}
 
 export function LiveTerminal({
   targetKind,
@@ -36,6 +53,9 @@ export function LiveTerminal({
   openTerminalEndpoint,
   openFolderEndpoint,
   sessionVersion,
+  isMaximized = false,
+  maximizeSupported = false,
+  onMaximizeToggle,
 }: LiveTerminalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<any>(null);
@@ -45,20 +65,33 @@ export function LiveTerminal({
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resizeFrameRef = useRef<number | null>(null);
   const resizeHandlerRef = useRef<(() => void) | null>(null);
+  const modeSeedKeyRef = useRef<string | null>(null);
+  const socketErrorRef = useRef<string | null>(null);
 
   const [terminalReady, setTerminalReady] = useState(false);
   const [session, setSession] = useState<TerminalSessionInfo | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
-  const [mode, setMode] = useState<TerminalMode>(DEFAULT_MODE);
+  const [preferredMode, setPreferredMode] = useState<TerminalMode>(DEFAULT_MODE);
+  const [effectiveMode, setEffectiveMode] = useState<TerminalMode>('observe');
+  const [modeFallbackReason, setModeFallbackReason] =
+    useState<ModeFallbackReason>(null);
   const [wsPath, setWsPath] = useState(DEFAULT_WS_PATH);
   const [connectionState, setConnectionState] =
     useState<ConnectionState>('idle');
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [openingTerminal, setOpeningTerminal] = useState(false);
   const [openingFolder, setOpeningFolder] = useState(false);
+  const requestedMode =
+    modeFallbackReason === 'control_conflict' ? 'observe' : preferredMode;
 
   const writeNotice = useCallback((message: string, color: '31' | '32' | '33') => {
     terminalRef.current?.writeln(`\r\n\x1b[${color}m${message}\x1b[0m`);
+  }, []);
+
+  const focusTerminal = useCallback(() => {
+    requestAnimationFrame(() => {
+      terminalRef.current?.focus();
+    });
   }, []);
 
   const syncTerminalSize = useCallback(() => {
@@ -116,6 +149,20 @@ export function LiveTerminal({
       setWsPath(data.terminal?.ws_path ?? DEFAULT_WS_PATH);
       setConnectionError(null);
 
+      const nextModeSeedKey = [
+        targetKind,
+        targetId,
+        sessionVersion ?? 'session',
+        data.session?.tmux_session ?? 'none',
+      ].join(':');
+
+      if (modeSeedKeyRef.current !== nextModeSeedKey) {
+        modeSeedKeyRef.current = nextModeSeedKey;
+        setPreferredMode(data.terminal?.default_mode ?? DEFAULT_MODE);
+        setEffectiveMode('observe');
+        setModeFallbackReason(null);
+      }
+
       if (!data.session && retries < 3) {
         retryTimerRef.current = setTimeout(() => {
           void fetchSession(retries + 1);
@@ -128,14 +175,21 @@ export function LiveTerminal({
     } finally {
       setSessionLoading(false);
     }
-  }, [sessionEndpoint]);
+  }, [sessionEndpoint, sessionVersion, targetId, targetKind]);
 
   const handleReconnect = useCallback(async () => {
     closeSocket();
+    setEffectiveMode('observe');
     setConnectionState('idle');
     setConnectionError(null);
     await fetchSession();
   }, [closeSocket, fetchSession]);
+
+  const handleRetryControl = useCallback(async () => {
+    setPreferredMode('control');
+    setModeFallbackReason(null);
+    await handleReconnect();
+  }, [handleReconnect]);
 
   const handleOpenInTerminal = useCallback(async () => {
     setOpeningTerminal(true);
@@ -297,12 +351,23 @@ export function LiveTerminal({
       return;
     }
 
-    terminalRef.current.options.disableStdin = mode !== 'control';
-  }, [mode]);
+    terminalRef.current.options.disableStdin = effectiveMode !== 'control';
+  }, [effectiveMode]);
+
+  useEffect(() => {
+    if (
+      terminalReady
+      && connectionState === 'connected'
+      && effectiveMode === 'control'
+    ) {
+      focusTerminal();
+    }
+  }, [connectionState, effectiveMode, focusTerminal, terminalReady]);
 
   useEffect(() => {
     if (!terminalReady || !session || session.status !== 'running') {
       closeSocket();
+      setEffectiveMode('observe');
       setConnectionState(session ? 'disconnected' : 'idle');
       return;
     }
@@ -317,14 +382,16 @@ export function LiveTerminal({
     const wsUrl = new URL(wsPath, `${protocol}//${window.location.host}`);
     wsUrl.searchParams.set('target', targetKind);
     wsUrl.searchParams.set('id', targetId);
-    wsUrl.searchParams.set('mode', mode);
+    wsUrl.searchParams.set('mode', requestedMode);
     wsUrl.searchParams.set('cols', String(cols));
     wsUrl.searchParams.set('rows', String(rows));
 
     closeSocket();
+    socketErrorRef.current = null;
 
     const socket = new WebSocket(wsUrl);
     socketRef.current = socket;
+    setEffectiveMode('observe');
     setConnectionState('connecting');
     setConnectionError(null);
 
@@ -352,6 +419,11 @@ export function LiveTerminal({
         case 'ready':
           setConnectionState('connected');
           setConnectionError(null);
+          setEffectiveMode(message.mode);
+          if (message.mode === 'control') {
+            setModeFallbackReason(null);
+            focusTerminal();
+          }
           return;
 
         case 'output':
@@ -359,15 +431,26 @@ export function LiveTerminal({
           return;
 
         case 'error':
+          socketErrorRef.current = message.message;
+          if (requestedMode === 'control' && isControlConflict(undefined, message.message)) {
+            return;
+          }
           setConnectionState('error');
           setConnectionError(message.message);
+          setEffectiveMode('observe');
           return;
 
         case 'exit':
           setConnectionState('disconnected');
+          setEffectiveMode('observe');
           return;
 
         case 'mode':
+          setEffectiveMode(message.mode);
+          if (message.mode === 'control') {
+            setModeFallbackReason(null);
+            focusTerminal();
+          }
           return;
       }
     };
@@ -376,15 +459,28 @@ export function LiveTerminal({
       if (socketRef.current === socket) {
         setConnectionState('error');
         setConnectionError('Terminal connection failed.');
+        setEffectiveMode('observe');
       }
     };
 
-    socket.onclose = () => {
+    socket.onclose = (event) => {
       if (socketRef.current !== socket) {
         return;
       }
 
       socketRef.current = null;
+      if (
+        requestedMode === 'control'
+        && isControlConflict(event.code, socketErrorRef.current ?? event.reason)
+      ) {
+        setModeFallbackReason('control_conflict');
+        setConnectionState('disconnected');
+        setConnectionError(null);
+        setEffectiveMode('observe');
+        return;
+      }
+
+      setEffectiveMode('observe');
       setConnectionState((currentState) =>
         currentState === 'error' ? currentState : 'disconnected',
       );
@@ -399,7 +495,8 @@ export function LiveTerminal({
     };
   }, [
     closeSocket,
-    mode,
+    focusTerminal,
+    requestedMode,
     session,
     syncTerminalSize,
     targetId,
@@ -427,7 +524,7 @@ export function LiveTerminal({
           : 'bg-zinc-500';
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col" data-live-terminal>
       <div className="m-4 flex flex-1 flex-col overflow-hidden rounded-lg border border-border bg-[#0c0c14]">
         <div className="flex items-center gap-2 border-b border-border/50 bg-[#111120] px-3 py-2">
           <div className="flex gap-1.5">
@@ -452,8 +549,17 @@ export function LiveTerminal({
             </div>
 
             <div className="text-[10px] text-text-secondary/50">
-              {mode === 'control' ? 'Control' : 'Observe'}
+              {effectiveMode === 'control' ? 'Control' : 'Observe'}
             </div>
+
+            {maximizeSupported && onMaximizeToggle ? (
+              <button
+                onClick={onMaximizeToggle}
+                className="rounded border border-border/30 px-2 py-0.5 text-[10px] text-text-secondary/70 transition-colors hover:border-border/60 hover:text-text-primary"
+              >
+                {isMaximized ? 'Restore' : 'Maximize'}
+              </button>
+            ) : null}
 
             <button
               onClick={() => {
@@ -467,14 +573,16 @@ export function LiveTerminal({
 
             <button
               onClick={() => {
-                setMode((currentMode) =>
+                setConnectionError(null);
+                setModeFallbackReason(null);
+                setPreferredMode((currentMode) =>
                   currentMode === 'control' ? 'observe' : 'control',
                 );
               }}
               disabled={!runningSession}
               className="rounded border border-border/30 px-2 py-0.5 text-[10px] text-text-secondary/70 transition-colors hover:border-border/60 hover:text-text-primary disabled:opacity-50"
             >
-              {mode === 'control' ? 'Disable Input' : 'Enable Input'}
+              {effectiveMode === 'control' ? 'Disable Input' : 'Enable Input'}
             </button>
 
             <button
@@ -501,14 +609,39 @@ export function LiveTerminal({
           </div>
         </div>
 
-        {mode === 'control' && runningSession ? (
+        {modeFallbackReason === 'control_conflict' && runningSession ? (
+          <div className="flex items-center justify-between gap-3 border-b border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
+            <span>
+              Viewing only. Another browser currently has control of this terminal.
+            </span>
+            <button
+              onClick={() => {
+                void handleRetryControl();
+              }}
+              className="rounded border border-amber-300/30 px-2 py-0.5 text-[10px] font-medium text-amber-100 transition-colors hover:border-amber-200/60"
+            >
+              Retry Control
+            </button>
+          </div>
+        ) : null}
+
+        {effectiveMode === 'control' && runningSession ? (
           <div className="border-b border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
             Input is going to the live tmux session shared with the running agent.
           </div>
         ) : null}
 
         <div className="relative min-h-0 flex-1">
-          <div ref={containerRef} className="h-full w-full" />
+          <div
+            className="h-full w-full"
+            onMouseDownCapture={() => {
+              if (effectiveMode === 'control') {
+                focusTerminal();
+              }
+            }}
+          >
+            <div ref={containerRef} className="h-full w-full" />
+          </div>
 
           {!runningSession || sessionLoading || connectionError ? (
             <div className="absolute inset-0 flex items-center justify-center bg-[#0c0c14]/82 px-6 text-center">

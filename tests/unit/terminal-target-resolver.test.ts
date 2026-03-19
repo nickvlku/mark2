@@ -13,6 +13,7 @@ vi.mock('@/lib/utils/tmux', () => ({
 
 import { closeDb, getDb, initializeDatabase, schema } from '@/lib/db';
 import {
+  getTerminalMetadata,
   getTerminalSessionResponse,
   resolveActiveTerminalSession,
   resolveLatestTerminalSession,
@@ -105,9 +106,17 @@ describe('terminal-target-resolver', () => {
       session: null,
       terminal: {
         ws_path: '/ws/terminal',
-        default_mode: 'observe',
+        default_mode: 'control',
         control_supported: true,
       },
+    });
+  });
+
+  it('returns observe mode metadata for plan terminals', () => {
+    expect(getTerminalMetadata({ kind: 'plan', id: 'PLAN-2' })).toEqual({
+      ws_path: '/ws/terminal',
+      default_mode: 'observe',
+      control_supported: true,
     });
   });
 });

@@ -43,6 +43,7 @@ const tabs: { id: TabId; label: string }[] = [
 
 export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailProps) {
   const [activeTab, setActiveTab] = useState<TabId>('details');
+  const [isTerminalMaximized, setIsTerminalMaximized] = useState(false);
 
   // Confirmation dialog states
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
@@ -93,10 +94,25 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') {
+        return;
+      }
+
+      const eventTarget = e.target;
+      if (eventTarget instanceof Element && eventTarget.closest('[data-live-terminal]')) {
+        return;
+      }
+
+      onClose();
     },
     [onClose],
   );
+
+  useEffect(() => {
+    if (activeTab !== 'terminal' && isTerminalMaximized) {
+      setIsTerminalMaximized(false);
+    }
+  }, [activeTab, isTerminalMaximized]);
 
   useEffect(() => {
     document.addEventListener('keydown', handleKeyDown);
@@ -220,6 +236,9 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
     handleEnhance();
   };
 
+  const terminalMaximizeSupported = activeTab === 'terminal';
+  const terminalIsMaximized = terminalMaximizeSupported && isTerminalMaximized;
+
   const handleCreatePR = async () => {
     setShowPrDialog(true);
     setPrLoading(true);
@@ -277,7 +296,13 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
       />
 
       {/* Slide-over Panel */}
-      <div className="slide-in relative flex w-full max-w-2xl flex-col border-l border-border bg-bg-secondary shadow-2xl">
+      <div
+        className={`slide-in relative flex w-full flex-col bg-bg-secondary shadow-2xl transition-[width,max-width,height,margin,border-radius] duration-200 ${
+          terminalIsMaximized
+            ? 'm-4 h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] rounded-2xl border border-border'
+            : 'h-full max-w-2xl border-l border-border'
+        }`}
+      >
         {/* Header */}
         <div className="border-b border-border px-6 py-4">
           <div className="flex items-start justify-between">
@@ -311,13 +336,15 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
         </div>
 
         {/* Phase Timeline */}
-        <div className="border-b border-border">
-          <PhaseTimeline
-            currentPhase={task.phase}
-            sessionStatus={sessionStatus}
-            autoApprove={task.auto_approve}
-          />
-        </div>
+        {!terminalIsMaximized && (
+          <div className="border-b border-border">
+            <PhaseTimeline
+              currentPhase={task.phase}
+              sessionStatus={sessionStatus}
+              autoApprove={task.auto_approve}
+            />
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="border-b border-border">
@@ -345,27 +372,36 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
           {activeTab === 'artifacts' && <ArtifactsTab task={task} />}
           {activeTab === 'activity' && <ActivityTab task={task} />}
           {activeTab === 'code' && <CodeTab task={task} />}
-          {activeTab === 'terminal' && <TerminalTab task={task} />}
+          {activeTab === 'terminal' && (
+            <TerminalTab
+              task={task}
+              isMaximized={terminalIsMaximized}
+              maximizeSupported={terminalMaximizeSupported}
+              onMaximizeToggle={() => setIsTerminalMaximized((current) => !current)}
+            />
+          )}
           {activeTab === 'overrides' && <PhaseOverridesTab task={task} onUpdate={onUpdate} />}
         </div>
 
         {/* Dev Server Panel - show when task has a worktree */}
-        {task.phase !== 'pending' && (
+        {!terminalIsMaximized && task.phase !== 'pending' && (
           <DevServerPanel task={task} />
         )}
 
         {/* Action Bar */}
-        <ActionBar
-          task={task}
-          loading={phaseLoading}
-          onPhaseAction={handlePhaseAction}
-          onToggleAutoApprove={handleToggleAutoApprove}
-          onArchive={handleArchive}
-          onRestore={handleRestore}
-          onDelete={handleDelete}
-          onEnhance={handleEnhance}
-          onCreatePR={handleCreatePR}
-        />
+        {!terminalIsMaximized && (
+          <ActionBar
+            task={task}
+            loading={phaseLoading}
+            onPhaseAction={handlePhaseAction}
+            onToggleAutoApprove={handleToggleAutoApprove}
+            onArchive={handleArchive}
+            onRestore={handleRestore}
+            onDelete={handleDelete}
+            onEnhance={handleEnhance}
+            onCreatePR={handleCreatePR}
+          />
+        )}
       </div>
 
       {/* Archive Confirmation Dialog */}

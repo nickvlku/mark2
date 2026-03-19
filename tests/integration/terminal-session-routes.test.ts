@@ -70,7 +70,7 @@ describe('Terminal Session Routes', () => {
         },
         terminal: {
           ws_path: '/ws/terminal',
-          default_mode: 'observe',
+          default_mode: 'control',
           control_supported: true,
         },
       });
@@ -89,7 +89,7 @@ describe('Terminal Session Routes', () => {
         session: null,
         terminal: {
           ws_path: '/ws/terminal',
-          default_mode: 'observe',
+          default_mode: 'control',
           control_supported: true,
         },
       });
