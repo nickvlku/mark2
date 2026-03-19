@@ -87,3 +87,10 @@ export type TerminalServerMessage =
   | TerminalModeMessage
   | TerminalExitMessage
   | TerminalErrorMessage;
+
+// WebSocket close codes
+export const CLOSE_CONTROL_CONFLICT = 4409;
+
+// Error messages
+export const CONTROL_CONFLICT_MESSAGE =
+  'Another browser already has control of this terminal.';

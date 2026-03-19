@@ -8,6 +8,10 @@ import type {
   TerminalSessionResponse,
   TerminalTargetKind,
 } from '@/lib/terminal/types';
+import {
+  CLOSE_CONTROL_CONFLICT,
+  CONTROL_CONFLICT_MESSAGE,
+} from '@/lib/terminal/types';
 
 type ConnectionState =
   | 'idle'
@@ -30,9 +34,6 @@ interface LiveTerminalProps {
 
 const DEFAULT_WS_PATH = '/ws/terminal';
 const DEFAULT_MODE: TerminalMode = 'observe';
-const CONTROL_CONFLICT_CODE = 4409;
-const CONTROL_CONFLICT_MESSAGE =
-  'Another browser already has control of this terminal.';
 const RETRY_DELAY_MS = 1500;
 type ModeFallbackReason = 'control_conflict' | null;
 
@@ -41,7 +42,7 @@ function isControlConflict(
   message?: string | null,
 ): boolean {
   return (
-    closeCode === CONTROL_CONFLICT_CODE
+    closeCode === CLOSE_CONTROL_CONFLICT
     || message?.includes(CONTROL_CONFLICT_MESSAGE) === true
   );
 }
@@ -575,9 +576,9 @@ export function LiveTerminal({
               onClick={() => {
                 setConnectionError(null);
                 setModeFallbackReason(null);
-                setPreferredMode((currentMode) =>
-                  currentMode === 'control' ? 'observe' : 'control',
-                );
+                // Toggle relative to what the user sees, not the hidden preferredMode
+                const nextMode = effectiveMode === 'control' ? 'observe' : 'control';
+                setPreferredMode(nextMode);
               }}
               disabled={!runningSession}
               className="rounded border border-border/30 px-2 py-0.5 text-[10px] text-text-secondary/70 transition-colors hover:border-border/60 hover:text-text-primary disabled:opacity-50"

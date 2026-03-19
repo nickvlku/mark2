@@ -108,11 +108,12 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
     [onClose],
   );
 
-  useEffect(() => {
-    if (activeTab !== 'terminal' && isTerminalMaximized) {
+  const handleTabChange = useCallback((tab: TabId) => {
+    setActiveTab(tab);
+    if (tab !== 'terminal') {
       setIsTerminalMaximized(false);
     }
-  }, [activeTab, isTerminalMaximized]);
+  }, []);
 
   useEffect(() => {
     document.addEventListener('keydown', handleKeyDown);
@@ -352,7 +353,7 @@ export function TaskDetail({ task: initialTask, onClose, onUpdate }: TaskDetailP
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
                   activeTab === tab.id
                     ? 'border-accent text-accent'

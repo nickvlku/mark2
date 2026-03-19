@@ -17,6 +17,7 @@ import type {
   TerminalServerMessage,
   TerminalTarget,
 } from './types';
+import { CLOSE_CONTROL_CONFLICT, CONTROL_CONFLICT_MESSAGE } from './types';
 
 const DEFAULT_COLS = 120;
 const DEFAULT_ROWS = 32;
@@ -25,13 +26,15 @@ const MAX_ROWS = 200;
 const MAX_INPUT_LENGTH = 65536; // 64KB max per input message
 const CLOSE_POLICY_VIOLATION = 1008;
 const CLOSE_TRY_AGAIN_LATER = 1013;
-const CLOSE_CONFLICT = 4409;
 const TMUX_FALLBACK_PATHS = [
   '/opt/homebrew/bin/tmux',
   '/usr/local/bin/tmux',
   '/usr/bin/tmux',
   '/bin/tmux',
 ];
+
+// Cache tmux command resolution to avoid filesystem I/O on every connection
+let cachedTmuxCommand: string | null = null;
 
 interface TerminalBridgeState extends TerminalBridge {
   ptyProcess: IPty;
@@ -48,9 +51,14 @@ function isExecutable(filePath: string): boolean {
 }
 
 function resolveTmuxCommand(): string {
+  if (cachedTmuxCommand) {
+    return cachedTmuxCommand;
+  }
+
   const override = process.env.MARK2_TMUX_PATH?.trim();
   if (override) {
-    return override;
+    cachedTmuxCommand = override;
+    return cachedTmuxCommand;
   }
 
   const pathCandidates = (process.env.PATH ?? '')
@@ -60,11 +68,13 @@ function resolveTmuxCommand(): string {
 
   for (const candidate of [...pathCandidates, ...TMUX_FALLBACK_PATHS]) {
     if (isExecutable(candidate)) {
-      return candidate;
+      cachedTmuxCommand = candidate;
+      return cachedTmuxCommand;
     }
   }
 
-  return 'tmux';
+  cachedTmuxCommand = 'tmux';
+  return cachedTmuxCommand;
 }
 
 export class TerminalBridgeManager {
@@ -110,8 +120,8 @@ export class TerminalBridgeManager {
       if (existingLock) {
         this.failConnection(
           ws,
-          'Another browser already has control of this terminal.',
-          CLOSE_CONFLICT,
+          CONTROL_CONFLICT_MESSAGE,
+          CLOSE_CONTROL_CONFLICT,
         );
         return;
       }
