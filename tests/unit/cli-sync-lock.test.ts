@@ -244,7 +244,7 @@ describe('CLI Lock Commands', () => {
       expect(mockAcquireLock).toHaveBeenCalledWith('TASK-1');
     });
 
-    it('refuses to force acquire non-expired lock', async () => {
+    it('force takes non-expired lock from another user with warning', async () => {
       mockGetLock.mockResolvedValue({
         locked_by: 'Other User',
         email: 'other@example.com',
@@ -252,13 +252,21 @@ describe('CLI Lock Commands', () => {
         machine: 'other-machine',
       });
       mockIsLockExpired.mockResolvedValue(false);
+      mockIsLockMine.mockResolvedValue(false);
+      mockForceTakeLock.mockResolvedValue({ success: true, lock: {
+        locked_by: 'Test User',
+        email: 'test@example.com',
+        locked_at: new Date().toISOString(),
+        machine: 'test-machine',
+      }});
 
       const { forceLockCommand } = await import('../../cli/commands/lock');
+      await forceLockCommand('TASK-1', projectDir);
 
-      await expect(forceLockCommand('TASK-1', projectDir)).rejects.toThrow('process.exit called');
-      expect(mockConsoleError).toHaveBeenCalledWith(
-        expect.stringContaining("hasn't expired")
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('Warning: Taking active lock from Other User')
       );
+      expect(mockForceTakeLock).toHaveBeenCalledWith('TASK-1');
     });
   });
 

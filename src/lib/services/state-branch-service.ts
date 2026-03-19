@@ -510,7 +510,7 @@ export class StateBranchService {
   }
 
   /**
-   * Force take a lock (for expired locks)
+   * Force take a lock (overwrites any existing lock)
    */
   async forceTakeLock(taskId: string): Promise<LockResult> {
     await this.ensureWorktree();

@@ -314,7 +314,7 @@ describe('Task Lock Integration', () => {
       expect(lock!.email).not.toBe('other@example.com');
     });
 
-    it('refuses to take non-expired lock from another user', async () => {
+    it('force takes non-expired lock from another user', async () => {
       await taskService.create({
         title: 'Test Task',
         description: 'desc',
@@ -331,8 +331,11 @@ describe('Task Lock Integration', () => {
       writeLockFile(mark2Dir, 'TASK-1', recentLock);
 
       const result = await taskService.forceAcquireLock('TASK-1');
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('not expired');
+      expect(result.success).toBe(true);
+
+      const lock = await stateBranch.getLock('TASK-1');
+      expect(lock).not.toBeNull();
+      expect(lock!.email).not.toBe('other@example.com');
     });
 
     it('acquires lock even for task without YAML (lock is independent)', async () => {

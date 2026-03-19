@@ -11,6 +11,7 @@ interface CardProps {
   onArchive?: (taskId: string) => void;
   onRestore?: (taskId: string) => void;
   onDelete?: (taskId: string) => void;
+  onForceTake?: (taskId: string) => void;
   currentUserEmail?: string;
   lockTimeoutDays?: number;
 }
@@ -42,7 +43,7 @@ function getTaskStatus(task: Task & { session_status?: SessionStatus }): string 
   return 'idle';
 }
 
-export function Card({ task, onClick, onArchive, onRestore, onDelete, currentUserEmail, lockTimeoutDays = 5 }: CardProps) {
+export function Card({ task, onClick, onArchive, onRestore, onDelete, onForceTake, currentUserEmail, lockTimeoutDays = 5 }: CardProps) {
   const taskWithLock = task as Task & { session_status?: SessionStatus; lock?: LockInfo };
   const lock = taskWithLock.lock;
   const isMine = lock && currentUserEmail ? lock.email === currentUserEmail : false;
@@ -113,6 +114,20 @@ export function Card({ task, onClick, onArchive, onRestore, onDelete, currentUse
 
       {/* Action buttons */}
       <div className="flex items-center justify-end gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        {lock && !isMine && onForceTake && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onForceTake(task.id);
+            }}
+            className="p-1 rounded text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 transition-colors"
+            title={`Force take lock from ${lock.locked_by}`}
+          >
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 1 1 9 0v3.75M3.75 21.75h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H3.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+            </svg>
+          </button>
+        )}
         {!task.archived && onArchive && (
           <button
             onClick={(e) => {

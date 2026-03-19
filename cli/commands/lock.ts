@@ -43,12 +43,8 @@ export async function lockCommand(
         console.log(`  Locked by: ${result.existingLock.locked_by} (${result.existingLock.email})`);
         console.log(`  Locked at: ${new Date(result.existingLock.locked_at).toLocaleString()}`);
         console.log(`  Machine: ${result.existingLock.machine}`);
-
-        const isExpired = await stateBranch.isLockExpired(result.existingLock);
-        if (isExpired) {
-          console.log('\n  This lock has expired. You can force acquire it with:');
-          console.log(`    mark2 lock ${taskId} --force`);
-        }
+        console.log(`\n  You can force take it with:`);
+        console.log(`    mark2 lock ${taskId} --force`);
       } else {
         console.error(`  Error: ${result.error}`);
       }
@@ -199,12 +195,16 @@ export async function forceLockCommand(
       return;
     }
 
+    const isMine = await stateBranch.isLockMine(existingLock);
+    if (isMine) {
+      console.log(`  You already own this lock.`);
+      return;
+    }
+
     const isExpired = await stateBranch.isLockExpired(existingLock);
     if (!isExpired) {
-      console.error(`  Error: Cannot force acquire a lock that hasn't expired.`);
-      console.log(`  Current lock held by: ${existingLock.locked_by}`);
+      console.log(`  Warning: Taking active lock from ${existingLock.locked_by} (${existingLock.email})`);
       console.log(`  Locked at: ${new Date(existingLock.locked_at).toLocaleString()}`);
-      process.exit(1);
     }
 
     const result = await stateBranch.forceTakeLock(taskId);

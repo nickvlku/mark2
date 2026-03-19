@@ -38,6 +38,8 @@ interface StorySectionProps {
   onRestore?: (taskId: string) => void;
   /** Handle delete action */
   onDelete?: (taskId: string) => void;
+  /** Handle force take lock */
+  onForceTake?: (taskId: string) => void;
   /** Handle archive all done tasks */
   onArchiveAll?: () => void;
   /** Current user email for lock display */
@@ -55,6 +57,7 @@ export function StorySection({
   onArchive,
   onRestore,
   onDelete,
+  onForceTake,
   onArchiveAll,
   currentUserEmail,
 }: StorySectionProps) {
@@ -93,6 +96,7 @@ export function StorySection({
                 onArchive={onArchive}
                 onRestore={onRestore}
                 onDelete={onDelete}
+                onForceTake={onForceTake}
                 onArchiveAll={phase === 'done' ? onArchiveAll : undefined}
                 currentUserEmail={currentUserEmail}
                 droppableIdPrefix={sectionKey}

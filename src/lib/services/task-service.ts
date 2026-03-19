@@ -658,7 +658,7 @@ export class TaskService {
   }
 
   /**
-   * Force acquire a lock on a task (for expired locks)
+   * Force acquire a lock on a task (takes it even if held by another user)
    */
   async forceAcquireLock(taskId: string): Promise<{ success: boolean; error?: string }> {
     const lock = await this.stateBranch.getLock(taskId);
@@ -671,10 +671,6 @@ export class TaskService {
 
     if (await this.stateBranch.isLockMine(lock)) {
       return { success: true }; // Already ours
-    }
-
-    if (!(await this.stateBranch.isLockExpired(lock))) {
-      return { success: false, error: 'Lock is not expired' };
     }
 
     const result = await this.stateBranch.forceTakeLock(taskId);

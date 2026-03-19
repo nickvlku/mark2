@@ -308,6 +308,23 @@ export function Board() {
     if (task) setConfirmDelete(task);
   }, [tasks]);
 
+  const handleForceTake = useCallback(async (taskId: string) => {
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/lock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force: true }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        console.error('Failed to force take lock:', data.error);
+      }
+      mutateTasks();
+    } catch (error) {
+      console.error('Failed to force take lock:', error);
+    }
+  }, [mutateTasks]);
+
   const confirmArchiveAction = useCallback(async () => {
     if (!confirmArchive) return;
     try {
@@ -432,6 +449,7 @@ export function Board() {
                 onArchive={showArchived ? undefined : handleArchiveTask}
                 onRestore={showArchived ? handleRestoreTask : undefined}
                 onDelete={showArchived ? handleDeleteTask : undefined}
+                onForceTake={handleForceTake}
                 onArchiveAll={!showArchived && phase === 'done' ? handleArchiveAllDone : undefined}
                 currentUserEmail={userEmail}
               />
@@ -466,6 +484,7 @@ export function Board() {
                 onArchive={showArchived ? undefined : handleArchiveTask}
                 onRestore={showArchived ? handleRestoreTask : undefined}
                 onDelete={showArchived ? handleDeleteTask : undefined}
+                onForceTake={handleForceTake}
                 onArchiveAll={!showArchived ? handleArchiveAllDone : undefined}
                 currentUserEmail={userEmail}
               />
