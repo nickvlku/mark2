@@ -4,13 +4,61 @@ import os from 'os';
 import path from 'path';
 import { mkdtempSync, rmSync } from 'fs';
 import { CodexCLIAdapter } from '@/lib/adapters/codex-cli';
-import type { AgentInvocationParams } from '@/types';
+import { PromptAssembler } from '@/lib/orchestration/prompt-assembler';
+import { END_TOKENS } from '@/lib/orchestration/pipeline';
+import type { RoleConfig } from '@/lib/orchestration/phase-handlers/run-phase';
+import type { AgentInvocationParams, Phase, Task } from '@/types';
+
+const TEST_TIMESTAMP = '2026-03-18T12:00:00.000Z';
+const AGENTS_PHASES = [
+  'design',
+  'coding',
+  'testing',
+  'code_review',
+  'fix_review',
+  'final_testing',
+  'run_test_plan',
+  'done',
+] as const satisfies readonly Phase[];
+
+type AgentsPhase = (typeof AGENTS_PHASES)[number];
+
+const SIGNAL_INSTRUCTION_LINES: Record<AgentsPhase, string[]> = {
+  design: [
+    'When done, signal: mark2_signal_complete(task_id, token: "[DESIGN_COMPLETED]")',
+  ],
+  coding: [
+    'When done, signal: mark2_signal_complete(task_id, token: "[CODING_COMPLETED]")',
+  ],
+  testing: [
+    'If all tests pass: mark2_signal_complete(task_id, token: "[TESTING_PASSED]")',
+    'If any tests fail: mark2_signal_complete(task_id, token: "[TESTING_FAILED]")',
+  ],
+  code_review: [
+    'If no fixes needed: mark2_signal_complete(task_id, token: "[REVIEW_COMPLETED]")',
+    'If fixes are required: mark2_signal_complete(task_id, token: "[REVIEW_NEEDS_FIXES]")',
+  ],
+  fix_review: [
+    'When done, signal: mark2_signal_complete(task_id, token: "[FIX_REVIEW_COMPLETED]")',
+  ],
+  final_testing: [
+    'If any tests fail: mark2_signal_complete(task_id, token: "[FINAL_TESTING_FAILED]")',
+    'After creating the test plan: mark2_signal_complete(task_id, token: "[FINAL_TESTING_PASSED]")',
+  ],
+  run_test_plan: [
+    'If all tests pass: mark2_signal_complete(task_id, token: "[RUN_TEST_PLAN_PASSED]")',
+    'If any tests fail: mark2_signal_complete(task_id, token: "[RUN_TEST_PLAN_FAILED]")',
+  ],
+  done: [
+    'The task is complete. Signal: mark2_signal_complete(task_id, token: "[TASK_COMPLETED]")',
+  ],
+};
 
 // Helper to create standard test params
 function createTestParams(overrides?: Partial<AgentInvocationParams>): AgentInvocationParams {
   return {
     prompt: 'test prompt',
-    taskPrompt: 'task prompt',
+    taskPrompt: undefined,
     orchestrationPrompt: 'orchestration prompt',
     agentPrompt: 'agent prompt',
     workingDirectory: '/tmp/test-workdir',
@@ -23,6 +71,77 @@ function createTestParams(overrides?: Partial<AgentInvocationParams>): AgentInvo
     timeoutMinutes: 20,
     ...overrides,
   };
+}
+
+function createTempClone(taskId = 'TASK-999') {
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), 'codex-test-'));
+  const mark2Dir = path.join(tempDir, '.mark2');
+  const workingDir = path.join(mark2Dir, 'clones', taskId);
+
+  fs.mkdirSync(path.join(workingDir, '.git', 'info'), { recursive: true });
+
+  return { tempDir, mark2Dir, workingDir };
+}
+
+function createTaskFixture(phase: Phase, taskId = 'TASK-999'): Task {
+  return {
+    id: taskId,
+    title: `Test ${phase} task`,
+    description: 'Verify AGENTS.md generation.',
+    phase,
+    phase_agents: {},
+    phase_overrides: {},
+    blockers: [],
+    priority: 'P2',
+    artifacts: [],
+    ports: [],
+    worktrees: {},
+    created_by: 'test',
+    merge_strategy: 'squash',
+    auto_advance: true,
+    auto_approve: false,
+    created_at: TEST_TIMESTAMP,
+    updated_at: TEST_TIMESTAMP,
+    phase_entered_at: TEST_TIMESTAMP,
+    loop_count: 0,
+    archived: false,
+  };
+}
+
+function createRoleFixture(): RoleConfig {
+  return {
+    name: 'expert-fullstack-coder',
+    cli_tool: 'codex-cli',
+    model: 'gpt-5.2-codex',
+    role_prompt: [
+      'You are an expert full-stack developer.',
+      'Follow the phase instructions precisely.',
+    ].join('\n'),
+    timeout_minutes: 20,
+  };
+}
+
+function createPromptBackedParams(phase: AgentsPhase, taskId = 'TASK-999') {
+  const { tempDir, mark2Dir, workingDir } = createTempClone(taskId);
+  const task = createTaskFixture(phase, taskId);
+  const role = createRoleFixture();
+  const assembler = new PromptAssembler(mark2Dir);
+  const promptParts = assembler.buildAgentAndTaskPrompts(task, role, phase);
+
+  const params = createTestParams({
+    prompt: promptParts.taskPrompt,
+    taskPrompt: promptParts.taskPrompt,
+    orchestrationPrompt: promptParts.orchestrationPrompt,
+    agentPrompt: promptParts.agentPrompt,
+    workingDirectory: workingDir,
+    agentName: role.name,
+    model: role.model,
+    taskId,
+    phase,
+    timeoutMinutes: role.timeout_minutes,
+  });
+
+  return { tempDir, workingDir, promptParts, params };
 }
 
 describe('CodexCLIAdapter', () => {
@@ -170,6 +289,7 @@ describe('CodexCLIAdapter', () => {
     expect(content).toContain('You are a test agent');
     expect(content).toContain('orchestration prompt');
     expect(content).toContain('# Available MCP Tools');
+    expect(content).not.toContain('Complete the test');
   });
 
   it('handles shell quoting with special characters', () => {
@@ -393,19 +513,18 @@ describe('CodexCLIAdapter', () => {
 
       const params = createTestParams({
         workingDirectory: tmpDir,
-        agentName: 'new-agent',
-        agentPrompt: 'new agent prompt',
+        agentPrompt: 'replacement agent prompt',
       });
       adapter.buildCommand(params);
 
       const content = fs.readFileSync(agentsMdPath, 'utf-8');
       expect(content).not.toContain('Old Content');
-      expect(content).toContain('new agent prompt');
+      expect(content).toContain('replacement agent prompt');
     });
   });
 
   describe('AGENTS.md Optional Fields', () => {
-    it('uses default when agentPrompt is undefined', () => {
+    it('omits the agent role section when agentPrompt is undefined', () => {
       const adapter = new CodexCLIAdapter();
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-test-'));
       tempPaths.push(tmpDir);
@@ -420,9 +539,10 @@ describe('CodexCLIAdapter', () => {
       const content = fs.readFileSync(agentsMdPath, 'utf-8');
       expect(content).not.toContain('# Agent Role');
       expect(content).toContain('orchestration prompt');
+      expect(content).toContain('# Available MCP Tools');
     });
 
-    it('uses default when agentPrompt is empty string', () => {
+    it('omits the agent role section when agentPrompt is empty', () => {
       const adapter = new CodexCLIAdapter();
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-test-'));
       tempPaths.push(tmpDir);
@@ -437,9 +557,10 @@ describe('CodexCLIAdapter', () => {
       const content = fs.readFileSync(agentsMdPath, 'utf-8');
       expect(content).not.toContain('# Agent Role');
       expect(content).toContain('orchestration prompt');
+      expect(content).toContain('# Available MCP Tools');
     });
 
-    it('uses Standard orchestration when orchestrationPrompt is undefined', () => {
+    it('omits orchestration content when orchestrationPrompt is undefined', () => {
       const adapter = new CodexCLIAdapter();
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-test-'));
       tempPaths.push(tmpDir);
@@ -452,11 +573,12 @@ describe('CodexCLIAdapter', () => {
 
       const agentsMdPath = path.join(tmpDir, 'AGENTS.md');
       const content = fs.readFileSync(agentsMdPath, 'utf-8');
-      expect(content).toContain('agent prompt');
+      expect(content).toContain('# Agent Role');
       expect(content).not.toContain('orchestration prompt');
+      expect(content).toContain('# Available MCP Tools');
     });
 
-    it('uses Standard orchestration when orchestrationPrompt is empty string', () => {
+    it('omits orchestration content when orchestrationPrompt is empty', () => {
       const adapter = new CodexCLIAdapter();
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-test-'));
       tempPaths.push(tmpDir);
@@ -469,11 +591,12 @@ describe('CodexCLIAdapter', () => {
 
       const agentsMdPath = path.join(tmpDir, 'AGENTS.md');
       const content = fs.readFileSync(agentsMdPath, 'utf-8');
-      expect(content).toContain('agent prompt');
+      expect(content).toContain('# Agent Role');
       expect(content).not.toContain('orchestration prompt');
+      expect(content).toContain('# Available MCP Tools');
     });
 
-    it('wraps orchestrationPrompt in code fence when provided', () => {
+    it('writes orchestrationPrompt as raw markdown when provided', () => {
       const adapter = new CodexCLIAdapter();
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-test-'));
       tempPaths.push(tmpDir);
@@ -487,9 +610,10 @@ describe('CodexCLIAdapter', () => {
       const agentsMdPath = path.join(tmpDir, 'AGENTS.md');
       const content = fs.readFileSync(agentsMdPath, 'utf-8');
       expect(content).toContain('Custom orchestration instructions');
+      expect(content).not.toContain('``````');
     });
 
-    it('falls back to prompt when taskPrompt is undefined', () => {
+    it('does not include taskPrompt content in AGENTS.md', () => {
       const adapter = new CodexCLIAdapter();
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-test-'));
       tempPaths.push(tmpDir);
@@ -499,8 +623,13 @@ describe('CodexCLIAdapter', () => {
         taskPrompt: undefined,
         prompt: 'Fallback prompt text',
       });
-      const command = adapter.buildCommand(params);
-      expect(command).toContain("'Fallback prompt text'");
+      adapter.buildCommand(params);
+
+      const agentsMdPath = path.join(tmpDir, 'AGENTS.md');
+      const content = fs.readFileSync(agentsMdPath, 'utf-8');
+      expect(content).not.toContain('Fallback prompt text');
+      expect(content).toContain('agent prompt');
+      expect(content).toContain('orchestration prompt');
     });
   });
 
@@ -641,38 +770,46 @@ describe('CodexCLIAdapter', () => {
     expect(fs.existsSync(agentsMdPath)).toBe(true);
   });
 
-  it('AGENTS.md contains agent role, orchestration, and MCP tools', () => {
+  it('AGENTS.md contains the required sections and assembled prompt content', () => {
     const adapter = new CodexCLIAdapter();
-
-    // Create temp directory
-    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'codex-test-'));
+    const { tempDir, params, promptParts, workingDir } = createPromptBackedParams('coding');
     tempPaths.push(tempDir);
-    const workingDir = path.join(tempDir, '.mark2', 'clones', 'TASK-999');
-    fs.mkdirSync(workingDir, { recursive: true });
-    fs.mkdirSync(path.join(workingDir, '.git', 'info'), { recursive: true });
-
-    const params = createTestParams({
-      workingDirectory: workingDir,
-      agentPrompt: 'You are a test agent',
-      orchestrationPrompt: '# ORCHESTRATION\nTest orchestration instructions',
-    });
     adapter.buildCommand(params);
 
     const agentsMdPath = path.join(workingDir, 'AGENTS.md');
     const content = fs.readFileSync(agentsMdPath, 'utf-8');
 
-    // Check for agent role section
     expect(content).toContain('# Agent Role');
-    expect(content).toContain('You are a test agent');
-
-    // Check for orchestration section
-    expect(content).toContain('Test orchestration instructions');
-
-    // Check for MCP tools reference
+    expect(content).toContain('# ORCHESTRATION INSTRUCTIONS');
+    expect(content).toContain('## Signaling Phase Completion');
     expect(content).toContain('# Available MCP Tools');
+    expect(content).toContain(promptParts.agentPrompt);
+    expect(content).toContain(promptParts.orchestrationPrompt);
     expect(content).toContain('mark2_signal_complete');
     expect(content).toContain('mark2_save_artifact');
     expect(content).toContain('mark2_git_commit');
+  });
+
+  it.each(AGENTS_PHASES)('writes correct end-token instructions for %s', (phase) => {
+    const adapter = new CodexCLIAdapter();
+    const { tempDir, params, workingDir } = createPromptBackedParams(phase);
+    tempPaths.push(tempDir);
+
+    adapter.buildCommand(params);
+
+    const agentsMdPath = path.join(workingDir, 'AGENTS.md');
+    const content = fs.readFileSync(agentsMdPath, 'utf-8');
+    const expectedTokenLine = `Valid completion tokens for this phase: ${END_TOKENS[phase].join(', ')}`;
+
+    expect(content).toContain(expectedTokenLine);
+
+    for (const token of END_TOKENS[phase]) {
+      expect(content).toContain(token);
+    }
+
+    for (const instructionLine of SIGNAL_INSTRUCTION_LINES[phase]) {
+      expect(content).toContain(instructionLine);
+    }
   });
 
   it('writes debug copy to prompts directory', () => {
