@@ -33,3 +33,25 @@ entries:
     source: agent
     type: note
     message: "[in_progress] Loading design artifact and inspecting repository for story completion/archive flow changes."
+  - timestamp: 2026-03-20T15:53:08.062Z
+    source: agent
+    type: note
+    message: "[verifying] Implementation complete; typecheck and targeted tests passed. Preparing coding summary artifact and commit."
+  - timestamp: 2026-03-20T15:57:23.435Z
+    source: agent
+    type: note
+    message: "[completed] Story archive/restore feature implemented, verified, committed, and pushed."
+  - timestamp: 2026-03-20T15:57:23.495Z
+    source: hook
+    type: phase_change
+    message: End token "[CODING_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[CODING_COMPLETED]"
+      phase: coding
+  - timestamp: 2026-03-20T18:22:28.897Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from coding to testing
+    metadata:
+      old_phase: coding
+      new_phase: testing

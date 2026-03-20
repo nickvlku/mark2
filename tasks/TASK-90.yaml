@@ -1,7 +1,7 @@
 id: TASK-90
 title: When a story has all tasks done, give the option to archive the story
 description: ""
-phase: coding
+phase: testing
 phase_agents: {}
 phase_overrides: {}
 blockers: []
@@ -13,6 +13,12 @@ artifacts:
     mime_type: text/markdown
     created_at: 2026-03-19T19:59:07.120Z
     source: agent
+  - name: coding-summary
+    phase: coding
+    path: coding-coding-summary-1774022224350-ssize8.md
+    mime_type: text/markdown
+    created_at: 2026-03-20T15:57:04.350Z
+    source: agent
 ports: []
 worktrees: {}
 created_by: human
@@ -20,7 +26,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-03-19T19:53:37.419Z
-updated_at: 2026-03-20T15:38:56.082Z
-phase_entered_at: 2026-03-20T15:38:56.081Z
+updated_at: 2026-03-20T18:22:28.897Z
+phase_entered_at: 2026-03-20T18:22:28.897Z
 loop_count: 0
 archived: false
