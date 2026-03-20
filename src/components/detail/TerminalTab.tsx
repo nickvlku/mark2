@@ -5,9 +5,17 @@ import { LiveTerminal } from '@/components/shared/LiveTerminal';
 
 interface TerminalTabProps {
   task: Task;
+  isMaximized: boolean;
+  maximizeSupported: boolean;
+  onMaximizeToggle: () => void;
 }
 
-export function TerminalTab({ task }: TerminalTabProps) {
+export function TerminalTab({
+  task,
+  isMaximized,
+  maximizeSupported,
+  onMaximizeToggle,
+}: TerminalTabProps) {
   return (
     <LiveTerminal
       targetKind="task"
@@ -16,6 +24,9 @@ export function TerminalTab({ task }: TerminalTabProps) {
       openTerminalEndpoint={`/api/tasks/${task.id}/session`}
       openFolderEndpoint={`/api/tasks/${task.id}/terminal`}
       sessionVersion={task.phase}
+      isMaximized={isMaximized}
+      maximizeSupported={maximizeSupported}
+      onMaximizeToggle={onMaximizeToggle}
     />
   );
 }

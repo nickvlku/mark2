@@ -14,11 +14,13 @@ import type {
 export const TERMINAL_WS_PATH = '/ws/terminal';
 export const DEFAULT_TERMINAL_MODE = 'observe' as const;
 
-const TERMINAL_METADATA: TerminalMetadata = {
-  ws_path: TERMINAL_WS_PATH,
-  default_mode: DEFAULT_TERMINAL_MODE,
-  control_supported: true,
-};
+export function getTerminalMetadata(target: TerminalTarget): TerminalMetadata {
+  return {
+    ws_path: TERMINAL_WS_PATH,
+    default_mode: target.kind === 'task' ? 'control' : DEFAULT_TERMINAL_MODE,
+    control_supported: true,
+  };
+}
 
 export function isTerminalTargetKind(
   value: string | null | undefined,
@@ -36,10 +38,6 @@ export function isValidTerminalTarget(target: TerminalTarget): boolean {
 
 export function terminalTargetKey(target: TerminalTarget): string {
   return `${target.kind}:${target.id}`;
-}
-
-export function getTerminalMetadata(): TerminalMetadata {
-  return TERMINAL_METADATA;
 }
 
 export async function resolveLatestTerminalSession(
@@ -89,6 +87,6 @@ export async function getTerminalSessionResponse(
 ): Promise<TerminalSessionResponse> {
   return {
     session: await resolveLatestTerminalSession(target),
-    terminal: getTerminalMetadata(),
+    terminal: getTerminalMetadata(target),
   };
 }
