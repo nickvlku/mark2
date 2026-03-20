@@ -58,8 +58,8 @@ export interface TaskWithStatus extends Task {
 
 export interface StoryWithStatus extends Story {
   status: StoryStatus;
-  task_count: number;
-  completed_count: number;
+  task_count?: number;
+  completed_count?: number;
 }
 
 export interface PhaseContext {

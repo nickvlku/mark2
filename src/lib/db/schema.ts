@@ -47,17 +47,25 @@ export const tasks = sqliteTable(
 );;
 
 // ── Stories ──────────────────────────────────────────────────────────────────
-export const stories = sqliteTable('stories', {
-  id: text('id').primaryKey(),
-  title: text('title').notNull(),
-  description: text('description').notNull(),
-  plan_id: text('plan_id'),
-  created_by: text('created_by').notNull(),
-  created_at: text('created_at').notNull(),
-  updated_at: text('updated_at').notNull(),
-  tasks_json: text('tasks_json').notNull().default('[]'),
-  execution_json: text('execution_json').notNull().default('{}'),
-});
+export const stories = sqliteTable(
+  'stories',
+  {
+    id: text('id').primaryKey(),
+    title: text('title').notNull(),
+    description: text('description').notNull(),
+    plan_id: text('plan_id'),
+    created_by: text('created_by').notNull(),
+    created_at: text('created_at').notNull(),
+    updated_at: text('updated_at').notNull(),
+    archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
+    archived_at: text('archived_at'),
+    tasks_json: text('tasks_json').notNull().default('[]'),
+    execution_json: text('execution_json').notNull().default('{}'),
+  },
+  (table) => [
+    index('idx_stories_archived').on(table.archived),
+  ],
+);
 
 // ── Plans ───────────────────────────────────────────────────────────────────
 export const plans = sqliteTable(

@@ -272,4 +272,46 @@ describe('Task + Story association', () => {
     const updated = storyService.getById(story.id);
     expect(updated!.tasks).toContain('TASK-1');
   });
+
+  it('rejects creating a task in an archived story', async () => {
+    const story = await storyService.create({
+      title: 'Archived story',
+      description: '',
+      created_by: 'human',
+    });
+    await storyService.update(story.id, {
+      archived: true,
+      archived_at: new Date().toISOString(),
+    });
+
+    await expect(
+      taskService.create({
+        title: 'Blocked task',
+        description: '',
+        story_id: story.id,
+        created_by: 'human',
+      }),
+    ).rejects.toThrow('archived');
+  });
+
+  it('rejects assigning a task to an archived story', async () => {
+    const story = await storyService.create({
+      title: 'Archived story',
+      description: '',
+      created_by: 'human',
+    });
+    const task = await taskService.create({
+      title: 'Loose task',
+      description: '',
+      created_by: 'human',
+    });
+    await storyService.update(story.id, {
+      archived: true,
+      archived_at: new Date().toISOString(),
+    });
+
+    await expect(
+      taskService.update(task.id, { story_id: story.id }),
+    ).rejects.toThrow('archived');
+  });
 });

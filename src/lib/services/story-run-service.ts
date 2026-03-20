@@ -68,12 +68,16 @@ export class StoryRunService {
     if (!story) {
       throw new Error(`Story ${storyId} not found`);
     }
+    if (story.archived) {
+      throw new Error(`Story ${storyId} is archived. Restore it before starting.`);
+    }
 
     const currentExecution = story.execution ?? {
       status: 'idle' as const,
       base_branch: 'main',
       target_branch: 'main',
       task_merge_failures: [],
+      archived_task_ids: [],
     };
 
     const baseBranch = options?.base_branch ?? currentExecution.base_branch ?? 'main';
@@ -95,6 +99,7 @@ export class StoryRunService {
         merge_pr_number: undefined,
         merge_requested_at: undefined,
         task_merge_failures: [],
+        archived_task_ids: currentExecution.archived_task_ids ?? [],
       },
     });
 
@@ -114,6 +119,9 @@ export class StoryRunService {
     const story = this.storyService.getById(storyId);
     if (!story) {
       throw new Error(`Story ${storyId} not found`);
+    }
+    if (story.archived) {
+      return { ready_task_ids: [], started_task_ids: [], failed: [] };
     }
 
     if (story.execution.status === 'idle' || story.execution.status === 'merged') {
@@ -174,6 +182,9 @@ export class StoryRunService {
     if (!story) {
       throw new Error(`Story ${storyId} not found`);
     }
+    if (story.archived) {
+      return story;
+    }
 
     if (story.execution.status === 'idle' || story.execution.status === 'merged') {
       return story;
@@ -211,6 +222,9 @@ export class StoryRunService {
     const story = this.storyService.getById(storyId);
     if (!story) {
       return { success: false, error: `Story ${storyId} not found` };
+    }
+    if (story.archived) {
+      return { success: false, error: `Story ${storyId} is archived. Restore it before creating a merge PR.` };
     }
 
     const branchName = story.execution.branch_name;

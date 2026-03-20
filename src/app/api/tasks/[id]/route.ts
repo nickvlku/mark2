@@ -54,6 +54,9 @@ export async function PATCH(
     if (error.message?.includes('not found')) {
       return NextResponse.json({ error: error.message }, { status: 404 });
     }
+    if (error.message?.includes('archived')) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     if (error.name === 'ZodError' || error.issues) {
       return NextResponse.json(
         { error: 'Validation failed', details: error.issues ?? error.message },

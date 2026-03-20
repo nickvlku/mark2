@@ -147,6 +147,7 @@ describe('StoryRunService integration', () => {
           error: 'Merge conflicts detected',
           failed_at: new Date().toISOString(),
         }],
+        archived_task_ids: [],
       },
     });
 

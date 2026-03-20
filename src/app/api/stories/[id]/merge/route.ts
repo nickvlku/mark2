@@ -20,7 +20,7 @@ export async function POST(
     if (!result.success) {
       return NextResponse.json(
         { error: result.error ?? 'Failed to create merge PR' },
-        { status: 400 },
+        { status: result.error?.includes('not found') ? 404 : 400 },
       );
     }
 
@@ -36,4 +36,3 @@ export async function POST(
     );
   }
 }
-

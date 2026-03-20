@@ -7,8 +7,15 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') as any;
+    const archived = searchParams.get('archived');
 
-    const stories = service.list(status ? { status } : undefined);
+    const filters: { status?: any; archived?: boolean } = {};
+    if (status) filters.status = status;
+    if (archived !== null) {
+      filters.archived = archived === 'true';
+    }
+
+    const stories = service.list(filters);
     return NextResponse.json({ stories });
   } catch (error: any) {
     return NextResponse.json(

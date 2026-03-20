@@ -64,6 +64,7 @@ describe('CloneService branch handling', () => {
         target_branch: 'main',
         started_at: new Date().toISOString(),
         task_merge_failures: [],
+        archived_task_ids: [],
       },
     });
 
@@ -128,6 +129,7 @@ describe('CloneService branch handling', () => {
         target_branch: 'main',
         started_at: new Date().toISOString(),
         task_merge_failures: [],
+        archived_task_ids: [],
       },
     });
 
@@ -150,6 +152,7 @@ describe('CloneService branch handling', () => {
         target_branch: 'main',
         started_at: new Date().toISOString(),
         task_merge_failures: [],
+        archived_task_ids: [],
       },
     });
 

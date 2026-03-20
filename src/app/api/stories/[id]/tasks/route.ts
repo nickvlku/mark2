@@ -28,6 +28,9 @@ export async function POST(
     if (error.message?.includes('not found')) {
       return NextResponse.json({ error: error.message }, { status: 404 });
     }
+    if (error.message?.includes('archived')) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     return NextResponse.json(
       { error: error.message ?? 'Failed to add task to story' },
       { status: 500 },

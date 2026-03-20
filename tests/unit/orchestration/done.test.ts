@@ -105,12 +105,14 @@ describe('handleDone story merge gating', () => {
     mockRemoveWorktree.mockResolvedValue(undefined);
     mockStoryGetById.mockReturnValue({
       id: 'STORY-1',
+      archived: false,
       execution: {
         status: 'running',
         branch_name: 'mark2/story-1',
         base_branch: 'main',
         target_branch: 'main',
         task_merge_failures: [],
+        archived_task_ids: [],
       },
     });
     mockTaskGetBlocking.mockReturnValue([]);

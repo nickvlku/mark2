@@ -1,5 +1,5 @@
 import { getDb } from '../db';
-import { tasks, activityEntries, agentSessions } from '../db/schema';
+import { tasks, activityEntries, agentSessions, stories } from '../db/schema';
 import { TaskSchema, Phase } from '../yaml/schemas';
 import type { Task, TaskPhaseOverride } from '../yaml/schemas';
 import { generateTaskId } from '../utils/id-generator';
@@ -51,6 +51,8 @@ export class TaskService {
     parent_task?: string;
     created_by: string;
   }): Promise<Task> {
+    this.assertStoryAssignmentAllowed(data.story_id);
+
     const now = new Date().toISOString();
     const id = generateTaskId(this.mark2Dir);
 
@@ -133,6 +135,8 @@ export class TaskService {
     parent_task?: string;
     created_by: string;
   }): Task {
+    this.assertStoryAssignmentAllowed(data.story_id);
+
     const now = new Date().toISOString();
     const id = generateTaskId(this.mark2Dir);
 
@@ -259,6 +263,9 @@ export class TaskService {
     if (!existing) {
       throw new Error(`Task ${taskId} not found`);
     }
+    if (Object.prototype.hasOwnProperty.call(updates, 'story_id')) {
+      this.assertStoryAssignmentAllowed(updates.story_id);
+    }
 
     const now = new Date().toISOString();
     const merged = {
@@ -311,6 +318,9 @@ export class TaskService {
     const existing = this.getById(taskId);
     if (!existing) {
       throw new Error(`Task ${taskId} not found`);
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, 'story_id')) {
+      this.assertStoryAssignmentAllowed(updates.story_id);
     }
 
     const now = new Date().toISOString();
@@ -381,38 +391,91 @@ export class TaskService {
   }
 
   async archive(taskId: string): Promise<Task> {
-    const existing = this.getById(taskId);
-    if (!existing) {
+    const { archived_ids } = await this.archiveMany([taskId]);
+    const task = this.getById(taskId);
+    if (!task || !archived_ids.includes(taskId)) {
       throw new Error(`Task ${taskId} not found`);
     }
-
-    const now = new Date().toISOString();
-    const task = await this.update(taskId, {
-      archived: true,
-      archived_at: now,
-    });
-
-    // Release any lock when archiving
-    await this.stateBranch.releaseLock(taskId);
-    await this.stateBranch.push(`Archive ${taskId}`);
-
     return task;
   }
 
   async restore(taskId: string): Promise<Task> {
-    const existing = this.getById(taskId);
-    if (!existing) {
+    const { restored_ids } = await this.restoreMany([taskId]);
+    const task = this.getById(taskId);
+    if (!task || !restored_ids.includes(taskId)) {
       throw new Error(`Task ${taskId} not found`);
     }
-
-    const task = await this.update(taskId, {
-      archived: false,
-      archived_at: undefined,
-    });
-
-    await this.stateBranch.push(`Restore ${taskId}`);
-
     return task;
+  }
+
+  async archiveMany(
+    taskIds: string[],
+    options?: { push?: boolean },
+  ): Promise<{ archived_ids: string[] }> {
+    if (taskIds.length === 0) {
+      return { archived_ids: [] };
+    }
+
+    const now = new Date().toISOString();
+    const archivedIds: string[] = [];
+
+    for (const taskId of taskIds) {
+      const existing = this.getById(taskId);
+      if (!existing) {
+        throw new Error(`Task ${taskId} not found`);
+      }
+
+      await this.update(taskId, {
+        archived: true,
+        archived_at: now,
+      });
+      await this.stateBranch.releaseLock(taskId);
+      archivedIds.push(taskId);
+    }
+
+    if (options?.push !== false) {
+      await this.stateBranch.push(
+        archivedIds.length === 1
+          ? `Archive ${archivedIds[0]}`
+          : `Archive ${archivedIds.length} tasks: ${archivedIds.join(', ')}`,
+      );
+    }
+
+    return { archived_ids: archivedIds };
+  }
+
+  async restoreMany(
+    taskIds: string[],
+    options?: { push?: boolean },
+  ): Promise<{ restored_ids: string[] }> {
+    if (taskIds.length === 0) {
+      return { restored_ids: [] };
+    }
+
+    const restoredIds: string[] = [];
+
+    for (const taskId of taskIds) {
+      const existing = this.getById(taskId);
+      if (!existing) {
+        throw new Error(`Task ${taskId} not found`);
+      }
+
+      await this.update(taskId, {
+        archived: false,
+        archived_at: undefined,
+      });
+      restoredIds.push(taskId);
+    }
+
+    if (options?.push !== false) {
+      await this.stateBranch.push(
+        restoredIds.length === 1
+          ? `Restore ${restoredIds[0]}`
+          : `Restore ${restoredIds.length} tasks: ${restoredIds.join(', ')}`,
+      );
+    }
+
+    return { restored_ids: restoredIds };
   }
 
   async archiveDone(): Promise<{ archived_count: number; archived_ids: string[] }> {
@@ -423,23 +486,8 @@ export class TaskService {
       return { archived_count: 0, archived_ids: [] };
     }
 
-    const now = new Date().toISOString();
-    const archivedIds: string[] = [];
-
-    // 2. Archive each task (update DB + YAML + release locks)
-    for (const task of doneTasks) {
-      await this.update(task.id, {
-        archived: true,
-        archived_at: now,
-      });
-      await this.stateBranch.releaseLock(task.id);
-      archivedIds.push(task.id);
-    }
-
-    // 3. Single git push for all archives
-    await this.stateBranch.push(`Archive ${archivedIds.length} done tasks: ${archivedIds.join(', ')}`);
-
-    return { archived_count: archivedIds.length, archived_ids: archivedIds };
+    const { archived_ids } = await this.archiveMany(doneTasks.map((task) => task.id));
+    return { archived_count: archived_ids.length, archived_ids };
   }
 
   async addBlocker(taskId: string, blockerId: string): Promise<Task> {
@@ -840,6 +888,29 @@ export class TaskService {
 
     if (updated) {
       this.updateSync(taskId, { artifacts: task.artifacts });
+    }
+  }
+
+  private assertStoryAssignmentAllowed(storyId?: string): void {
+    if (!storyId) {
+      return;
+    }
+
+    const db = getDb(this.mark2Dir);
+    const story = db
+      .select({
+        id: stories.id,
+        archived: stories.archived,
+      })
+      .from(stories)
+      .where(eq(stories.id, storyId))
+      .get();
+
+    if (!story) {
+      throw new Error(`Story ${storyId} not found`);
+    }
+    if (story.archived) {
+      throw new Error(`Story ${storyId} is archived and cannot accept tasks`);
     }
   }
 

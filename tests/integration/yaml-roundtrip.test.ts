@@ -40,11 +40,13 @@ function makeStory(id: string, overrides: Partial<Story> = {}): Story {
     title: `Story ${id}`,
     description: `Description for ${id}`,
     tasks: [],
+    archived: false,
     execution: {
       status: 'idle',
       base_branch: 'main',
       target_branch: 'main',
       task_merge_failures: [],
+      archived_task_ids: [],
     },
     created_by: 'human',
     created_at: NOW,
@@ -151,6 +153,8 @@ describe('YAML Roundtrip', () => {
       expect(data!.id).toBe('STORY-1');
       expect(data!.title).toBe('Auth Epic');
       expect(data!.tasks).toEqual(['TASK-1', 'TASK-2']);
+      expect(data!.archived).toBe(false);
+      expect(data!.execution.archived_task_ids).toEqual([]);
     });
 
     it('readAllStories returns all written stories', () => {

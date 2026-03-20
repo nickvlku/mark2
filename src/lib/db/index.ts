@@ -119,12 +119,16 @@ export function initializeDatabase(mark2Dir?: string): void {
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
       description TEXT NOT NULL,
+      plan_id TEXT,
       created_by TEXT NOT NULL,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
+      archived INTEGER NOT NULL DEFAULT 0,
+      archived_at TEXT,
       tasks_json TEXT NOT NULL DEFAULT '[]',
       execution_json TEXT NOT NULL DEFAULT '{}'
     );
+    CREATE INDEX IF NOT EXISTS idx_stories_archived ON stories(archived);
 
     CREATE TABLE IF NOT EXISTS plans (
       id TEXT PRIMARY KEY,
@@ -268,6 +272,25 @@ export function initializeDatabase(mark2Dir?: string): void {
     sqliteInstance.exec(`ALTER TABLE stories ADD COLUMN execution_json TEXT NOT NULL DEFAULT '{}'`);
   } catch {
     // Column already exists
+  }
+
+  // Add story archive fields
+  try {
+    sqliteInstance.exec(`ALTER TABLE stories ADD COLUMN archived INTEGER NOT NULL DEFAULT 0`);
+  } catch {
+    // Column already exists
+  }
+
+  try {
+    sqliteInstance.exec(`ALTER TABLE stories ADD COLUMN archived_at TEXT`);
+  } catch {
+    // Column already exists
+  }
+
+  try {
+    sqliteInstance.exec(`CREATE INDEX IF NOT EXISTS idx_stories_archived ON stories(archived)`);
+  } catch {
+    // Index already exists
   }
 
   // Add project_prefix to plans

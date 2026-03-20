@@ -159,6 +159,8 @@ export const StorySchema = z.object({
   description: z.string(),
   tasks: z.array(z.string()).default([]),
   plan_id: z.string().regex(/^PLAN-\d+$/).optional(),
+  archived: z.boolean().default(false),
+  archived_at: z.string().datetime().optional(),
   execution: z.object({
     status: StoryExecutionStatus.default('idle'),
     branch_name: z.string().optional(),
@@ -174,11 +176,13 @@ export const StorySchema = z.object({
       error: z.string(),
       failed_at: z.string().datetime(),
     })).default([]),
+    archived_task_ids: z.array(z.string().regex(/^TASK-\d+$/)).default([]),
   }).default({
     status: 'idle',
     base_branch: 'main',
     target_branch: 'main',
     task_merge_failures: [],
+    archived_task_ids: [],
   }),
   created_by: z.string(),
   created_at: z.string().datetime(),

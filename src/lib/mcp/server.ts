@@ -741,6 +741,12 @@ export function createMcpServer(): McpServer {
               isError: true,
             };
           }
+          if (story.archived) {
+            return {
+              content: [{ type: 'text' as const, text: `Error: Story ${story_id} is archived and cannot accept tasks` }],
+              isError: true,
+            };
+          }
         }
 
         // Remove from old story if it had one

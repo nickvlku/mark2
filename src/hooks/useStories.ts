@@ -1,11 +1,11 @@
 import useSWR from 'swr';
-import type { Story } from '@/types';
+import type { StoryWithStatus } from '@/types';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-export function useStories() {
-  const { data, error, mutate } = useSWR<{ stories: Story[] }>(
-    '/api/stories',
+export function useStories(archived: boolean = false) {
+  const { data, error, mutate } = useSWR<{ stories: StoryWithStatus[] }>(
+    `/api/stories?archived=${archived}`,
     fetcher,
     { refreshInterval: 10000 },
   );

@@ -10,6 +10,7 @@ function makeStory(overrides: Partial<Story> = {}): Story {
     title: 'Story',
     description: 'Story description',
     tasks: ['TASK-1', 'TASK-2'],
+    archived: false,
     execution: {
       status: 'running',
       branch_name: 'mark2/story-1',
@@ -17,6 +18,7 @@ function makeStory(overrides: Partial<Story> = {}): Story {
       target_branch: 'main',
       started_at: NOW,
       task_merge_failures: [],
+      archived_task_ids: [],
     },
     created_by: 'human',
     created_at: NOW,
@@ -110,6 +112,7 @@ describe('StoryRunService', () => {
         base_branch: 'main',
         target_branch: 'main',
         task_merge_failures: [],
+        archived_task_ids: [],
       },
     }));
 
@@ -163,6 +166,7 @@ describe('StoryRunService', () => {
           error: 'Merge conflicts detected',
           failed_at: NOW,
         }],
+        archived_task_ids: [],
       },
     }));
     taskService.list.mockReturnValue([
@@ -194,6 +198,7 @@ describe('StoryRunService', () => {
           error: 'Merge failed',
           failed_at: NOW,
         }],
+        archived_task_ids: [],
       },
     }));
     taskService.list.mockReturnValue([
@@ -213,5 +218,32 @@ describe('StoryRunService', () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain('unresolved task-to-story merge failures');
     expect(storyService.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects starting an archived story', async () => {
+    storyService.getById.mockReturnValue(makeStory({ archived: true }));
+
+    const service = new StoryRunService('/tmp/mark2', {
+      storyService: storyService as any,
+      taskService: taskService as any,
+      startPhaseFn: startPhaseFn as any,
+    });
+
+    await expect(service.startStory('STORY-1')).rejects.toThrow('archived');
+  });
+
+  it('blocks merge PR creation for archived stories', async () => {
+    storyService.getById.mockReturnValue(makeStory({ archived: true }));
+
+    const service = new StoryRunService('/tmp/mark2', {
+      storyService: storyService as any,
+      taskService: taskService as any,
+      startPhaseFn: startPhaseFn as any,
+      execFn: vi.fn(),
+    });
+
+    const result = await service.createMergePR('STORY-1');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('archived');
   });
 });

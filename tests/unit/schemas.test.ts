@@ -297,13 +297,24 @@ describe('Zod Schemas', () => {
         title: 'User authentication',
         description: 'Implement auth',
         tasks: ['TASK-1', 'TASK-2'],
+        archived: true,
+        archived_at: NOW,
         created_by: 'human',
         created_at: NOW,
         updated_at: NOW,
+        execution: {
+          status: 'idle',
+          base_branch: 'main',
+          target_branch: 'main',
+          task_merge_failures: [],
+          archived_task_ids: ['TASK-1'],
+        },
       };
       const result = StorySchema.parse(input);
       expect(result.id).toBe('STORY-1');
       expect(result.tasks).toEqual(['TASK-1', 'TASK-2']);
+      expect(result.archived).toBe(true);
+      expect(result.execution.archived_task_ids).toEqual(['TASK-1']);
     });
 
     it('rejects invalid story ID', () => {
@@ -329,6 +340,8 @@ describe('Zod Schemas', () => {
         updated_at: NOW,
       });
       expect(result.tasks).toEqual([]);
+      expect(result.archived).toBe(false);
+      expect(result.execution.archived_task_ids).toEqual([]);
     });
   });
 

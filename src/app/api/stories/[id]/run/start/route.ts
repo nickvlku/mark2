@@ -32,10 +32,12 @@ export async function POST(
     if (String(error?.message ?? '').includes('not found')) {
       return NextResponse.json({ error: error.message }, { status: 404 });
     }
+    if (String(error?.message ?? '').includes('archived')) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     return NextResponse.json(
       { error: error?.message ?? 'Failed to start story run' },
       { status: 500 },
     );
   }
 }
-

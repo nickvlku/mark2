@@ -2,14 +2,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import useSWR from 'swr';
-import type { Story, Task, Plan } from '@/types';
+import useSWR, { useSWRConfig } from 'swr';
+import type { StoryWithStatus, Task, Plan } from '@/types';
 import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 interface StorySidebarProps {
-  story: Story;
+  story: StoryWithStatus;
   onClose: () => void;
   onTaskClick: (taskId: string) => void;
   onUpdate?: () => void;
@@ -59,20 +59,22 @@ export function StorySidebar({ story: initialStory, onClose, onTaskClick, onUpda
   const [prdExpanded, setPrdExpanded] = useState(true);
   const [techSpecExpanded, setTechSpecExpanded] = useState(true);
   const [fullscreenArtifact, setFullscreenArtifact] = useState<{ title: string; content: string } | null>(null);
-  const [storyActionLoading, setStoryActionLoading] = useState<'start' | 'merge' | null>(null);
+  const [storyActionLoading, setStoryActionLoading] = useState<'start' | 'merge' | 'archive' | 'restore' | null>(null);
   const [storyActionError, setStoryActionError] = useState<string | null>(null);
+  const { mutate: mutateCache } = useSWRConfig();
 
   // Fetch story data
-  const { data: storyData, mutate: mutateStory } = useSWR<{ story: Story }>(
+  const { data: storyData, mutate: mutateStory } = useSWR<{ story: StoryWithStatus }>(
     `/api/stories/${initialStory.id}`,
     fetcher,
     { refreshInterval: 5000, fallbackData: { story: initialStory } }
   );
   const story = storyData?.story ?? initialStory;
+  const storyTasksKey = `/api/tasks?story_id=${story.id}&archived=${story.archived ? 'true' : 'false'}`;
 
   // Fetch tasks for this story
-  const { data: tasksData } = useSWR<{ tasks: Task[] }>(
-    `/api/tasks?story_id=${story.id}`,
+  const { data: tasksData, mutate: mutateTasks } = useSWR<{ tasks: Task[] }>(
+    storyTasksKey,
     fetcher,
     { refreshInterval: 5000 }
   );
@@ -112,8 +114,13 @@ export function StorySidebar({ story: initialStory, onClose, onTaskClick, onUpda
   const totalCount = tasks.length;
   const progressPercent = totalCount > 0 ? (doneCount / totalCount) * 100 : 0;
   const executionStatus = story.execution?.status ?? 'idle';
-  const canStartStory = executionStatus === 'idle';
-  const canCreateMergePr = executionStatus === 'ready_to_merge';
+  const storyStatus = story.status;
+  const isArchived = story.archived;
+  const canStartStory = !isArchived && executionStatus === 'idle';
+  const canCreateMergePr = !isArchived && executionStatus === 'ready_to_merge';
+  const canArchiveStory = !isArchived && storyStatus === 'completed';
+  const canRestoreStory = isArchived;
+  const canEditStory = !isArchived;
 
   // Handle escape key
   const handleKeyDown = useCallback(
@@ -138,7 +145,23 @@ export function StorySidebar({ story: initialStory, onClose, onTaskClick, onUpda
     setEditDescription(story.description);
   }, [story.title, story.description]);
 
+  const refreshStoryCaches = useCallback(async () => {
+    await Promise.all([
+      mutateStory(),
+      mutateTasks(),
+      mutateCache('/api/stories?archived=false'),
+      mutateCache('/api/stories?archived=true'),
+      mutateCache(`/api/stories/${story.id}`),
+      mutateCache(`/api/tasks?story_id=${story.id}&archived=false`),
+      mutateCache(`/api/tasks?story_id=${story.id}&archived=true`),
+    ]);
+    onUpdate?.();
+  }, [mutateCache, mutateStory, mutateTasks, onUpdate, story.id]);
+
   const handleSaveTitle = async () => {
+    if (!canEditStory) {
+      return;
+    }
     if (editTitle === story.title) {
       setIsEditingTitle(false);
       return;
@@ -150,8 +173,7 @@ export function StorySidebar({ story: initialStory, onClose, onTaskClick, onUpda
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: editTitle }),
       });
-      mutateStory();
-      onUpdate?.();
+      await refreshStoryCaches();
     } catch (err) {
       console.error('Failed to update story title:', err);
     }
@@ -159,6 +181,9 @@ export function StorySidebar({ story: initialStory, onClose, onTaskClick, onUpda
   };
 
   const handleSaveDescription = async () => {
+    if (!canEditStory) {
+      return;
+    }
     if (editDescription === story.description) {
       setIsEditingDescription(false);
       return;
@@ -170,8 +195,7 @@ export function StorySidebar({ story: initialStory, onClose, onTaskClick, onUpda
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ description: editDescription }),
       });
-      mutateStory();
-      onUpdate?.();
+      await refreshStoryCaches();
     } catch (err) {
       console.error('Failed to update story description:', err);
     }
@@ -190,8 +214,7 @@ export function StorySidebar({ story: initialStory, onClose, onTaskClick, onUpda
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Failed to start story');
       }
-      await mutateStory();
-      onUpdate?.();
+      await refreshStoryCaches();
     } catch (error: any) {
       setStoryActionError(error?.message ?? String(error));
     } finally {
@@ -211,8 +234,47 @@ export function StorySidebar({ story: initialStory, onClose, onTaskClick, onUpda
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || 'Failed to create merge PR');
       }
-      await mutateStory();
-      onUpdate?.();
+      await refreshStoryCaches();
+    } catch (error: any) {
+      setStoryActionError(error?.message ?? String(error));
+    } finally {
+      setStoryActionLoading(null);
+    }
+  };
+
+  const handleArchiveStory = async () => {
+    setStoryActionLoading('archive');
+    setStoryActionError(null);
+    try {
+      const res = await fetch(`/api/stories/${story.id}/archive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to archive story');
+      }
+      await refreshStoryCaches();
+    } catch (error: any) {
+      setStoryActionError(error?.message ?? String(error));
+    } finally {
+      setStoryActionLoading(null);
+    }
+  };
+
+  const handleRestoreStory = async () => {
+    setStoryActionLoading('restore');
+    setStoryActionError(null);
+    try {
+      const res = await fetch(`/api/stories/${story.id}/restore`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to restore story');
+      }
+      await refreshStoryCaches();
     } catch (error: any) {
       setStoryActionError(error?.message ?? String(error));
     } finally {
@@ -290,6 +352,11 @@ export function StorySidebar({ story: initialStory, onClose, onTaskClick, onUpda
                   Story Run
                 </label>
                 <div className="rounded-lg border border-border bg-bg-primary p-3 space-y-3">
+                  {isArchived && (
+                    <p className="text-xs text-amber-400">
+                      Archived stories are read-only until restored.
+                    </p>
+                  )}
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-text-secondary">Status</span>
                     <span className="text-xs font-medium text-text-primary capitalize">
@@ -340,13 +407,59 @@ export function StorySidebar({ story: initialStory, onClose, onTaskClick, onUpda
                 </div>
               </div>
 
+              {/* Archive */}
+              <div>
+                <label className="text-xs font-medium text-text-secondary uppercase tracking-wide mb-2 block">
+                  Archive
+                </label>
+                <div className="rounded-lg border border-border bg-bg-primary p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-text-secondary">Story state</span>
+                    <span className="text-xs font-medium text-text-primary">
+                      {isArchived ? 'Archived' : 'Active'}
+                    </span>
+                  </div>
+                  {story.archived_at && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-text-secondary">Archived at</span>
+                      <span className="text-xs text-text-primary">
+                        {new Date(story.archived_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
+                  {canArchiveStory && (
+                    <button
+                      onClick={handleArchiveStory}
+                      disabled={storyActionLoading !== null}
+                      className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {storyActionLoading === 'archive' ? 'Archiving...' : 'Archive Story'}
+                    </button>
+                  )}
+                  {canRestoreStory && (
+                    <button
+                      onClick={handleRestoreStory}
+                      disabled={storyActionLoading !== null}
+                      className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {storyActionLoading === 'restore' ? 'Restoring...' : 'Restore Story'}
+                    </button>
+                  )}
+                  {!canArchiveStory && !canRestoreStory && (
+                    <p className="text-xs text-text-secondary">
+                      Complete all tasks before archiving this story.
+                    </p>
+                  )}
+                </div>
+              </div>
+
               {/* Title */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-medium text-text-secondary uppercase tracking-wide">
                     Title
                   </label>
-                  {!isEditingTitle && (
+                  {!isEditingTitle && canEditStory && (
                     <button
                       onClick={() => setIsEditingTitle(true)}
                       className="text-xs text-accent hover:text-accent-hover"
@@ -393,7 +506,7 @@ export function StorySidebar({ story: initialStory, onClose, onTaskClick, onUpda
                   <label className="text-xs font-medium text-text-secondary uppercase tracking-wide">
                     Description
                   </label>
-                  {!isEditingDescription && (
+                  {!isEditingDescription && canEditStory && (
                     <button
                       onClick={() => setIsEditingDescription(true)}
                       className="text-xs text-accent hover:text-accent-hover"

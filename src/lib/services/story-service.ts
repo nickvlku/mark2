@@ -3,10 +3,10 @@ import { stories, tasks } from '../db/schema';
 import { StorySchema } from '../yaml/schemas';
 import type { Story, StoryStatus } from '../yaml/schemas';
 import { generateStoryId } from '../utils/id-generator';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { getMark2Dir } from '../utils/mark2-dir';
 import { StateBranchService } from './state-branch-service';
-import path from 'path';
+import { TaskService } from './task-service';
 
 export class StoryService {
   private mark2Dir: string;
@@ -55,6 +55,8 @@ export class StoryService {
       created_by: story.created_by,
       created_at: story.created_at,
       updated_at: story.updated_at,
+      archived: story.archived,
+      archived_at: story.archived_at ?? null,
       tasks_json: JSON.stringify(story.tasks),
       execution_json: JSON.stringify(story.execution),
     }).run();
@@ -101,6 +103,8 @@ export class StoryService {
       created_by: story.created_by,
       created_at: story.created_at,
       updated_at: story.updated_at,
+      archived: story.archived,
+      archived_at: story.archived_at ?? null,
       tasks_json: JSON.stringify(story.tasks),
       execution_json: JSON.stringify(story.execution),
     }).run();
@@ -115,9 +119,14 @@ export class StoryService {
     return this.rowToStory(row);
   }
 
-  list(filters?: { status?: StoryStatus }): Array<Story & { status: StoryStatus }> {
+  list(filters?: { status?: StoryStatus; archived?: boolean }): Array<Story & { status: StoryStatus }> {
     const db = getDb(this.mark2Dir);
-    const rows = db.select().from(stories).all();
+    const showArchived = filters?.archived ?? false;
+    const rows = db
+      .select()
+      .from(stories)
+      .where(eq(stories.archived, showArchived))
+      .all();
     const result = rows.map((row) => {
       const story = this.rowToStory(row);
       const status = this.deriveStatus(story);
@@ -159,6 +168,8 @@ export class StoryService {
         created_by: story.created_by,
         created_at: story.created_at,
         updated_at: story.updated_at,
+        archived: story.archived,
+        archived_at: story.archived_at ?? null,
         tasks_json: JSON.stringify(story.tasks),
         execution_json: JSON.stringify(story.execution),
       })
@@ -198,6 +209,8 @@ export class StoryService {
         created_by: story.created_by,
         created_at: story.created_at,
         updated_at: story.updated_at,
+        archived: story.archived,
+        archived_at: story.archived_at ?? null,
         tasks_json: JSON.stringify(story.tasks),
         execution_json: JSON.stringify(story.execution),
       })
@@ -221,6 +234,9 @@ export class StoryService {
     const story = this.getById(storyId);
     if (!story) {
       throw new Error(`Story ${storyId} not found`);
+    }
+    if (story.archived) {
+      throw new Error(`Story ${storyId} is archived and cannot accept new tasks`);
     }
     if (story.tasks.includes(taskId)) {
       return story; // Already exists
@@ -250,6 +266,75 @@ export class StoryService {
       throw new Error(`Story ${storyId} not found`);
     }
     return this.deriveStatus(story);
+  }
+
+  async archive(storyId: string): Promise<{ story: Story; archived_task_ids: string[] }> {
+    const story = this.getById(storyId);
+    if (!story) {
+      throw new Error(`Story ${storyId} not found`);
+    }
+    if (story.archived) {
+      throw new Error(`Story ${storyId} is already archived`);
+    }
+    if (this.deriveStatus(story) !== 'completed') {
+      throw new Error(`Story ${storyId} must be completed before it can be archived`);
+    }
+
+    const taskService = new TaskService(this.mark2Dir, this.stateBranch);
+    const activeTaskIds = story.tasks.filter((taskId) => {
+      const task = taskService.getById(taskId);
+      if (!task) {
+        throw new Error(`Task ${taskId} not found`);
+      }
+      return !task.archived;
+    });
+
+    const archiveResult = await taskService.archiveMany(activeTaskIds, { push: false });
+    const now = new Date().toISOString();
+    const archivedStory = await this.update(storyId, {
+      archived: true,
+      archived_at: now,
+      execution: {
+        ...story.execution,
+        archived_task_ids: archiveResult.archived_ids,
+      },
+    });
+
+    await this.stateBranch.push(`Archive ${storyId}`);
+
+    return {
+      story: archivedStory,
+      archived_task_ids: archiveResult.archived_ids,
+    };
+  }
+
+  async restore(storyId: string): Promise<{ story: Story; restored_task_ids: string[] }> {
+    const story = this.getById(storyId);
+    if (!story) {
+      throw new Error(`Story ${storyId} not found`);
+    }
+    if (!story.archived) {
+      throw new Error(`Story ${storyId} is not archived`);
+    }
+
+    const taskService = new TaskService(this.mark2Dir, this.stateBranch);
+    const archivedTaskIds = story.execution.archived_task_ids ?? [];
+    const restoreResult = await taskService.restoreMany(archivedTaskIds, { push: false });
+    const restoredStory = await this.update(storyId, {
+      archived: false,
+      archived_at: undefined,
+      execution: {
+        ...story.execution,
+        archived_task_ids: [],
+      },
+    });
+
+    await this.stateBranch.push(`Restore ${storyId}`);
+
+    return {
+      story: restoredStory,
+      restored_task_ids: restoreResult.restored_ids,
+    };
   }
 
   private deriveStatus(story: Story): StoryStatus {
@@ -283,6 +368,8 @@ export class StoryService {
       title: row.title,
       description: row.description,
       plan_id: row.plan_id ?? undefined,
+      archived: row.archived,
+      archived_at: row.archived_at ?? undefined,
       created_by: row.created_by,
       created_at: row.created_at,
       updated_at: row.updated_at,

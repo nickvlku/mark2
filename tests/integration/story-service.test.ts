@@ -44,6 +44,8 @@ describe('StoryService', () => {
       expect(story.id).toBe('STORY-1');
       expect(story.title).toBe('Authentication Epic');
       expect(story.tasks).toEqual([]);
+      expect(story.archived).toBe(false);
+      expect(story.execution.archived_task_ids).toEqual([]);
 
       // Verify YAML
       const { data } = reader.readStory('STORY-1');
@@ -227,12 +229,14 @@ describe('StoryService', () => {
   });
 
   describe('list', () => {
-    it('returns all stories', async () => {
+    it('returns active stories by default', async () => {
       await storyService.create({ title: 'Story A', description: 'desc', created_by: 'human' });
       await storyService.create({ title: 'Story B', description: 'desc', created_by: 'human' });
+      await storyService.update('STORY-2', { archived: true, archived_at: new Date().toISOString() });
 
       const result = storyService.list();
-      expect(result).toHaveLength(2);
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('STORY-1');
     });
 
     it('includes derived status in list results', async () => {
@@ -258,6 +262,82 @@ describe('StoryService', () => {
       const inProgress = storyService.list({ status: 'in_progress' });
       expect(inProgress).toHaveLength(1);
       expect(inProgress[0].title).toBe('With tasks');
+    });
+
+    it('filters by archived state', async () => {
+      await storyService.create({ title: 'Active story', description: 'desc', created_by: 'human' });
+      await storyService.create({ title: 'Archived story', description: 'desc', created_by: 'human' });
+      await storyService.update('STORY-2', { archived: true, archived_at: new Date().toISOString() });
+
+      const archived = storyService.list({ archived: true });
+      expect(archived).toHaveLength(1);
+      expect(archived[0].id).toBe('STORY-2');
+    });
+  });
+
+  describe('archive / restore', () => {
+    it('archives a completed story and its active tasks', async () => {
+      const story = await storyService.create({ title: 'Story', description: 'desc', created_by: 'human' });
+      const taskA = await taskService.create({ title: 'Task A', description: 'desc', created_by: 'human' });
+      const taskB = await taskService.create({ title: 'Task B', description: 'desc', created_by: 'human' });
+
+      await storyService.addTask(story.id, taskA.id);
+      await storyService.addTask(story.id, taskB.id);
+      await taskService.transitionPhase(taskA.id, 'done');
+      await taskService.transitionPhase(taskB.id, 'done');
+
+      const result = await storyService.archive(story.id);
+
+      expect(result.archived_task_ids).toEqual([taskA.id, taskB.id]);
+      expect(result.story.archived).toBe(true);
+      expect(result.story.execution.archived_task_ids).toEqual([taskA.id, taskB.id]);
+      expect(taskService.getById(taskA.id)?.archived).toBe(true);
+      expect(taskService.getById(taskB.id)?.archived).toBe(true);
+
+      const db = getDb(mark2Dir);
+      const row = db.select().from(stories).where(eq(stories.id, story.id)).get();
+      expect(row?.archived).toBe(true);
+
+      const { data } = reader.readStory(story.id);
+      expect(data?.archived).toBe(true);
+      expect(data?.execution.archived_task_ids).toEqual([taskA.id, taskB.id]);
+    });
+
+    it('restores only tasks archived by the story archive action', async () => {
+      const story = await storyService.create({ title: 'Story', description: 'desc', created_by: 'human' });
+      const taskA = await taskService.create({ title: 'Task A', description: 'desc', created_by: 'human' });
+      const taskB = await taskService.create({ title: 'Task B', description: 'desc', created_by: 'human' });
+
+      await storyService.addTask(story.id, taskA.id);
+      await storyService.addTask(story.id, taskB.id);
+      await taskService.transitionPhase(taskA.id, 'done');
+      await taskService.transitionPhase(taskB.id, 'done');
+      await taskService.archive(taskB.id);
+
+      const archived = await storyService.archive(story.id);
+      expect(archived.archived_task_ids).toEqual([taskA.id]);
+
+      const restored = await storyService.restore(story.id);
+      expect(restored.restored_task_ids).toEqual([taskA.id]);
+      expect(restored.story.archived).toBe(false);
+      expect(restored.story.execution.archived_task_ids).toEqual([]);
+      expect(taskService.getById(taskA.id)?.archived).toBe(false);
+      expect(taskService.getById(taskB.id)?.archived).toBe(true);
+    });
+
+    it('rejects archiving an incomplete story', async () => {
+      const story = await storyService.create({ title: 'Story', description: 'desc', created_by: 'human' });
+      const task = await taskService.create({ title: 'Task', description: 'desc', created_by: 'human' });
+      await storyService.addTask(story.id, task.id);
+
+      await expect(storyService.archive(story.id)).rejects.toThrow('completed');
+    });
+
+    it('rejects adding tasks to an archived story', async () => {
+      const story = await storyService.create({ title: 'Story', description: 'desc', created_by: 'human' });
+      await storyService.update(story.id, { archived: true, archived_at: new Date().toISOString() });
+
+      await expect(storyService.addTask(story.id, 'TASK-1')).rejects.toThrow('archived');
     });
   });
 });

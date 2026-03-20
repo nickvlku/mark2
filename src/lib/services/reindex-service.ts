@@ -87,6 +87,8 @@ export class ReindexService {
         created_by: story.created_by,
         created_at: story.created_at,
         updated_at: story.updated_at,
+        archived: story.archived ?? false,
+        archived_at: story.archived_at ?? null,
         tasks_json: JSON.stringify(story.tasks),
         execution_json: JSON.stringify(story.execution ?? {}),
       }).run();
@@ -248,6 +250,8 @@ export class ReindexService {
             created_by: data.created_by,
             created_at: data.created_at,
             updated_at: data.updated_at,
+            archived: data.archived ?? false,
+            archived_at: data.archived_at ?? null,
             tasks_json: JSON.stringify(data.tasks),
             execution_json: JSON.stringify(data.execution ?? {}),
           }).run();

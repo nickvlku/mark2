@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import type { Task, Phase, Story } from '@/types';
+import type { Task, Phase, Story, StoryWithStatus } from '@/types';
 import { useTasks } from '@/hooks/useTasks';
 import { useStories } from '@/hooks/useStories';
 import { useBoardPan } from '@/hooks/useBoardPan';
@@ -40,6 +40,7 @@ export function Board() {
   const [viewMode, setViewMode] = useState<ViewMode>('flat');
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [selectedStoryForSidebar, setSelectedStoryForSidebar] = useState<string | null>(null);
+  const [selectedStorySnapshot, setSelectedStorySnapshot] = useState<StoryWithStatus | null>(null);
 
   const [showArchived, setShowArchived] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -55,7 +56,7 @@ export function Board() {
   // Fetch all tasks (no story filter in grouped mode)
   const filters = { archived: showArchived };
   const { tasks, mutate: mutateTasks } = useTasks(filters);
-  const { stories, mutate: mutateStories } = useStories();
+  const { stories, mutate: mutateStories } = useStories(showArchived);
   const { userEmail } = useConfig();
 
   // Load view mode from localStorage on mount
@@ -77,7 +78,7 @@ export function Board() {
 
   // Find the story for sidebar
   const selectedStory = selectedStoryForSidebar
-    ? stories.find((s: Story) => s.id === selectedStoryForSidebar) ?? null
+    ? stories.find((s: StoryWithStatus) => s.id === selectedStoryForSidebar) ?? selectedStorySnapshot
     : null;
 
   // Monitor window focus state for notifications
@@ -173,7 +174,7 @@ export function Board() {
   const orderedSections = useMemo(() => {
     if (!groupedTasks) return [];
 
-    const sections: Array<{ key: string; story: Story | null; tasks: Task[] }> = [];
+    const sections: Array<{ key: string; story: StoryWithStatus | null; tasks: Task[] }> = [];
 
     // Add unassigned first
     const unassignedTasks = groupedTasks.get(UNASSIGNED_KEY) || [];
@@ -282,12 +283,24 @@ export function Board() {
 
   const handleCloseStorySidebar = useCallback(() => {
     setSelectedStoryForSidebar(null);
+    setSelectedStorySnapshot(null);
   }, []);
 
   const handleUpdateDetail = useCallback(() => {
     mutateTasks();
     mutateStories();
   }, [mutateTasks, mutateStories]);
+
+  useEffect(() => {
+    if (!selectedStoryForSidebar) {
+      return;
+    }
+
+    const currentStory = stories.find((story) => story.id === selectedStoryForSidebar) ?? null;
+    if (currentStory) {
+      setSelectedStorySnapshot(currentStory);
+    }
+  }, [selectedStoryForSidebar, stories]);
 
   const handleArchiveTask = useCallback((taskId: string) => {
     const task = tasks.find((t: Task) => t.id === taskId);
@@ -479,7 +492,10 @@ export function Board() {
                 tasks={sectionTasks}
                 isCollapsed={collapsedSections.has(key)}
                 onToggleCollapse={() => toggleSectionCollapse(key)}
-                onStoryClick={story ? () => setSelectedStoryForSidebar(story.id) : undefined}
+                onStoryClick={story ? () => {
+                  setSelectedStoryForSidebar(story.id);
+                  setSelectedStorySnapshot(story);
+                } : undefined}
                 onCardClick={handleCardClick}
                 onArchive={showArchived ? undefined : handleArchiveTask}
                 onRestore={showArchived ? handleRestoreTask : undefined}
