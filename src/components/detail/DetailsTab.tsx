@@ -220,6 +220,12 @@ export function DetailsTab({ task, onUpdate }: DetailsTabProps) {
                 <dd className="text-sm font-medium text-text-primary font-mono">{task.story_id}</dd>
               </div>
             )}
+            {(task as any).branch_name && (
+              <div className="flex justify-between items-center">
+                <dt className="text-sm text-text-secondary">Branch</dt>
+                <dd className="text-sm font-medium text-text-primary font-mono truncate ml-4">{(task as any).branch_name}</dd>
+              </div>
+            )}
             <div className="flex justify-between items-center">
               <dt className="text-sm text-text-secondary">Loop count</dt>
               <dd className="text-sm text-text-primary">{task.loop_count}</dd>
