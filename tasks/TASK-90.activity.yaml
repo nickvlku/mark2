@@ -7,3 +7,18 @@ entries:
     metadata:
       old_phase: pending
       new_phase: design
+  - timestamp: 2026-03-19T19:53:56.500Z
+    source: agent
+    type: note
+    message: "[in_progress] Analyzing TASK-90 requirements and repository context for story archive design."
+  - timestamp: 2026-03-19T19:59:12.901Z
+    source: agent
+    type: note
+    message: "[completed] Design completed for completed-story archive flow, including schema, API, service, UI, and test changes."
+  - timestamp: 2026-03-19T19:59:12.957Z
+    source: hook
+    type: phase_change
+    message: End token "[DESIGN_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[DESIGN_COMPLETED]"
+      phase: design
