@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { createTaskService } from '@/lib/services/factory';
+import { createTaskService, createCloneService } from '@/lib/services/factory';
 import { isValidTaskId } from '@/lib/utils/route-validation';
 
 const service = createTaskService();
+const cloneService = createCloneService();
 
 export async function GET(
   request: Request,
@@ -25,7 +26,10 @@ export async function GET(
     // Include session status
     const session_status = await service.getSessionStatus(id);
 
-    return NextResponse.json({ task: { ...task, session_status } });
+    // Include branch name if a clone exists
+    const branch_name = cloneService.cloneExists(id) ? cloneService.getBranchName(id) : undefined;
+
+    return NextResponse.json({ task: { ...task, session_status, branch_name } });
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message ?? 'Failed to get task' },
