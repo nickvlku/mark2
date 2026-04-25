@@ -31,6 +31,12 @@ artifacts:
     mime_type: text/markdown
     created_at: 2026-03-20T18:26:54.096Z
     source: agent
+  - name: review
+    phase: code_review
+    path: code_review-review-1774033228404-yjqlna.md
+    mime_type: text/markdown
+    created_at: 2026-03-20T19:00:28.405Z
+    source: agent
 ports: []
 worktrees: {}
 created_by: human
@@ -38,7 +44,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-03-19T19:53:37.419Z
-updated_at: 2026-03-20T18:57:26.937Z
+updated_at: 2026-03-20T19:00:28.405Z
 phase_entered_at: 2026-03-20T18:57:26.937Z
 loop_count: 0
 archived: false
