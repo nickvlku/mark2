@@ -96,6 +96,10 @@ export class CodexCLIAdapter implements CLIAdapter {
     };
   }
 
+  getPromptFilePath(_params: AgentInvocationParams): string | undefined {
+    return undefined;
+  }
+
   /**
    * Write a debug copy of the mark2 MCP server config next to the clone.
    * Codex receives the same config via `-c mcp_servers...` overrides.
