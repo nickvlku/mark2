@@ -7,3 +7,29 @@ entries:
     metadata:
       old_phase: pending
       new_phase: design
+  - timestamp: 2026-04-25T23:12:46.624Z
+    source: agent
+    type: note
+    message: "Design phase started: reviewing codex adapter implementation and existing unit tests to draft test coverage design."
+  - timestamp: 2026-04-25T23:14:51.857Z
+    source: agent
+    type: artifact
+    message: "Saved design artifact for Codex adapter basic unit tests. Recommendation: add explicit getPromptFilePath() to CodexCLIAdapter and create focused tests/unit/codex-adapter.test.ts contract tests."
+  - timestamp: 2026-04-25T23:14:51.868Z
+    source: agent
+    type: note
+    message: "Design notes: existing tests/unit/codex-cli-adapter.test.ts already overlaps with requested coverage; design keeps that file intact and adds a smaller contract test file to satisfy task scope with minimal churn."
+  - timestamp: 2026-04-25T23:14:55.872Z
+    source: hook
+    type: phase_change
+    message: End token "[DESIGN_COMPLETED]" detected via Claude Code hook
+    metadata:
+      token: "[DESIGN_COMPLETED]"
+      phase: design
+  - timestamp: 2026-04-25T23:16:32.619Z
+    source: system
+    type: phase_change
+    message: Phase transitioned from design to coding
+    metadata:
+      old_phase: design
+      new_phase: coding

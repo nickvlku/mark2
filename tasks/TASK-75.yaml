@@ -1,12 +1,18 @@
 id: TASK-75
 title: Write unit tests for adapter properties and basic methods
 description: Create tests/unit/codex-adapter.test.ts. Test toolId, supportsMCP, supportsNaming properties. Test getEnvironment() returns correct variables. Test shell quoting with special characters. Test getPromptFilePath() returns undefined.
-phase: design
+phase: coding
 phase_agents: {}
 phase_overrides: {}
 blockers: []
 priority: P0
-artifacts: []
+artifacts:
+  - name: design
+    phase: design
+    path: design-design-1777158887002-on5ydy.md
+    mime_type: text/markdown
+    created_at: 2026-04-25T23:14:47.003Z
+    source: agent
 ports: []
 worktrees: {}
 created_by: plan
@@ -15,7 +21,7 @@ merge_strategy: squash
 auto_advance: true
 auto_approve: false
 created_at: 2026-02-08T19:00:36.982Z
-updated_at: 2026-04-25T23:11:58.784Z
-phase_entered_at: 2026-04-25T23:11:58.783Z
+updated_at: 2026-04-25T23:16:32.619Z
+phase_entered_at: 2026-04-25T23:16:32.619Z
 loop_count: 0
 archived: false
